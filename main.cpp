@@ -17,10 +17,43 @@ public:
 private:
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
-    GLFWwindow * window;
-    VkInstance instance;
+    const std::vector<const char*> validationLayers = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+    #ifdef NDEBUG
+    const bool enableValidationLayers = false;
+    #else
+    const bool enableValidationLayers = true;
+    #endif
+    GLFWwindow *window = nullptr;
+    VkInstance instance = nullptr;
 
+    bool checkValidationLayerSupport() {
+        uint32_t layerCount;
+        vkEnumerateInstanceLayerProperties(&layerCount,nullptr);
+        std::vector<VkLayerProperties> availableLayers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount,availableLayers.data());
+
+        for (const auto& layerName : validationLayers) {
+            bool layerFound = false;
+            for (const auto& layerProperties : availableLayers) {
+                if (strcmp(layerName, layerName) == 0) {
+                    layerFound = true;
+                    break;
+                }
+            }
+            if(!layerFound)return false;
+
+        }
+        return true;
+    }
     void createInstance() {
+#ifndef NDEBUG
+        // ReSharper disable once CppDFAConstantConditions
+        if(enableValidationLayers && !checkValidationLayerSupport())
+            throw std::runtime_error("Validation layers requested, but not available!");
+#endif
+
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = "OsmiumGame";
@@ -40,6 +73,11 @@ private:
         createInfo.ppEnabledExtensionNames = glfwExtensions;
 
         createInfo.enabledLayerCount = 0;
+        // ReSharper disable once CppDFAConstantConditions
+        if(enableValidationLayers) {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+            createInfo.ppEnabledLayerNames = validationLayers.data();
+        }
 
         if(vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance");
@@ -60,8 +98,8 @@ private:
             for(const auto& extension : extensions)
                 if(std::string(extension.extensionName) == glfwExtensionName)
                     found = true;
-            if(!found) throw std::runtime_error("failed to find required extension");
-            std::cout << '\t' << glfwExtensions[i] << ' ' << (found ? "found" : "not found") << std::endl;
+            if(!found) throw std::runtime_error("failed to find required extension: " + glfwExtensionName);
+            std::cout << '\t' << glfwExtensions[i] << ' ' << "found" << std::endl;
         }
     };
 
@@ -74,11 +112,10 @@ private:
         }
     }
     void cleanup() {
+        vkDestroyInstance(instance, nullptr);
         glfwDestroyWindow(window);
         glfwTerminate();
     }
-    // ReSharper disable once CppUninitializedNonStaticDataMember
-
 
     void initWindow() {
         glfwInit();
