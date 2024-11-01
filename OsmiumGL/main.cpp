@@ -1,10 +1,16 @@
 #define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#ifndef NDEBUG
+// #define Vk_VALIDATION_LAYER
+#endif
 
+#include <GLFW/glfw3.h>
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
+#include <cstring>
 #include <vector>
+
+#include "DebugUtils/InitUtilVk.h"
 
 class HelloTriangleApplication {
 public:
@@ -17,18 +23,16 @@ public:
 private:
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
+
+    GLFWwindow *window = nullptr;
+    VkInstance instance = nullptr;
+#ifdef Vk_VALIDATION_LAYER
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
-    #ifdef NDEBUG
-    const bool enableValidationLayers = false;
-    #else
-    const bool enableValidationLayers = true;
-    #endif
-    GLFWwindow *window = nullptr;
-    VkInstance instance = nullptr;
 
-    bool checkValidationLayerSupport() {
+
+    [[nodiscard]] bool checkValidationLayerSupport() const {//TODO: Move to utility folder
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount,nullptr);
         std::vector<VkLayerProperties> availableLayers(layerCount);
@@ -36,8 +40,9 @@ private:
 
         for (const auto& layerName : validationLayers) {
             bool layerFound = false;
+            // ReSharper disable once CppUseStructuredBinding
             for (const auto& layerProperties : availableLayers) {
-                if (strcmp(layerName, layerName) == 0) {
+                if (strcmp(layerName, layerProperties.layerName) == 0) {
                     layerFound = true;
                     break;
                 }
@@ -47,10 +52,10 @@ private:
         }
         return true;
     }
+#endif
     void createInstance() {
-#ifndef NDEBUG
-        // ReSharper disable once CppDFAConstantConditions
-        if(enableValidationLayers && !checkValidationLayerSupport())
+#ifdef Vk_VALIDATION_LAYER
+        if(!checkValidationLayerSupport())
             throw std::runtime_error("Validation layers requested, but not available!");
 #endif
 
@@ -66,18 +71,16 @@ private:
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
 
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        auto requiredExtensions = vkInitUtils::getRequiredExtensions();
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
+        createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-        createInfo.enabledExtensionCount = glfwExtensionCount;
-        createInfo.ppEnabledExtensionNames = glfwExtensions;
-
-        createInfo.enabledLayerCount = 0;
-        // ReSharper disable once CppDFAConstantConditions
-        if(enableValidationLayers) {
+        #ifdef Vk_VALIDATION_LAYER
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
-        }
+        #else
+        createInfo.enabledLayerCount = 0;
+        #endif
 
         if(vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance");
@@ -92,14 +95,14 @@ private:
         }
         std::cout << std::endl;
         std::cout << "required extensions: " << std::endl;
-        for(int i= 0; i < glfwExtensionCount; i++) {
+        for(int i= 0; i < static_cast<uint32_t>(requiredExtensions.size()); i++) {
             bool found = false;
-            std::string glfwExtensionName(glfwExtensions[i]);
+            std::string glfwExtensionName(requiredExtensions[i]);
             for(const auto& extension : extensions)
                 if(std::string(extension.extensionName) == glfwExtensionName)
                     found = true;
             if(!found) throw std::runtime_error("failed to find required extension: " + glfwExtensionName);
-            std::cout << '\t' << glfwExtensions[i] << ' ' << "found" << std::endl;
+            std::cout << '\t' << requiredExtensions[i] << ' ' << "found" << std::endl;
         }
     };
 
@@ -111,6 +114,7 @@ private:
             glfwPollEvents();
         }
     }
+    // ReSharper disable once CppMemberFunctionMayBeConst
     void cleanup() {
         vkDestroyInstance(instance, nullptr);
         glfwDestroyWindow(window);
@@ -126,13 +130,12 @@ private:
 };
 
 int main() {
-    HelloTriangleApplication app;
     try {
+        HelloTriangleApplication app;
         app.run();
     }catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
     }
-
     return EXIT_SUCCESS;
 }
