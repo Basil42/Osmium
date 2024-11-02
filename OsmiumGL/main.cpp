@@ -77,8 +77,11 @@ private:
         createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
         #ifdef Vk_VALIDATION_LAYER
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
+        VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo{};
+        populateDebugMessengerCreateInfo(debugMessengerCreateInfo);
+        createInfo.pNext = &debugMessengerCreateInfo;
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
         #else
         createInfo.enabledLayerCount = 0;
         #endif
@@ -107,20 +110,30 @@ private:
         }
     };
 
+#ifdef Vk_VALIDATION_LAYER
+    static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                                 | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                                 | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        createInfo.pfnUserCallback = vkInitUtils::debugCallback;
+    }
+#endif
+
+
     void setupDebugMessenger() {
 #ifndef Vk_VALIDATION_LAYER
         return;
 #else
         VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-        | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = vkInitUtils::debugCallback;
+        populateDebugMessengerCreateInfo(createInfo);
         createInfo.pUserData = nullptr;
+        if(vkInitUtils::CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create debug messenger");
+        }
 #endif
 
     };
@@ -136,6 +149,9 @@ private:
     }
     // ReSharper disable once CppMemberFunctionMayBeConst
     void cleanup() {
+#ifdef Vk_VALIDATION_LAYER
+        vkInitUtils::DestroyDebugUtilsMessengerEXT(instance,debugMessenger,nullptr);
+#endif
         vkDestroyInstance(instance, nullptr);
         glfwDestroyWindow(window);
         glfwTerminate();
