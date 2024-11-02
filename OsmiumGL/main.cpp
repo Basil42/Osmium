@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <vector>
 
 #include "DebugUtils/InitUtilVk.h"
@@ -27,6 +28,7 @@ private:
     GLFWwindow *window = nullptr;
     VkInstance instance = nullptr;
     VkDebugUtilsMessengerEXT debugMessenger = nullptr;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 #ifdef Vk_VALIDATION_LAYER
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
@@ -138,9 +140,34 @@ private:
 
     };
 
+    void pickPhysicalDevice() {
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(instance,&deviceCount,nullptr);
+        if(deviceCount == 0) {
+            throw std::runtime_error("failed to find GPUs with Vulkan support");
+        }
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance,&deviceCount,devices.data());
+        std::multimap<int, VkPhysicalDevice> CandidateDevices;
+        for(uint32_t i = 0; i < deviceCount; i++) {
+            int Score = vkInitUtils::RateDeviceSuitability(devices[i]);
+            CandidateDevices.insert(std::make_pair(Score, devices[i]));
+
+        }
+        if(CandidateDevices.rbegin()->first > 0) {
+            physicalDevice = CandidateDevices.rbegin()->second;
+            VkPhysicalDeviceProperties deviceProperties;
+            vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+            std::cout << "picked " << deviceProperties.deviceName << std::endl;
+        }
+        else throw std::runtime_error("failed to find a suitable GPU");
+
+    }
+
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
+        pickPhysicalDevice();
     }
     void mainLoop() {
         while(!glfwWindowShouldClose(window)) {

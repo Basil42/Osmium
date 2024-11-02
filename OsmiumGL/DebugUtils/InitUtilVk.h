@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <optional>
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
@@ -46,4 +47,49 @@ namespace vkInitUtils {
         if(func != nullptr)
             func(instance, debugMessenger, pAllocator);
     }
+    struct QueueFamilyIndices {
+        std::optional<uint32_t> graphicsFamily;
+        bool isComplete() const {
+            return graphicsFamily.has_value();
+        }
+    };
+    inline QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physicalDevice) {
+        QueueFamilyIndices indices;
+        uint32_t graphicsFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &graphicsFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamilies(graphicsFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &graphicsFamilyCount, queueFamilies.data());
+        int i = 0;
+        for(const auto queueFamily : queueFamilies) {
+            if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                indices.graphicsFamily = i;
+                if(indices.isComplete())break;
+            }
+            i++;
+        }
+        return indices;
+    }
+    inline int RateDeviceSuitability(VkPhysicalDevice device) {
+        VkPhysicalDeviceProperties deviceProperties;
+        VkPhysicalDeviceFeatures deviceFeatures;
+        vkGetPhysicalDeviceProperties(device, &deviceProperties);
+        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+
+        std::cout << "evaluating device " << deviceProperties.deviceName << ": ";
+        int score = 0;
+        if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 1000;
+        score += deviceProperties.limits.maxImageDimension2D;
+        if(!findQueueFamilies(device).isComplete()) {
+            std::cout << "Missing required queue families, scoring it 0." << std::endl;
+            return 0;
+        }
+        if(!deviceFeatures.geometryShader) {
+            std::cout << "No geometry shader, scoring it 0." << std::endl;
+            return 0;
+        }
+        std::cout << "scored " << score << std::endl;
+        return score;
+    }
+
 }
