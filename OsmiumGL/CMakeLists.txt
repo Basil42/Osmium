@@ -8,7 +8,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 endif ()
 
 add_executable(OsmiumGL main.cpp
-        DebugUtils/InitUtilVk.h)
+        DebugUtils/InitUtilVk.h
+        main.cpp)
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glfw)
 find_package(glm CONFIG REQUIRED)

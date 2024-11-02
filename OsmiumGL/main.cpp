@@ -26,6 +26,7 @@ private:
 
     GLFWwindow *window = nullptr;
     VkInstance instance = nullptr;
+    VkDebugUtilsMessengerEXT debugMessenger = nullptr;
 #ifdef Vk_VALIDATION_LAYER
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
@@ -106,8 +107,27 @@ private:
         }
     };
 
+    void setupDebugMessenger() {
+#ifndef Vk_VALIDATION_LAYER
+        return;
+#else
+        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+        | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+        | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        createInfo.pfnUserCallback = vkInitUtils::debugCallback;
+        createInfo.pUserData = nullptr;
+#endif
+
+    };
+
     void initVulkan() {
         createInstance();
+        setupDebugMessenger();
     }
     void mainLoop() {
         while(!glfwWindowShouldClose(window)) {
