@@ -2,3 +2,5 @@
 /cmake-build-debug/
 /cmake-build-release/
 /cmake-build-release-visual-studio/
+/OsmiumGL/cmake-build-release/
+/OsmiumGL/cmake-build-debug/
