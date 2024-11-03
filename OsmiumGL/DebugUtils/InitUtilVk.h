@@ -49,11 +49,13 @@ namespace vkInitUtils {
     }
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
+        std::optional<uint32_t> presentationFamily;
         bool isComplete() const {
-            return graphicsFamily.has_value();
+            return graphicsFamily.has_value()
+            && presentationFamily.has_value();
         }
     };
-    inline QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physicalDevice) {
+    inline QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
         QueueFamilyIndices indices;
         uint32_t graphicsFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &graphicsFamilyCount, nullptr);
@@ -65,11 +67,50 @@ namespace vkInitUtils {
                 indices.graphicsFamily = i;
                 if(indices.isComplete())break;
             }
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,i,surface,&presentSupport);
+            if(presentSupport)indices.presentationFamily = i;
             i++;
         }
         return indices;
     }
-    inline int RateDeviceSuitability(VkPhysicalDevice device) {
+
+    inline bool checkDeviceExtensionSupport(VkPhysicalDevice device, std::vector<const char*> requiredDeviceExtensions) {
+        uint32_t extensionCount;
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+        std::set<std::string> requiredExtensions(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end());
+        for(const auto& extension : availableExtensions) {
+            requiredExtensions.erase(extension.extensionName);
+        }
+        return requiredExtensions.empty();
+    }
+
+    struct SwapChainSupportDetails {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> presentModes;
+    };
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
+        SwapChainSupportDetails details;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+        uint32_t formatCount;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+        if(formatCount != 0) {
+            details.formats.resize(formatCount);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
+        }
+        uint32_t presentModeCount;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+        if(presentModeCount != 0) {
+            details.presentModes.resize(presentModeCount);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device,surface, &presentModeCount, details.presentModes.data());
+        }
+        return details;
+    }
+    inline int RateDeviceSuitability(const VkPhysicalDevice device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
         VkPhysicalDeviceProperties deviceProperties;
         VkPhysicalDeviceFeatures deviceFeatures;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -80,7 +121,7 @@ namespace vkInitUtils {
         int score = 0;
         if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 1000;
         score += deviceProperties.limits.maxImageDimension2D;
-        if(!findQueueFamilies(device).isComplete()) {
+        if(!findQueueFamilies(device, surface).isComplete()) {
             std::cout << "Missing required queue families, scoring it 0." << std::endl;
             return 0;
         }
@@ -88,8 +129,17 @@ namespace vkInitUtils {
             std::cout << "No geometry shader, scoring it 0." << std::endl;
             return 0;
         }
+        if(!checkDeviceExtensionSupport(device,requiredDeviceExtensions)) {
+            std::cout << "Device does not support required device extensions, scoring it 0" << std::endl;
+        }
+        SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device,surface);
+        if(swapChainSupport.formats.empty() || swapChainSupport.presentModes.empty()) {
+            std::cout << "Missing swap chain support, scoring it 0" << std::endl;
+            return 0;
+        }
         std::cout << "scored " << score << std::endl;
         return score;
     }
+
 
 }
