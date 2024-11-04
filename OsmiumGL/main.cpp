@@ -39,7 +39,7 @@ private:
     std::vector<VkImage> swapChainImages;
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
-
+    std::vector<VkImageView> swapChainImageViews;
 
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -268,6 +268,31 @@ private:
         swapChainExtent = extent;
     }
 
+    void createImageViews() {
+        swapChainImageViews.resize(swapChainImages.size());
+        for(uint32_t i = 0; i < swapChainImages.size(); i++) {
+            VkImageViewCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            createInfo.image = swapChainImages[i];
+            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            createInfo.format = swapChainImageFormat;
+            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.subresourceRange = VkImageSubresourceRange {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+                };
+            if(vkCreateImageView(device,&createInfo,nullptr,&swapChainImageViews[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create image views");
+            }
+        }
+    }
+
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
@@ -275,6 +300,7 @@ private:
         pickPhysicalDevice();
         createLogicalDevice();
         createSwapChain();
+        createImageViews();
     }
     void mainLoop() {
         while(!glfwWindowShouldClose(window)) {
@@ -283,6 +309,9 @@ private:
     }
     // ReSharper disable once CppMemberFunctionMayBeConst
     void cleanup() {
+        for(auto imageview : swapChainImageViews) {
+            vkDestroyImageView(device,imageview,nullptr);
+        }
         vkDestroySwapchainKHR(device,swapChain,nullptr);
         vkDestroyDevice(device, nullptr);
 #ifdef Vk_VALIDATION_LAYER
