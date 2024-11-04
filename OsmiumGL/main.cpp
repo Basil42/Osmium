@@ -634,6 +634,7 @@ private:
             glfwPollEvents();
             drawFrame();
         }
+        vkDeviceWaitIdle(device);
     }
     // ReSharper disable once CppMemberFunctionMayBeConst
     void cleanup() {
