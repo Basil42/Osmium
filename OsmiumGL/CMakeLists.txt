@@ -9,7 +9,8 @@ endif ()
 
 add_executable(OsmiumGL main.cpp
         Initialization/SwapChains/SwapChainUtilities.h
-        DebugUtils/InitUtilVk.h)
+        DebugUtils/InitUtilVk.h
+        ShaderUtilities/ShaderUtilities.h)
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glfw)
 find_package(glm CONFIG REQUIRED)
