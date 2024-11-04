@@ -16,7 +16,8 @@
 #include "Initialization/SwapChains/SwapChainUtilities.h"
 #include "ShaderUtilities/ShaderUtilities.h"
 
-class HelloTriangleApplication {
+// ReSharper disable once CppClassNeedsConstructorBecauseOfUninitializedMember
+class HelloTriangleApplication { // NOLINT(*-pro-type-member-init)
 public:
     void run() {
         initWindow();
@@ -38,12 +39,15 @@ private:
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkSwapchainKHR swapChain = VK_NULL_HANDLE;
     std::vector<VkImage> swapChainImages;
+    // ReSharper disable once CppUninitializedNonStaticDataMember
     VkFormat swapChainImageFormat;
+    // ReSharper disable once CppUninitializedNonStaticDataMember
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     VkPipeline graphicsPipeline = VK_NULL_HANDLE;
+    std::vector<VkFramebuffer> swapChainFrameBuffers;
 
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -115,19 +119,19 @@ private:
         std::vector<VkExtensionProperties> extensions(extensionsCount);
         vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, extensions.data());
         std::cout << "available extensions: " << std::endl;
-        for(const auto& extension : extensions) {
-            std::cout << '\t' << extension.extensionName << std::endl;
+        for(const auto&[extensionName, specVersion] : extensions) {
+            std::cout << '\t' << extensionName << std::endl;
         }
         std::cout << std::endl;
         std::cout << "required extensions: " << std::endl;
-        for(int i= 0; i < static_cast<uint32_t>(requiredExtensions.size()); i++) {
+        for(const auto & requiredExtension : requiredExtensions) {
             bool found = false;
-            std::string glfwExtensionName(requiredExtensions[i]);
+            std::string glfwExtensionName(requiredExtension);
             for(const auto& extension : extensions)
                 if(std::string(extension.extensionName) == glfwExtensionName)
                     found = true;
             if(!found) throw std::runtime_error("failed to find required extension: " + glfwExtensionName);
-            std::cout << '\t' << requiredExtensions[i] << ' ' << "found" << std::endl;
+            std::cout << '\t' << requiredExtension << ' ' << "found" << std::endl;
         }
     };
 
@@ -474,6 +478,27 @@ private:
 
     }
 
+    void createFrameBuffer() {
+        swapChainFrameBuffers.resize(swapChainImageViews.size());
+        for(uint32_t i = 0; i < swapChainImageViews.size(); i++) {
+            VkImageView attachment[] = {swapChainImageViews[i]};
+
+            VkFramebufferCreateInfo framebufferCreateInfo = {
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .renderPass = renderPass,
+                .attachmentCount = 1,
+                .pAttachments = attachment,
+                .width = swapChainExtent.width,
+                .height = swapChainExtent.height,
+                .layers = 1
+        };
+            if(vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &swapChainFrameBuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create framebuffer");
+            }
+        }
+
+    }
+
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
@@ -484,6 +509,7 @@ private:
         createImageViews();
         createRenderPass();
         createGraphicsPipeline();
+        createFrameBuffer();
     }
     void mainLoop() {
         while(!glfwWindowShouldClose(window)) {
@@ -492,11 +518,14 @@ private:
     }
     // ReSharper disable once CppMemberFunctionMayBeConst
     void cleanup() {
+        for(const auto framebuffer : swapChainFrameBuffers) {
+            vkDestroyFramebuffer(device,framebuffer,nullptr);
+        }
         vkDestroyPipeline(device,graphicsPipeline,nullptr);
         vkDestroyPipelineLayout(device,pipelineLayout,nullptr);
         vkDestroyRenderPass(device,renderPass,nullptr);
 
-        for(auto imageview : swapChainImageViews) {
+        for(const auto imageview : swapChainImageViews) {
             vkDestroyImageView(device,imageview,nullptr);
         }
         vkDestroySwapchainKHR(device,swapChain,nullptr);
