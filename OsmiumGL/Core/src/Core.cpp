@@ -19,14 +19,14 @@
 #include "ShaderUtilities.h"
 #include "SwapChains/SwapChainUtilities.h"
 
-void HelloTriangleApplication::run() {
+void OsmiumGLInstance::run() {
     initWindow();
     initVulkan();
     mainLoop();
     cleanup();
 }
 
-bool HelloTriangleApplication::checkValidationLayerSupport() const {
+bool OsmiumGLInstance::checkValidationLayerSupport() const {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
     std::vector<VkLayerProperties> availableLayers(layerCount);
@@ -46,7 +46,7 @@ bool HelloTriangleApplication::checkValidationLayerSupport() const {
     return true;
 }
 
-void HelloTriangleApplication::createInstance() {
+void OsmiumGLInstance::createInstance() {
 #ifdef Vk_VALIDATION_LAYER
     if (!checkValidationLayerSupport())
         throw std::runtime_error("Validation layers requested, but not available!");
@@ -101,7 +101,7 @@ void HelloTriangleApplication::createInstance() {
     }
 }
 
-void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
+void OsmiumGLInstance::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
                                  | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
@@ -112,7 +112,7 @@ void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMess
     createInfo.pfnUserCallback = vkInitUtils::debugCallback;
 }
 
-void HelloTriangleApplication::setupDebugMessenger() {
+void OsmiumGLInstance::setupDebugMessenger() {
 #ifndef Vk_VALIDATION_LAYER
         return;
 #else
@@ -125,7 +125,7 @@ void HelloTriangleApplication::setupDebugMessenger() {
 #endif
 }
 
-void HelloTriangleApplication::pickPhysicalDevice() {
+void OsmiumGLInstance::pickPhysicalDevice() {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
     if (deviceCount == 0) {
@@ -146,7 +146,7 @@ void HelloTriangleApplication::pickPhysicalDevice() {
     } else throw std::runtime_error("failed to find a suitable GPU");
 }
 
-void HelloTriangleApplication::createLogicalDevice() {
+void OsmiumGLInstance::createLogicalDevice() {
     vkInitUtils::QueueFamilyIndices indices = vkInitUtils::findQueueFamilies(physicalDevice, surface);
 
     std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos{};
@@ -181,13 +181,13 @@ void HelloTriangleApplication::createLogicalDevice() {
     vkGetDeviceQueue(device, indices.presentationFamily.value(), 0, &presentQueue);
 }
 
-void HelloTriangleApplication::createLogicalSurface() {
+void OsmiumGLInstance::createLogicalSurface() {
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create window surface");
     }
 }
 
-void HelloTriangleApplication::createSwapChain() {
+void OsmiumGLInstance::createSwapChain() {
     vkInitUtils::SwapChainSupportDetails swapChainSupport = vkInitUtils::querySwapChainSupport(physicalDevice, surface);
     VkSurfaceFormatKHR surfaceFormat = VkSwapChainUtils::chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = VkSwapChainUtils::chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -234,7 +234,7 @@ void HelloTriangleApplication::createSwapChain() {
     swapChainExtent = extent;
 }
 
-void HelloTriangleApplication::createImageViews() {
+void OsmiumGLInstance::createImageViews() {
     swapChainImageViews.resize(swapChainImages.size());
     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
         VkImageViewCreateInfo createInfo{};
@@ -259,7 +259,7 @@ void HelloTriangleApplication::createImageViews() {
     }
 }
 
-void HelloTriangleApplication::createGraphicsPipeline() {
+void OsmiumGLInstance::createGraphicsPipeline() {
     auto vertShaderCode = ShaderUtils::readfile(
         "C:/Users/nicolas.gerard/CLionProjects/Osmium/OsmiumGL/TestShaders/trivialTriangleVert.spv");
     auto fragShaderCode = ShaderUtils::readfile(
@@ -281,11 +281,14 @@ void HelloTriangleApplication::createGraphicsPipeline() {
 
 
     VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = {};
+
+    auto bindingDescription = TutoVertex::getBindingDescription();
+    auto attributeDescription = TutoVertex::getAttributeDescriptions();
     vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
-    vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
-    vertexInputCreateInfo.pVertexBindingDescriptions = nullptr;
+    vertexInputCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescription.size());
+    vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescription.data();
+    vertexInputCreateInfo.vertexBindingDescriptionCount = 1;
+    vertexInputCreateInfo.pVertexBindingDescriptions = &bindingDescription;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
     inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -407,7 +410,7 @@ void HelloTriangleApplication::createGraphicsPipeline() {
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
 }
 
-void HelloTriangleApplication::createRenderPass() {
+void OsmiumGLInstance::createRenderPass() {
     VkAttachmentDescription colorAttachment = {
         .format = swapChainImageFormat,
         .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -451,7 +454,7 @@ void HelloTriangleApplication::createRenderPass() {
     }
 }
 
-void HelloTriangleApplication::createFrameBuffer() {
+void OsmiumGLInstance::createFrameBuffer() {
     swapChainFrameBuffers.resize(swapChainImageViews.size());
 
 
@@ -473,7 +476,7 @@ void HelloTriangleApplication::createFrameBuffer() {
     }
 }
 
-void HelloTriangleApplication::createCommandPool() {
+void OsmiumGLInstance::createCommandPool() {
     vkInitUtils::QueueFamilyIndices queueFamilyIndices = vkInitUtils::findQueueFamilies(physicalDevice, surface);
 
     VkCommandPoolCreateInfo commandPoolCreateInfo = {
@@ -486,7 +489,7 @@ void HelloTriangleApplication::createCommandPool() {
     }
 }
 
-void HelloTriangleApplication::createCommandBuffers() {
+void OsmiumGLInstance::createCommandBuffers() {
     commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -499,7 +502,7 @@ void HelloTriangleApplication::createCommandBuffers() {
     }
 }
 
-void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0,
@@ -525,6 +528,9 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] ={0};
+    vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
     VkViewport viewport = {
         viewport.x = 0.0f,
         viewport.y = 0.0f,
@@ -547,7 +553,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     }
 }
 
-void HelloTriangleApplication::createSyncObjects() {
+void OsmiumGLInstance::createSyncObjects() {
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     inflightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -567,7 +573,34 @@ void HelloTriangleApplication::createSyncObjects() {
     }
 }
 
-void HelloTriangleApplication::initVulkan() {
+void OsmiumGLInstance::createVertexBuffer() {
+    VkBufferCreateInfo bufferCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = sizeof(vertices[0])* vertices.size(),
+        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+    if(vkCreateBuffer(device, &bufferCreateInfo,nullptr,&vertexBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create vertex buffer");
+    }
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device,vertexBuffer, &memRequirements);
+    VkMemoryAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memRequirements.size,
+        .memoryTypeIndex = vkInitUtils::findMemoryType(memRequirements.memoryTypeBits,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,physicalDevice),
+        };
+    if(vkAllocateMemory(device,&allocInfo,nullptr,&vertexBufferMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate vertex buffer memory");
+    }
+    vkBindBufferMemory(device,vertexBuffer,vertexBufferMemory,0);
+    void* data;
+    vkMapMemory(device,vertexBufferMemory,0,bufferCreateInfo.size,0,&data);
+    memcpy(data, vertices.data(),(size_t)bufferCreateInfo.size);
+    vkUnmapMemory(device,vertexBufferMemory);
+}
+
+void OsmiumGLInstance::initVulkan() {
     createInstance();
     setupDebugMessenger();
     createLogicalSurface();
@@ -579,11 +612,12 @@ void HelloTriangleApplication::initVulkan() {
     createGraphicsPipeline();
     createFrameBuffer();
     createCommandPool();
+    createVertexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
 
-void HelloTriangleApplication::mainLoop() {
+void OsmiumGLInstance::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         drawFrame();
@@ -591,7 +625,7 @@ void HelloTriangleApplication::mainLoop() {
     vkDeviceWaitIdle(device);
 }
 
-void HelloTriangleApplication::cleanupSwapChain() {
+void OsmiumGLInstance::cleanupSwapChain() {
     for (auto &swapChainFrameBuffer: swapChainFrameBuffers) {
         vkDestroyFramebuffer(device, swapChainFrameBuffer, nullptr);
     }
@@ -601,8 +635,11 @@ void HelloTriangleApplication::cleanupSwapChain() {
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
 
-void HelloTriangleApplication::cleanup() {
+void OsmiumGLInstance::cleanup() {
     cleanupSwapChain();
+
+    vkDestroyBuffer(device, vertexBuffer, nullptr);
+    vkFreeMemory(device, vertexBufferMemory, nullptr);
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
@@ -626,12 +663,12 @@ void HelloTriangleApplication::cleanup() {
     glfwTerminate();
 }
 
-void HelloTriangleApplication::frameBufferResizeCallback(GLFWwindow * window, int width, int height) {
-    auto app = static_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+void OsmiumGLInstance::frameBufferResizeCallback(GLFWwindow * window, int width, int height) {
+    auto app = static_cast<OsmiumGLInstance*>(glfwGetWindowUserPointer(window));
     app->frameBufferResized = true;
 }
 
-void HelloTriangleApplication::initWindow() {
+void OsmiumGLInstance::initWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -640,7 +677,7 @@ void HelloTriangleApplication::initWindow() {
     glfwSetFramebufferSizeCallback(window, frameBufferResizeCallback);
 }
 
-void HelloTriangleApplication::drawFrame() {
+void OsmiumGLInstance::drawFrame() {
     vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
 
     uint32_t imageIndex;
@@ -701,7 +738,7 @@ void HelloTriangleApplication::drawFrame() {
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void HelloTriangleApplication::recreateSwapChain() {
+void OsmiumGLInstance::recreateSwapChain() {
     int width = 0, height = 0;
     glfwGetFramebufferSize(window, &width, &height);
     while(width == 0 || height == 0) {

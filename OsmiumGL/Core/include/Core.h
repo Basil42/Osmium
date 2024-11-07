@@ -7,9 +7,10 @@
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include "TutorialVertex.h"
 class GLFWwindow;
 
-class HelloTriangleApplication { // NOLINT(*-pro-type-member-init)
+class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
     void run();
 
@@ -43,7 +44,13 @@ private:
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inflightFences;
     bool frameBufferResized = false;
-
+    const std::vector<TutoVertex> vertices = {
+    {{0.0f,-0.5f},{1.0f,1.0f,1.0f}},
+    {{0.5f,0.5f},{0.0f,1.0f,0.0f}},
+    {{-0.5f,0.5f},{0.0f,0.0f,1.0f}}
+        };
+    VkBuffer vertexBuffer = nullptr;
+    VkDeviceMemory vertexBufferMemory = nullptr;
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
@@ -51,6 +58,7 @@ private:
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
+
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -89,6 +97,8 @@ private:
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     void createSyncObjects();
+
+    void createVertexBuffer();
 
     void initVulkan();
 

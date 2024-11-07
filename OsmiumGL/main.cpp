@@ -5,11 +5,11 @@
 
 #include <iostream>
 
-#include "Core/Core.h"
+#include "Core.h"
 
 int main() {
     try {
-        HelloTriangleApplication app;
+        OsmiumGLInstance app;
         app.run();
     }catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;

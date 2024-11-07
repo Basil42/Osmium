@@ -110,7 +110,7 @@ namespace vkInitUtils {
         }
         return details;
     }
-    inline int RateDeviceSuitability(const VkPhysicalDevice device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
+    inline int RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
         VkPhysicalDeviceProperties deviceProperties;
         VkPhysicalDeviceFeatures deviceFeatures;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -118,7 +118,7 @@ namespace vkInitUtils {
 
 
         std::cout << "evaluating device " << deviceProperties.deviceName << ": ";
-        int score = 0;
+        uint32_t score = 0;
         if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 1000;
         score += deviceProperties.limits.maxImageDimension2D;
         if(!findQueueFamilies(device, surface).isComplete()) {
@@ -140,6 +140,15 @@ namespace vkInitUtils {
         std::cout << "scored " << score << std::endl;
         return score;
     }
-
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice &device) {
+        VkPhysicalDeviceMemoryProperties memoryProperties;
+        vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
+        for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
+            if(typeFilter & (1 << i) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+        throw std::runtime_error("failed to find suitable memory type");
+    }
 
 }
