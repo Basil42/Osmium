@@ -8,6 +8,8 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 #include "TutorialVertex.h"
+#include <InitUtilVk.h>
+
 class GLFWwindow;
 
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
@@ -24,8 +26,10 @@ private:
     VkDebugUtilsMessengerEXT debugMessenger = nullptr;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
+    vkInitUtils::QueueFamilyIndices queueFamiliesIndices;
     VkQueue graphicsQueue = VK_NULL_HANDLE;
     VkQueue presentQueue = VK_NULL_HANDLE;
+    VkQueue transferQueue = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkSwapchainKHR swapChain = VK_NULL_HANDLE;
     std::vector<VkImage> swapChainImages;
@@ -39,6 +43,7 @@ private:
     VkPipeline graphicsPipeline = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> swapChainFrameBuffers;
     VkCommandPool commandPool = nullptr;
+    VkCommandPool transientCommandPool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -90,13 +95,17 @@ private:
     void createFrameBuffer();
 
 
-    void createCommandPool();
+    void createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool &poolHandle, uint32_t queueFamilyIndex);
 
     void createCommandBuffers();
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     void createSyncObjects();
+
+    void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memProperties, VkBuffer& vk_buffer, VkDeviceMemory& bufferMemory);
+
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     void createVertexBuffer();
 

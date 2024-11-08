@@ -8,7 +8,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 endif ()
 
 add_executable(OsmiumGL main.cpp
-        Core/src/Core.cpp)
+        Core/src/Core.cpp
+        ShaderUtilities/TutorialVertex.h)
 target_include_directories(OsmiumGL PUBLIC Core/include)
 target_include_directories(OsmiumGL PUBLIC ShaderUtilities)
 target_include_directories(OsmiumGL PRIVATE Initialization)

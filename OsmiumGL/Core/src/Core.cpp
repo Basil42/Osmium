@@ -1,7 +1,6 @@
 //
 // Created by nicolas.gerard on 2024-11-05.
 //
-#include "Core.h"
 #define GLFW_INCLUDE_VULKAN
 #ifndef NDEBUG
 // #define Vk_VALIDATION_LAYER
@@ -18,6 +17,7 @@
 #include "InitUtilVk.h"
 #include "ShaderUtilities.h"
 #include "SwapChains/SwapChainUtilities.h"
+#include "Core.h"
 
 void OsmiumGLInstance::run() {
     initWindow();
@@ -147,10 +147,9 @@ void OsmiumGLInstance::pickPhysicalDevice() {
 }
 
 void OsmiumGLInstance::createLogicalDevice() {
-    vkInitUtils::QueueFamilyIndices indices = vkInitUtils::findQueueFamilies(physicalDevice, surface);
 
     std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos{};
-    std::set<uint32_t> uniqueQueueFamily = {indices.graphicsFamily.value(), indices.presentationFamily.value()};
+    std::set<uint32_t> uniqueQueueFamily = {queueFamiliesIndices.graphicsFamily.value(), queueFamiliesIndices.presentationFamily.value(), queueFamiliesIndices.transferFamily.value()};
     float queuePriority = 1.0f;
     for (uint32_t queueFamily: uniqueQueueFamily) {
         VkDeviceQueueCreateInfo queueCreateInfo{};
@@ -177,8 +176,9 @@ void OsmiumGLInstance::createLogicalDevice() {
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device");
     }
-    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentationFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(device, queueFamiliesIndices.graphicsFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, queueFamiliesIndices.presentationFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(device, queueFamiliesIndices.transferFamily.value(), 0, &transferQueue);
 }
 
 void OsmiumGLInstance::createLogicalSurface() {
@@ -476,15 +476,14 @@ void OsmiumGLInstance::createFrameBuffer() {
     }
 }
 
-void OsmiumGLInstance::createCommandPool() {
-    vkInitUtils::QueueFamilyIndices queueFamilyIndices = vkInitUtils::findQueueFamilies(physicalDevice, surface);
+void OsmiumGLInstance::createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool& poolHandle, uint32_t queueFamilyIndex) {
 
     VkCommandPoolCreateInfo commandPoolCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = queueFamilyIndices.graphicsFamily.value(),
+        .flags = createFlags,
+        .queueFamilyIndex = queueFamilyIndex,
     };
-    if (vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &commandPool)) {
+    if (vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &poolHandle)) {
         throw std::runtime_error("failed to create command pool");
     }
 }
@@ -572,32 +571,107 @@ void OsmiumGLInstance::createSyncObjects() {
         }
     }
 }
-
-void OsmiumGLInstance::createVertexBuffer() {
-    VkBufferCreateInfo bufferCreateInfo = {
+//note that in a real life scenario, allocation should be made less often and we should use offsets in the same allocated memory to store multiple
+//Defaulting to instanced rendering when possible might also  with that
+//see: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+void OsmiumGLInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memProperties,
+                                    VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+    VkBufferCreateInfo bufferCreateInfo;
+    uint32_t QueueFamilyIndices[] = {queueFamiliesIndices.graphicsFamily.value(), queueFamiliesIndices.transferFamily.has_value()};//probably also want to use a set here
+    if(queueFamiliesIndices.graphicsFamily != queueFamiliesIndices.transferFamily)
+        bufferCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size = sizeof(vertices[0])* vertices.size(),
-        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .size = bufferSize,
+        .usage = usageFlags,
+        .sharingMode = VK_SHARING_MODE_CONCURRENT,
+        .queueFamilyIndexCount = 2,
+        .pQueueFamilyIndices = QueueFamilyIndices
         };
-    if(vkCreateBuffer(device, &bufferCreateInfo,nullptr,&vertexBuffer) != VK_SUCCESS) {
+    else
+            bufferCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = bufferSize,
+        .usage = usageFlags,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+    if(vkCreateBuffer(device, &bufferCreateInfo,nullptr,&buffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vertex buffer");
     }
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device,vertexBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(device,buffer, &memRequirements);
     VkMemoryAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = memRequirements.size,
-        .memoryTypeIndex = vkInitUtils::findMemoryType(memRequirements.memoryTypeBits,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,physicalDevice),
-        };
-    if(vkAllocateMemory(device,&allocInfo,nullptr,&vertexBufferMemory) != VK_SUCCESS) {
+        .memoryTypeIndex = vkInitUtils::findMemoryType(memRequirements.memoryTypeBits,memProperties,physicalDevice),
+    };
+    if(vkAllocateMemory(device,&allocInfo,nullptr,&bufferMemory) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate vertex buffer memory");
     }
-    vkBindBufferMemory(device,vertexBuffer,vertexBufferMemory,0);
+    vkBindBufferMemory(device,buffer,bufferMemory,0);
+}
+
+void OsmiumGLInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+    VkCommandBufferAllocateInfo AllocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = transientCommandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1
+        };
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device,&AllocateInfo,&commandBuffer);
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+    vkBeginCommandBuffer(commandBuffer,&beginInfo);
+    VkBufferCopy copyRegion = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = size
+        };
+    vkCmdCopyBuffer(commandBuffer,srcBuffer,dstBuffer,1,&copyRegion);
+    vkEndCommandBuffer(commandBuffer);
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+        };
+    vkQueueSubmit(transferQueue,1,&submitInfo,VK_NULL_HANDLE);
+    vkQueueWaitIdle(transferQueue);//TODO replace with fence
+    vkFreeCommandBuffers(device,transientCommandPool,1,&commandBuffer);
+}
+
+
+void OsmiumGLInstance::createVertexBuffer() {
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(
+        bufferSize,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory);
+
+
     void* data;
-    vkMapMemory(device,vertexBufferMemory,0,bufferCreateInfo.size,0,&data);
-    memcpy(data, vertices.data(),(size_t)bufferCreateInfo.size);
-    vkUnmapMemory(device,vertexBufferMemory);
+    vkMapMemory(device,stagingBufferMemory,0,bufferSize,0,&data);
+    memcpy(data, vertices.data(),bufferSize);
+    vkUnmapMemory(device,stagingBufferMemory);
+
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        vertexBuffer,
+        vertexBufferMemory);
+
+    copyBuffer(stagingBuffer,vertexBuffer,bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer,nullptr);
+    vkFreeMemory(device, stagingBufferMemory,nullptr);
+
 }
 
 void OsmiumGLInstance::initVulkan() {
@@ -605,13 +679,15 @@ void OsmiumGLInstance::initVulkan() {
     setupDebugMessenger();
     createLogicalSurface();
     pickPhysicalDevice();
+    queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
     createLogicalDevice();
     createSwapChain();
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
     createFrameBuffer();
-    createCommandPool();
+    createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
+    createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
     createVertexBuffer();
     createCommandBuffers();
     createSyncObjects();
@@ -652,7 +728,7 @@ void OsmiumGLInstance::cleanup() {
     }
 
     vkDestroyCommandPool(device, commandPool, nullptr);
-
+    vkDestroyCommandPool(device, transientCommandPool,nullptr);
     vkDestroyDevice(device, nullptr);
 #ifdef Vk_VALIDATION_LAYER
     vkInitUtils::DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);

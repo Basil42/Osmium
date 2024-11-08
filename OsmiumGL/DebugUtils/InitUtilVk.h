@@ -1,9 +1,11 @@
-#pragma once
+#ifndef INITUTILVK_H
+#define INITUTILVK_H
 #include <iostream>
 #include <optional>
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
+#include <set>
 //
 // Created by nicolas.gerard on 2024-11-01.
 //
@@ -50,12 +52,14 @@ namespace vkInitUtils {
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
         std::optional<uint32_t> presentationFamily;
-        bool isComplete() const {
+        std::optional<uint32_t> transferFamily;
+        [[nodiscard]] bool isComplete() const {
             return graphicsFamily.has_value()
-            && presentationFamily.has_value();
+            && presentationFamily.has_value()
+            && transferFamily.has_value();
         }
     };
-    inline QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
+    static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
         QueueFamilyIndices indices;
         uint32_t graphicsFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &graphicsFamilyCount, nullptr);
@@ -65,13 +69,18 @@ namespace vkInitUtils {
         for(const auto queueFamily : queueFamilies) {
             if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphicsFamily = i;
-                if(indices.isComplete())break;
             }
             VkBool32 presentSupport = false;
             vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,i,surface,&presentSupport);
             if(presentSupport)indices.presentationFamily = i;
+            if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT && (!(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && !(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))) {//transfer queue that is neither graphics or compute
+                indices.transferFamily = i;
+            }
+            if(indices.isComplete())return indices;
             i++;
         }
+        if(!indices.transferFamily.has_value() && indices.graphicsFamily.has_value())//use the graphics queue as transfer queue is if it is the only available one(might be useful to fallback to the compute one here ?)
+            indices.transferFamily = indices.graphicsFamily;
         return indices;
     }
 
@@ -93,7 +102,7 @@ namespace vkInitUtils {
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> presentModes;
     };
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    inline SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
         SwapChainSupportDetails details;
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
         uint32_t formatCount;
@@ -140,7 +149,7 @@ namespace vkInitUtils {
         std::cout << "scored " << score << std::endl;
         return score;
     }
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice &device) {
+    inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice &device) {
         VkPhysicalDeviceMemoryProperties memoryProperties;
         vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
         for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
@@ -152,3 +161,4 @@ namespace vkInitUtils {
     }
 
 }
+#endif
