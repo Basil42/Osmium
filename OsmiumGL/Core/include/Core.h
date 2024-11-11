@@ -39,6 +39,9 @@ private:
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
     VkRenderPass renderPass = VK_NULL_HANDLE;
+    VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> descriptorSets;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     VkPipeline graphicsPipeline = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> swapChainFrameBuffers;
@@ -62,6 +65,9 @@ private:
     VkDeviceMemory vertexBufferMemory = nullptr;
     VkBuffer indexBuffer = nullptr;
     VkDeviceMemory indexBufferMemory = nullptr;
+    std::vector<VkBuffer> uniformBuffers;
+    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<void*> uniformBuffersMapped;
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
@@ -69,7 +75,6 @@ private:
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
-
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -117,6 +122,9 @@ private:
 
     void createIndexBuffer();
 
+    void createUniformBuffer();
+
+
     void initVulkan();
 
 
@@ -131,6 +139,9 @@ private:
     void initWindow();
 
     uint32_t currentFrame = 0;
+
+    void updateUniformBuffer(uint32_t currentImage);
+
     void drawFrame();
     void recreateSwapChain();
 };
