@@ -50,12 +50,18 @@ private:
     std::vector<VkFence> inflightFences;
     bool frameBufferResized = false;
     const std::vector<TutoVertex> vertices = {
-    {{0.0f,-0.5f},{1.0f,1.0f,1.0f}},
-    {{0.5f,0.5f},{0.0f,1.0f,0.0f}},
-    {{-0.5f,0.5f},{0.0f,0.0f,1.0f}}
+    {{-0.5f,-0.5f},{1.0f,1.0f,1.0f}},
+    {{0.5f,-0.5f},{0.0f,1.0f,0.0f}},
+    {{0.5f,0.5f},{0.0f,0.0f,1.0f}},
+    {{-0.5f,0.5f},{1.0f,1.0f,1.0f}}
         };
+    const std::vector<uint16_t> indices = {
+        0,1,2,2,3,0
+    };
     VkBuffer vertexBuffer = nullptr;
     VkDeviceMemory vertexBufferMemory = nullptr;
+    VkBuffer indexBuffer = nullptr;
+    VkDeviceMemory indexBufferMemory = nullptr;
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
@@ -108,6 +114,8 @@ private:
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     void createVertexBuffer();
+
+    void createIndexBuffer();
 
     void initVulkan();
 
