@@ -53,10 +53,10 @@ private:
     std::vector<VkFence> inflightFences;
     bool frameBufferResized = false;
     const std::vector<TutoVertex> vertices = {
-    {{-0.5f,-0.5f},{1.0f,1.0f,1.0f}},
-    {{0.5f,-0.5f},{0.0f,1.0f,0.0f}},
-    {{0.5f,0.5f},{0.0f,0.0f,1.0f}},
-    {{-0.5f,0.5f},{1.0f,1.0f,1.0f}}
+    {{-0.5f,-0.5f},{1.0f,1.0f,1.0f},{1.0f,0.0f}},
+    {{0.5f,-0.5f},{0.0f,1.0f,0.0f},{0.0f,0.0f}},
+    {{0.5f,0.5f},{0.0f,0.0f,1.0f},{0.0f,1.0f}},
+    {{-0.5f,0.5f},{1.0f,1.0f,1.0f},{1.0f,1.0f}}
         };
     const std::vector<uint16_t> indices = {
         0,1,2,2,3,0
@@ -68,6 +68,11 @@ private:
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
+    VkImage textureImage = VK_NULL_HANDLE;
+    VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
+    VkImageView textureImageView = VK_NULL_HANDLE;
+    VkSampler textureSampler = VK_NULL_HANDLE;
+
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
@@ -75,6 +80,7 @@ private:
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
+
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -124,6 +130,21 @@ private:
 
     void createUniformBuffer();
 
+    void createImage(uint32_t Width, uint32_t Height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags
+                     properties, VkImage
+                     &image, VkDeviceMemory &imageMemory);
+
+
+    void createTextureImage(const char *path);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+    VkCommandBuffer beginSingleTimeCommands(VkQueue queue);
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue);
+
+    VkImageView createImageView(VkImage image, VkFormat format);
+
+    void createTextureSampler();
 
     void initVulkan();
 

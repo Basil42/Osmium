@@ -18,7 +18,8 @@ namespace Descriptors {
     void createDescriptorPool(const VkDevice &device, VkDescriptorPool &descriptorPool, int MAX_FRAMES_IN_FLIGHT);
 
     void createDescriptorSets(VkDevice &device, VkDescriptorSetLayout &descriptorSetLayout, int MAX_FRAMES_IN_FLIGHT, VkDescriptorPool &
-                              descriptorPool, std::vector<VkDescriptorSet> &descriptorSets, std::vector<VkBuffer> &uniformBuffers);
+                              descriptorPool, std::vector<VkDescriptorSet> &descriptorSets, std::vector<VkBuffer> &uniformBuffers, VkImageView
+                              imageView, VkSampler sampler);
 }
 
 #endif //DESCRIPTORLAYOUTS_H

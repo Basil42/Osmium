@@ -84,7 +84,7 @@ namespace vkInitUtils {
         return indices;
     }
 
-    inline bool checkDeviceExtensionSupport(VkPhysicalDevice device, std::vector<const char*> requiredDeviceExtensions) {
+    inline bool checkDeviceExtensionSupport(VkPhysicalDevice device, std::vector<const char*>& requiredDeviceExtensions) {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
         std::vector<VkExtensionProperties> availableExtensions(extensionCount);
@@ -119,7 +119,7 @@ namespace vkInitUtils {
         }
         return details;
     }
-    inline int RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
+    inline uint32_t RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
         VkPhysicalDeviceProperties deviceProperties;
         VkPhysicalDeviceFeatures deviceFeatures;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -137,6 +137,9 @@ namespace vkInitUtils {
         if(!deviceFeatures.geometryShader) {
             std::cout << "No geometry shader, scoring it 0." << std::endl;
             return 0;
+        }
+        if(!deviceFeatures.samplerAnisotropy) {
+            std::cout << "No anisotropic sampler support, scoring it 0." << std::endl;
         }
         if(!checkDeviceExtensionSupport(device,requiredDeviceExtensions)) {
             std::cout << "Device does not support required device extensions, scoring it 0" << std::endl;

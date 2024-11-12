@@ -17,13 +17,16 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
+#define  STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include "InitUtilVk.h"
 #include "ShaderUtilities.h"
 #include "SwapChains/SwapChainUtilities.h"
 #include "Core.h"
 
 #include <chrono>
+#include <bits/fs_fwd.h>
+#include <bits/fs_path.h>
 
 #include "Descriptors.h"
 
@@ -141,9 +144,9 @@ void OsmiumGLInstance::pickPhysicalDevice() {
     }
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-    std::multimap<int, VkPhysicalDevice> CandidateDevices;
+    std::multimap<uint32_t, VkPhysicalDevice> CandidateDevices;
     for (uint32_t i = 0; i < deviceCount; i++) {
-        int Score = vkInitUtils::RateDeviceSuitability(devices[i], surface, deviceExtensions);
+        uint32_t Score = vkInitUtils::RateDeviceSuitability(devices[i], surface, deviceExtensions);
         CandidateDevices.insert(std::make_pair(Score, devices[i]));
     }
     if (CandidateDevices.rbegin()->first > 0) {
@@ -168,6 +171,7 @@ void OsmiumGLInstance::createLogicalDevice() {
         QueueCreateInfos.push_back(queueCreateInfo);
     }
     VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.pQueueCreateInfos = QueueCreateInfos.data();
@@ -245,25 +249,7 @@ void OsmiumGLInstance::createSwapChain() {
 void OsmiumGLInstance::createImageViews() {
     swapChainImageViews.resize(swapChainImages.size());
     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
-        VkImageViewCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image = swapChainImages[i];
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = swapChainImageFormat;
-        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.subresourceRange = VkImageSubresourceRange{
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-        if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image views");
-        }
+        swapChainImageViews[i] = createImageView(swapChainImages[i],swapChainImageFormat);
     }
 }
 
@@ -623,34 +609,14 @@ void OsmiumGLInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usag
 }
 
 void OsmiumGLInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-    VkCommandBufferAllocateInfo AllocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = transientCommandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1
-        };
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device,&AllocateInfo,&commandBuffer);
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        };
-    vkBeginCommandBuffer(commandBuffer,&beginInfo);
-    VkBufferCopy copyRegion = {
-        .srcOffset = 0,
-        .dstOffset = 0,
-        .size = size
-        };
+
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(transferQueue);
+
+    VkBufferCopy copyRegion = {};
+    copyRegion.size = size;
     vkCmdCopyBuffer(commandBuffer,srcBuffer,dstBuffer,1,&copyRegion);
-    vkEndCommandBuffer(commandBuffer);
-    VkSubmitInfo submitInfo = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-        };
-    vkQueueSubmit(transferQueue,1,&submitInfo,VK_NULL_HANDLE);
-    vkQueueWaitIdle(transferQueue);//TODO replace with fence
-    vkFreeCommandBuffers(device,transientCommandPool,1,&commandBuffer);
+
+    endSingleTimeCommands(commandBuffer, transferQueue);
 }
 
 
@@ -730,6 +696,245 @@ void OsmiumGLInstance::createUniformBuffer() {
     }
 }
 
+void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height,VkFormat format,VkImageTiling tiling,VkImageUsageFlags usage,VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+    VkImageCreateInfo imageCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .flags = 0,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = tiling,
+        .usage = usage,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+    imageCreateInfo.extent.width = Width;
+    imageCreateInfo.extent.height = Height;
+    imageCreateInfo.extent.depth = 1;
+
+    if(vkCreateImage(device, &imageCreateInfo, nullptr, &image) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create image!");
+    }
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, image, &memRequirements);
+    VkMemoryAllocateInfo allocInfo{
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memRequirements.size,
+        .memoryTypeIndex = vkInitUtils::findMemoryType(memRequirements.memoryTypeBits,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,physicalDevice),
+    };
+    if(vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to allocate texture memory!");
+    }
+    vkBindImageMemory(device,image,imageMemory,0);
+}
+
+void OsmiumGLInstance::createTextureImage(const char* path) {
+    int texWidth, texHeight, texChannels;
+    stbi_uc* pixels = stbi_load(path, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    VkDeviceSize imageSize = texWidth * texHeight * 4;//specific to the format, not ideal
+    if(!pixels)
+        throw std::runtime_error("Failed to load image!");
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    createBuffer(imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory
+        );
+
+    void* data;
+    vkMapMemory(device, stagingBufferMemory,0,imageSize,0,&data);
+    memcpy(data,pixels,imageSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+    stbi_image_free(pixels);
+
+    createImage(texWidth, texHeight,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        textureImage,
+        textureImageMemory);
+
+    transitionImageLayout(textureImage,VK_FORMAT_R8G8B8_SRGB,VK_IMAGE_LAYOUT_UNDEFINED,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);//we don't care about what is currently in it
+    copyBufferToImage(stagingBuffer,textureImage,static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8_SRGB,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);//content will now be preserved, but is probably costlier
+
+    vkDestroyBuffer(device,stagingBuffer, nullptr);
+    vkFreeMemory(device,stagingBufferMemory,nullptr);
+
+}
+
+void OsmiumGLInstance::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+    VkCommandBuffer cmdBuffer = beginSingleTimeCommands(graphicsQueue);
+
+    VkBufferImageCopy region{
+    .bufferOffset = 0,
+    .bufferRowLength = 0,
+    .bufferImageHeight = 0,
+    .imageSubresource = {
+    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .mipLevel = 0,
+    .baseArrayLayer = 0,
+    .layerCount = 1},
+    .imageOffset = {0,0,0},
+    .imageExtent = {width,height,1}};
+
+    vkCmdCopyBufferToImage(cmdBuffer,
+        buffer,
+        image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &region);
+    endSingleTimeCommands(cmdBuffer, graphicsQueue);
+}
+
+void OsmiumGLInstance::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
+                                             VkImageLayout newLayout) {
+
+
+
+    VkImageMemoryBarrier barrier{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = 0,
+        .dstAccessMask = 0,
+        .oldLayout = oldLayout,
+        .newLayout = newLayout,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = image,
+    };
+    barrier.subresourceRange = {
+    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .baseMipLevel = 0,
+    .levelCount = 1,
+    .baseArrayLayer = 0,
+    .layerCount = 1};
+    //Should be changed as soon as possible
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+    VkQueue queue;
+    if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        //kind of operation we're waiting on
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        //when do they happen
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+        queue = transferQueue;
+
+    }else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+        // barrier.srcQueueFamilyIndex = queueFamiliesIndices.transferFamily.value();
+        // barrier.dstQueueFamilyIndex = queueFamiliesIndices.graphicsFamily.value();
+
+        queue = graphicsQueue;
+    }else {
+        throw std::invalid_argument("unsupported layout transition");
+    }
+    VkCommandBuffer cmdBuffer = beginSingleTimeCommands(queue);
+    vkCmdPipelineBarrier(cmdBuffer,
+        sourceStage,destinationStage,
+        0,//you are allow to have dependency by region here using VK_DEPENDENCY_BY_REGION_BIT
+        0,nullptr,
+        0,nullptr,
+        1, &barrier);
+
+    endSingleTimeCommands(cmdBuffer, queue);//might be doable on the transfer queue ?
+
+}
+
+VkCommandBuffer OsmiumGLInstance::beginSingleTimeCommands(VkQueue queue) {
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = queue == transferQueue ? transientCommandPool : commandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1};
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    return commandBuffer;
+}
+
+void OsmiumGLInstance::endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue queue) {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+        };
+
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);//remove this
+
+    vkFreeCommandBuffers(device,queue == transferQueue ? transientCommandPool: commandPool,1,&commandBuffer);
+}
+
+VkImageView OsmiumGLInstance::createImageView(VkImage image, VkFormat format) {
+    VkImageViewCreateInfo viewInfo{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .image = image,
+    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+    .format = format,
+    .subresourceRange = {
+    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .baseMipLevel = 0,
+    .levelCount = 1,
+    .baseArrayLayer = 0,
+    .layerCount = 1}};
+    VkImageView imageView;
+    if(vkCreateImageView(device,&viewInfo,nullptr,&imageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image view");
+    }
+    return imageView;
+}
+
+void OsmiumGLInstance::createTextureSampler() {
+
+    VkPhysicalDeviceProperties deviceProp = {};
+    vkGetPhysicalDeviceProperties(physicalDevice,&deviceProp);
+
+    VkSamplerCreateInfo samplerInfo = {
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .mipLodBias = 0.0f,
+    .anisotropyEnable = VK_TRUE,
+    .maxAnisotropy = deviceProp.limits.maxSamplerAnisotropy,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_ALWAYS,
+    .minLod = 0.0f,
+    .maxLod = 0.0f,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE//could be true for compute stuff when we want to access specific pixels
+    };
+    if(vkCreateSampler(device,&samplerInfo,nullptr,&textureSampler) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture sampler");
+    }
+}
+
 
 void OsmiumGLInstance::initVulkan() {
     createInstance();
@@ -746,11 +951,14 @@ void OsmiumGLInstance::initVulkan() {
     createFrameBuffer();
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
+    createTextureImage("DefaultResources/textures/texture.jpg");
+    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+    createTextureSampler();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffer();
     Descriptors::createDescriptorPool(device,descriptorPool,MAX_FRAMES_IN_FLIGHT);
-    Descriptors::createDescriptorSets(device,descriptorSetLayout,MAX_FRAMES_IN_FLIGHT,descriptorPool, descriptorSets, uniformBuffers);
+    Descriptors::createDescriptorSets(device,descriptorSetLayout,MAX_FRAMES_IN_FLIGHT,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
     createCommandBuffers();
     createSyncObjects();
 }
@@ -776,6 +984,10 @@ void OsmiumGLInstance::cleanupSwapChain() {
 void OsmiumGLInstance::cleanup() {
     cleanupSwapChain();
 
+    vkDestroySampler(device,textureSampler,nullptr);
+    vkDestroyImageView(device,textureImageView,nullptr);
+    vkDestroyImage(device,textureImage, nullptr);
+    vkFreeMemory(device, textureImageMemory, nullptr);
     for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(device, uniformBuffers[i], nullptr);
         vkFreeMemory(device,uniformBuffersMemory[i], nullptr);
