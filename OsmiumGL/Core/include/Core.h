@@ -19,6 +19,9 @@ public:
 private:
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
+
+    const std::string MODEL_PATH = "DefaultResources/models/viking_room.obj";
+    const std::string TEXTURE_PATH = "DefaultResources/textures/viking_room.png";
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
     GLFWwindow* window = nullptr;
@@ -47,20 +50,17 @@ private:
     std::vector<VkFramebuffer> swapChainFrameBuffers;
     VkCommandPool commandPool = nullptr;
     VkCommandPool transientCommandPool = VK_NULL_HANDLE;
+    VkImage depthImage = VK_NULL_HANDLE;
+    VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+    VkImageView depthImageView = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inflightFences;
     bool frameBufferResized = false;
-    const std::vector<TutoVertex> vertices = {
-    {{-0.5f,-0.5f},{1.0f,1.0f,1.0f},{1.0f,0.0f}},
-    {{0.5f,-0.5f},{0.0f,1.0f,0.0f},{0.0f,0.0f}},
-    {{0.5f,0.5f},{0.0f,0.0f,1.0f},{0.0f,1.0f}},
-    {{-0.5f,0.5f},{1.0f,1.0f,1.0f},{1.0f,1.0f}}
-        };
-    const std::vector<uint16_t> indices = {
-        0,1,2,2,3,0
-    };
+    std::vector<TutoVertex> vertices;
+    std::vector<uint32_t> indices ;
+
     VkBuffer vertexBuffer = nullptr;
     VkDeviceMemory vertexBufferMemory = nullptr;
     VkBuffer indexBuffer = nullptr;
@@ -68,6 +68,7 @@ private:
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
+    uint32_t miplevels;
     VkImage textureImage = VK_NULL_HANDLE;
     VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
     VkImageView textureImageView = VK_NULL_HANDLE;
@@ -130,21 +131,32 @@ private:
 
     void createUniformBuffer();
 
-    void createImage(uint32_t Width, uint32_t Height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags
+    void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags
                      properties, VkImage
                      &image, VkDeviceMemory &imageMemory);
 
 
     void createTextureImage(const char *path);
+    void generateMipMaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+    void loadModel(const char *path);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
 
     VkCommandBuffer beginSingleTimeCommands(VkQueue queue);
     void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue);
 
-    VkImageView createImageView(VkImage image, VkFormat format);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
 
     void createTextureSampler();
+
+    void createDepthResources();
+
+    VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,
+                                 VkFormatFeatureFlags features) const;
+
+    VkFormat findDepthFormat() const;
+
+    static const bool hasStencilComponent(VkFormat format);
 
     void initVulkan();
 

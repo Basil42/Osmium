@@ -7,7 +7,7 @@
 #include <array>
 #include <glm\glm.hpp>
 struct TutoVertex {
-    glm::vec2 position;
+    glm::vec3 position;
     glm::vec3 color;
     glm::vec2 texCoordinates;
 
@@ -24,7 +24,7 @@ struct TutoVertex {
         std::array<VkVertexInputAttributeDescription,3> attributeDescriptions = {};
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = offsetof(TutoVertex, position);
 
         attributeDescriptions[1].binding = 0;
@@ -39,5 +39,19 @@ struct TutoVertex {
 
         return attributeDescriptions;
     }
+    bool operator==(const TutoVertex& other) const {
+        return position == other.position && color == other.color &&
+            texCoordinates == other.texCoordinates;
+    }
 };
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
+namespace std {
+    template <> struct hash<TutoVertex> {
+        size_t operator()(const TutoVertex& t) const {
+            return ((hash<glm::vec3>()(t.position) ^ (hash<glm::vec3>()(t.color) << 1)) >> 1) ^
+                (hash<glm::vec2>()(t.texCoordinates) << 1);
+        }
+    };
+}
 #endif //TUTORIALVERTEX_H
