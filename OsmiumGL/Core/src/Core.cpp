@@ -153,6 +153,7 @@ void OsmiumGLInstance::pickPhysicalDevice() {
     }
     if (CandidateDevices.rbegin()->first > 0) {
         physicalDevice = CandidateDevices.rbegin()->second;
+        msaaFlags = getMaxSampleCount();
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
         std::cout << "picked " << deviceProperties.deviceName << std::endl;
@@ -337,9 +338,9 @@ void OsmiumGLInstance::createGraphicsPipeline() {
 
     VkPipelineMultisampleStateCreateInfo multisampleCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .rasterizationSamples = msaaFlags,
         .sampleShadingEnable = VK_FALSE,
-        .minSampleShading = 1.0f,
+        .minSampleShading = 1.0f,//check what exactly this does
         .pSampleMask = nullptr,
         .alphaToCoverageEnable = VK_FALSE,
         .alphaToOneEnable = VK_FALSE
@@ -421,7 +422,7 @@ void OsmiumGLInstance::createGraphicsPipeline() {
 void OsmiumGLInstance::createRenderPass() {
     VkAttachmentDescription depthAttachement = {
         .format = findDepthFormat(),
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = msaaFlags,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -437,26 +438,42 @@ void OsmiumGLInstance::createRenderPass() {
 
     VkAttachmentDescription colorAttachment = {
         .format = swapChainImageFormat,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = msaaFlags,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
     VkAttachmentReference colorAttachmentReference = {
         .attachment = 0,
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
+
+    VkAttachmentDescription colorAttachmentResolve = {
+        .format = swapChainImageFormat,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+    VkAttachmentReference colorAttachmentResolveReference = {
+        .attachment = 2,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
     VkSubpassDescription subpass = {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
         .pColorAttachments = &colorAttachmentReference,
+        .pResolveAttachments = &colorAttachmentResolveReference,
         .pDepthStencilAttachment = &depthAttachmentReference,
     };
-    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment,depthAttachement};
+    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment,depthAttachement,colorAttachmentResolve};
     VkRenderPassCreateInfo renderPassCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .attachmentCount = attachments.size(),
@@ -486,7 +503,7 @@ void OsmiumGLInstance::createFrameBuffer() {
 
 
     for (uint32_t i = 0; i < swapChainImageViews.size(); i++) {
-        std::array<VkImageView,2> attachments = {swapChainImageViews[i],depthImageView};
+        std::array<VkImageView,3> attachments = {colorImageView,depthImageView,swapChainImageViews[i]};
 
         VkFramebufferCreateInfo framebufferCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -731,7 +748,8 @@ void OsmiumGLInstance::createUniformBuffer() {
     }
 }
 
-void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height,uint32_t mipLevels,VkFormat format,VkImageTiling tiling,VkImageUsageFlags usage,VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
+                                   tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory) {
     VkImageCreateInfo imageCreateInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .flags = 0,
@@ -739,7 +757,7 @@ void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height,uint32_t mipL
         .format = format,
         .mipLevels = mipLevels,
         .arrayLayers = 1,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = numSamples,
         .tiling = tiling,
         .usage = usage,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -791,11 +809,11 @@ void OsmiumGLInstance::createTextureImage(const char* path) {
     miplevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
     createImage(texWidth, texHeight,
                 miplevels,
+                VK_SAMPLE_COUNT_1_BIT,
                 VK_FORMAT_R8G8B8A8_SRGB,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                textureImage, textureImageMemory);
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
 
     transitionImageLayout(textureImage,VK_FORMAT_R8G8B8_SRGB,VK_IMAGE_LAYOUT_UNDEFINED,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, miplevels);//we don't care about what is currently in it
     copyBufferToImage(stagingBuffer,textureImage,static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
@@ -1103,11 +1121,11 @@ void OsmiumGLInstance::createTextureSampler() {
 
 void OsmiumGLInstance::createDepthResources() {
     VkFormat depthFormat = findDepthFormat();
-    createImage(swapChainExtent.width,swapChainExtent.height,1,depthFormat,
+    createImage(swapChainExtent.width,swapChainExtent.height,1,msaaFlags,
+                depthFormat,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                depthImage, depthImageMemory);
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
     depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 
     //optional
@@ -1135,8 +1153,33 @@ VkFormat OsmiumGLInstance::findDepthFormat() const {
         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
+VkSampleCountFlagBits OsmiumGLInstance::getMaxSampleCount() const {
+    VkPhysicalDeviceProperties deviceProp;
+    vkGetPhysicalDeviceProperties(physicalDevice,&deviceProp);
+    const VkSampleCountFlags counts = deviceProp.limits.framebufferColorSampleCounts & deviceProp.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+}
+
 const bool OsmiumGLInstance::hasStencilComponent(VkFormat format) {
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+void OsmiumGLInstance::createColorResources() {
+    VkFormat colorFormat = swapChainImageFormat;
+    createImage(swapChainExtent.width,swapChainExtent.height,1,msaaFlags,
+        colorFormat,VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        colorImage,
+        colorImageMemory);
+    colorImageView = createImageView(colorImage,colorFormat,VK_IMAGE_ASPECT_COLOR_BIT,1);
 }
 
 
@@ -1154,6 +1197,7 @@ void OsmiumGLInstance::initVulkan() {
     createGraphicsPipeline();
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
+    createColorResources();
     createDepthResources();
     createFrameBuffer();
     createTextureImage(TEXTURE_PATH.c_str());
@@ -1178,6 +1222,9 @@ void OsmiumGLInstance::mainLoop() {
 }
 
 void OsmiumGLInstance::cleanupSwapChain() {
+    vkDestroyImageView(device, colorImageView,nullptr);
+    vkDestroyImage(device,colorImage,nullptr);
+    vkFreeMemory(device,colorImageMemory,nullptr);
     vkDestroyImageView(device,depthImageView,nullptr);
     vkDestroyImage(device,depthImage,nullptr);
     vkFreeMemory(device,depthImageMemory,nullptr);
@@ -1338,6 +1385,7 @@ void OsmiumGLInstance::recreateSwapChain() {
 
     createSwapChain();
     createImageViews();
+    createColorResources();
     createDepthResources();
     createFrameBuffer();
 }

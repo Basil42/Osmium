@@ -53,6 +53,9 @@ private:
     VkImage depthImage = VK_NULL_HANDLE;
     VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
     VkImageView depthImageView = VK_NULL_HANDLE;
+    VkImage colorImage = VK_NULL_HANDLE;
+    VkDeviceMemory colorImageMemory = VK_NULL_HANDLE;
+    VkImageView colorImageView = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -77,13 +80,11 @@ private:
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
+    VkSampleCountFlagBits msaaFlags = VK_SAMPLE_COUNT_1_BIT;
 #ifdef Vk_VALIDATION_LAYER
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
-
-
-
     [[nodiscard]] bool checkValidationLayerSupport() const;
 #endif
     void createInstance();;
@@ -131,7 +132,7 @@ private:
 
     void createUniformBuffer();
 
-    void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags
+    void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags
                      properties, VkImage
                      &image, VkDeviceMemory &imageMemory);
 
@@ -151,12 +152,15 @@ private:
 
     void createDepthResources();
 
-    VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,
+    [[nodiscard]] VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,
                                  VkFormatFeatureFlags features) const;
 
-    VkFormat findDepthFormat() const;
+    [[nodiscard]] VkFormat findDepthFormat() const;
+    VkSampleCountFlagBits getMaxSampleCount() const;
 
     static const bool hasStencilComponent(VkFormat format);
+
+    void createColorResources();
 
     void initVulkan();
 
