@@ -249,13 +249,13 @@ void OsmiumGLInstance::createSwapChain() {
     swapChainExtent = extent;
 }
 
-void OsmiumGLInstance::createImageViews() {
+void OsmiumGLInstance::createSwapchainImageViews() {
     swapChainImageViews.resize(swapChainImages.size());
     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
         swapChainImageViews[i] = createImageView(swapChainImages[i],swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 }
-
+//this is what unity would generate using all the stage contained in a single shader file (you'd need some kind of parsing mechanism to do the same
 void OsmiumGLInstance::createGraphicsPipeline() {
     auto vertShaderCode = ShaderUtils::readfile(
         "C:/Users/nicolas.gerard/CLionProjects/Osmium/OsmiumGL/TestShaders/trivialTriangleVert.spv");
@@ -463,10 +463,10 @@ void OsmiumGLInstance::createRenderPass() {
         .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
     };
     VkAttachmentReference colorAttachmentResolveReference = {
-        .attachment = 2,
+        .attachment = 2,//index of the attachment array ?
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
-    VkSubpassDescription subpass = {
+    VkSubpassDescription subpass = {//different subpass might be used for doing several operation on the same attachment ?
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
         .pColorAttachments = &colorAttachmentReference,
@@ -1184,6 +1184,7 @@ void OsmiumGLInstance::createColorResources() {
 
 
 void OsmiumGLInstance::initVulkan() {
+    //actual init, necessary before doing anything
     createInstance();
     setupDebugMessenger();
     createLogicalSurface();
@@ -1191,12 +1192,15 @@ void OsmiumGLInstance::initVulkan() {
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
     createLogicalDevice();
     createSwapChain();
-    createImageViews();
+    createSwapchainImageViews();
+    //more game specific, but arcane enough that it should not be exposed for now
     createRenderPass();
-    Descriptors::createDescriptorSetLayout(device,descriptorSetLayout);
-    createGraphicsPipeline();
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
+    //specific, should probably not be in here
+    Descriptors::createDescriptorSetLayout(device,descriptorSetLayout);
+    createGraphicsPipeline();
+
     createColorResources();
     createDepthResources();
     createFrameBuffer();
@@ -1324,8 +1328,7 @@ void OsmiumGLInstance::drawFrame() {
     }
 
     vkResetFences(device, 1, &inflightFences[currentFrame]);
-
-    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+    vkResetCommandBuffer(commandBuffers[currentFrame], 0);//have to reset only the command buffer here as the pool itself is used by other frames in flight
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
     updateUniformBuffer(currentFrame);
@@ -1384,7 +1387,7 @@ void OsmiumGLInstance::recreateSwapChain() {
     cleanupSwapChain();
 
     createSwapChain();
-    createImageViews();
+    createSwapchainImageViews();
     createColorResources();
     createDepthResources();
     createFrameBuffer();

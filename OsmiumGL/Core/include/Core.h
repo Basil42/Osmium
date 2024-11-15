@@ -105,7 +105,7 @@ private:
 
     void createSwapChain();
 
-    void createImageViews();
+    void createSwapchainImageViews();
 
     void createGraphicsPipeline();
 
