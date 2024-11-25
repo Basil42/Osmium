@@ -10,6 +10,7 @@
 #include "TutorialVertex.h"
 #include <InitUtilVk.h>
 
+
 class GLFWwindow;
 
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)

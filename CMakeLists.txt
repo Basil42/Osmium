@@ -4,3 +4,5 @@ project(Osmium)
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumGL)
+add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumEditor)
+add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumCore)

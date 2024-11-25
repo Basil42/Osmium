@@ -28,6 +28,8 @@ find_package(Stb REQUIRED)
 target_include_directories(OsmiumGL PRIVATE ${Stb_INCLUDE_DIR})
 find_package(tinyobjloader CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE tinyobjloader::tinyobjloader)
+find_package(imgui CONFIG REQUIRED)
+target_link_libraries(OsmiumGL PRIVATE imgui::imgui)
 set(CMAKE_EXE_LINKER_FLAGS " -static")
 target_link_libraries(OsmiumGL PRIVATE -static-libgcc -static-libstdc++)
 

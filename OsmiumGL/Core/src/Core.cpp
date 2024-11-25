@@ -31,6 +31,27 @@
 #include <unordered_map>
 
 #include "Descriptors.h"
+#include "imgui.h"
+
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+// Volk headers
+#ifdef IMGUI_IMPL_VULKAN_USE_VOLK
+#define VOLK_IMPLEMENTATION
+#include <volk.h>
+#endif
+#ifdef _DEBUG
+#define APP_USE_VULKAN_DEBUG_REPORT
+#endif
+
+static void check_vk_result(VkResult result) {
+    if(result == 0)return;
+    fprintf(stderr,"[vulkan] Error : VkResult = %d \n,",result);
+    if(result < 0)abort();//never seen this before
+}
+static void glfw_error_callback(int error, const char* description) {
+        fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+}
 
 void OsmiumGLInstance::run() {
     initWindow();
@@ -200,6 +221,7 @@ void OsmiumGLInstance::createLogicalSurface() {
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create window surface");
     }
+
 }
 
 void OsmiumGLInstance::createSwapChain() {
@@ -1372,6 +1394,7 @@ void OsmiumGLInstance::drawFrame() {
     }else if(result != VK_SUCCESS)
         throw std::runtime_error("failed to present");
 
+    IMGUI_IMPL_API
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
