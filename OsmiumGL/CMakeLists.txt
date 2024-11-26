@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD 20)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DVk_VALIDATION_LAYER=1)
 endif ()
-
 add_executable(OsmiumGL main.cpp
         Core/src/Core.cpp
         ShaderUtilities/TutorialVertex.h
@@ -35,3 +34,5 @@ target_link_libraries(OsmiumGL PRIVATE -static-libgcc -static-libstdc++)
 
 add_custom_target(copy_default_resources COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/DefaultResources ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources)
 add_dependencies(OsmiumGL copy_default_resources)
+add_custom_target(copy_default_shaders COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/TestShaders ${CMAKE_CURRENT_BINARY_DIR}/TestShaders)
+add_dependencies(OsmiumGL copy_default_shaders)

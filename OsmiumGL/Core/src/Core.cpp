@@ -280,9 +280,9 @@ void OsmiumGLInstance::createSwapchainImageViews() {
 //this is what unity would generate using all the stage contained in a single shader file (you'd need some kind of parsing mechanism to do the same
 void OsmiumGLInstance::createGraphicsPipeline() {
     auto vertShaderCode = ShaderUtils::readfile(
-        "C:/Users/nicolas.gerard/CLionProjects/Osmium/OsmiumGL/TestShaders/trivialTriangleVert.spv");
+        "TestShaders/trivialTriangleVert.spv");
     auto fragShaderCode = ShaderUtils::readfile(
-        "C:/Users/nicolas.gerard/CLionProjects/Osmium/OsmiumGL/TestShaders/trivialTriangleFrag.spv");
+        "TestShaders/trivialTriangleFrag.spv");
 
     VkShaderModule vertShaderModule = ShaderUtils::createShaderModule(vertShaderCode, device);
     VkShaderModule fragShaderModule = ShaderUtils::createShaderModule(fragShaderCode, device);
@@ -942,6 +942,9 @@ void OsmiumGLInstance::loadModel(const char *path) {
 
     std::unordered_map<TutoVertex, uint32_t> uniqueVertices {};
 
+    //test resize
+    //vertices.reserve(128);
+    int resizeCount = 0;
     for(const auto& shape : shapes) {
         for(const auto& index : shape.mesh.indices) {
             TutoVertex vertex{
@@ -957,6 +960,7 @@ void OsmiumGLInstance::loadModel(const char *path) {
 
             if(!uniqueVertices.contains(vertex)) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(uniqueVertices.size());
+                if(vertices.size() == vertices.capacity())resizeCount++;
                 vertices.push_back(vertex);
             }
             indices.push_back(uniqueVertices[vertex]);
