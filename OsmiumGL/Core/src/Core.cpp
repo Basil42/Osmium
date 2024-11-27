@@ -301,8 +301,8 @@ void OsmiumGLInstance::createGraphicsPipeline() {
 
     VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = {};
 
-    auto bindingDescription = TutoVertex::getBindingDescription();
-    auto attributeDescription = TutoVertex::getAttributeDescriptions();
+    auto bindingDescription = DefaultVertex::getBindingDescription();
+    auto attributeDescription = DefaultVertex::getAttributeDescriptions();
     vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescription.size());
     vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescription.data();
@@ -940,16 +940,16 @@ void OsmiumGLInstance::loadModel(const char *path) {
         throw std::runtime_error(warn +err);
     }
 
-    std::unordered_map<TutoVertex, uint32_t> uniqueVertices {};
+    std::unordered_map<DefaultVertex, uint32_t> uniqueVertices {};
 
     //test resize
     //vertices.reserve(128);
-    int resizeCount = 0;
+    //int resizeCount = 0;
     for(const auto& shape : shapes) {
         for(const auto& index : shape.mesh.indices) {
-            TutoVertex vertex{
+            DefaultVertex vertex{
             .position = {
-                attrib.vertices[3* index.vertex_index +0],
+                attrib.vertices[3* index.vertex_index + 0],
                 attrib.vertices[3* index.vertex_index + 1],
                 attrib.vertices[3* index.vertex_index + 2]},
             .color = {1.0f,1.0f,1.0f},
@@ -960,7 +960,7 @@ void OsmiumGLInstance::loadModel(const char *path) {
 
             if(!uniqueVertices.contains(vertex)) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(uniqueVertices.size());
-                if(vertices.size() == vertices.capacity())resizeCount++;
+                //if(vertices.size() == vertices.capacity())resizeCount++;
                 vertices.push_back(vertex);
             }
             indices.push_back(uniqueVertices[vertex]);

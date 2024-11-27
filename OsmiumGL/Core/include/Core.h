@@ -62,7 +62,7 @@ private:
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inflightFences;
     bool frameBufferResized = false;
-    std::vector<TutoVertex> vertices;
+    std::vector<DefaultVertex> vertices;
     std::vector<uint32_t> indices ;
 
     VkBuffer vertexBuffer = nullptr;
