@@ -1,11 +1,14 @@
 //
 // Created by nicolas.gerard on 2024-11-05.
 //
-#define GLFW_INCLUDE_VULKAN
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 #ifndef NDEBUG
 // #define Vk_VALIDATION_LAYER
 #endif
-
+#define GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <stdexcept>
@@ -31,10 +34,7 @@
 #include <unordered_map>
 
 #include "Descriptors.h"
-#include "imgui.h"
 
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
 // Volk headers
 #ifdef IMGUI_IMPL_VULKAN_USE_VOLK
 #define VOLK_IMPLEMENTATION
@@ -567,7 +567,7 @@ void OsmiumGLInstance::createCommandBuffers() {
     }
 }
 
-void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData) {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0,
@@ -618,6 +618,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                             &descriptorSets[currentFrame], 0, nullptr);
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
+    ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer");
@@ -941,10 +942,7 @@ void OsmiumGLInstance::loadModel(const char *path) {
     }
 
     std::unordered_map<DefaultVertex, uint32_t> uniqueVertices {};
-
-    //test resize
-    //vertices.reserve(128);
-    //int resizeCount = 0;
+    bool useTextCoord = attrib.texcoords.size() > 0;
     for(const auto& shape : shapes) {
         for(const auto& index : shape.mesh.indices) {
             DefaultVertex vertex{
@@ -954,18 +952,19 @@ void OsmiumGLInstance::loadModel(const char *path) {
                 attrib.vertices[3* index.vertex_index + 2]},
             .color = {1.0f,1.0f,1.0f},
             .texCoordinates = {
-                attrib.texcoords[2 * index.texcoord_index +0],
-                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]}
+                useTextCoord ? attrib.texcoords[2 * index.texcoord_index +0]: 0.0f,
+                 useTextCoord ? 1.0f - attrib.texcoords[2 * index.texcoord_index + 1] : 0.0f},
             };
 
             if(!uniqueVertices.contains(vertex)) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(uniqueVertices.size());
-                //if(vertices.size() == vertices.capacity())resizeCount++;
                 vertices.push_back(vertex);
             }
             indices.push_back(uniqueVertices[vertex]);
         }
     }
+    if(vertices.size() < 128)
+        vertices.reserve(vertices.size());
 }
 
 void OsmiumGLInstance::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
@@ -1208,12 +1207,72 @@ void OsmiumGLInstance::createColorResources() {
     colorImageView = createImageView(colorImage,colorFormat,VK_IMAGE_ASPECT_COLOR_BIT,1);
 }
 
+void OsmiumGLInstance::setupImGui() {
+    //context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    //style
+    ImGui::StyleColorsDark();
+
+    //glfw and vulkan bindings
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+    ImGui_ImplVulkan_InitInfo vulkanInitInfo = {
+        .Instance = instance,
+        .PhysicalDevice = physicalDevice,
+        .Device = device,
+        .QueueFamily = queueFamiliesIndices.graphicsFamily.value(),
+        .Queue = graphicsQueue,
+        .DescriptorPool = VK_NULL_HANDLE,
+        .RenderPass = renderPass,
+        .MinImageCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+        .ImageCount = static_cast<uint32_t>(swapChainImages.size()),
+        .MSAASamples = msaaFlags,
+        .PipelineCache = VK_NULL_HANDLE,
+        .Subpass = 0,
+        .DescriptorPoolSize = 10,
+        .CheckVkResultFn = check_vk_result,
+    };
+    ImGui_ImplVulkan_Init(&vulkanInitInfo);
+
+    showDemoWindow = true;
+    showAnotherWindow = false;
+
+
+    imGuiClearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+}
+
+// void OsmiumGLInstance::createImGuiWindow() {
+//     imguiWindowsData.Surface = surface;
+//
+//     VkBool32 result;
+//     vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,queueFamiliesIndices.graphicsFamily.value(),surface, &result);
+//     if(result != VK_TRUE) {
+//         throw std::runtime_error("imgui not supported");
+//     }
+//     const VkFormat requestSurfaceImageFormat[] = {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8_UNORM, VK_FORMAT_R8G8B8_UNORM};//might need to be set to the same format as the swap chain image
+//     const VkColorSpaceKHR requestSurfaceColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+//     imguiWindowsData.SurfaceFormat = ImGui_ImplVulkanH_SelectSurfaceFormat(physicalDevice,surface,requestSurfaceImageFormat,IM_ARRAYSIZE(requestSurfaceImageFormat),requestSurfaceColorSpace);
+// #ifdef APP_USE_UNLIMITED_FRAME_RATE
+//     VkPresentModeKHR present_Modes[] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
+// #else
+//     VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_FIFO_KHR };
+// #endif
+//     imguiWindowsData.PresentMode = ImGui_ImplVulkanH_SelectPresentMode(physicalDevice,imguiWindowsData.Surface,&present_modes[0],IM_ARRAYSIZE(present_modes));
+//     IM_ASSERT(MAX_FRAMES_IN_FLIGHT >= 2);
+//     ImGui_ImplVulkanH_CreateOrResizeWindow(instance,physicalDevice,device,&imguiWindowsData,queueFamiliesIndices.graphicsFamily.value_or(-1),nullptr,500,300,MAX_FRAMES_IN_FLIGHT);
+// }
+
 
 void OsmiumGLInstance::initVulkan() {
     //actual init, necessary before doing anything
     createInstance();
     setupDebugMessenger();
     createLogicalSurface();
+
     pickPhysicalDevice();
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
     createLogicalDevice();
@@ -1241,6 +1300,7 @@ void OsmiumGLInstance::initVulkan() {
     Descriptors::createDescriptorSets(device,descriptorSetLayout,MAX_FRAMES_IN_FLIGHT,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
     createCommandBuffers();
     createSyncObjects();
+    setupImGui();
 }
 
 void OsmiumGLInstance::mainLoop() {
@@ -1268,8 +1328,11 @@ void OsmiumGLInstance::cleanupSwapChain() {
 }
 
 void OsmiumGLInstance::cleanup() {
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
     cleanupSwapChain();
-
+    //ImGui_ImplVulkanH_DestroyWindow(instance,device,&imguiWindowsData,nullptr);
     vkDestroySampler(device,textureSampler,nullptr);
     vkDestroyImageView(device,textureImageView,nullptr);
     vkDestroyImage(device,textureImage, nullptr);
@@ -1339,7 +1402,57 @@ void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) {//example rot
     memcpy(uniformBuffersMapped[currentImage],&ubo,sizeof(ubo));//Note this sort of operation shoudl be done using push constant
 }
 
+void OsmiumGLInstance::ImguiDrawFrame(ImDrawData* &drawData) {
+    // Start the Dear ImGui frame
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+        if (showDemoWindow)
+            ImGui::ShowDemoWindow(&showDemoWindow);
+
+        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+        {
+            static float f = 0.0f;
+            static int counter = 0;
+
+            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
+            ImGui::Checkbox("Another Window", &showAnotherWindow);
+
+            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui::ColorEdit3("clear color", (float*)&imGuiClearColor); // Edit 3 floats representing a color
+
+            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+                counter++;
+            ImGui::SameLine();
+            ImGui::Text("counter = %d", counter);
+
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::End();
+        }
+
+        // 3. Show another simple window.
+        if (showAnotherWindow)
+        {
+            ImGui::Begin("Another Window", &showAnotherWindow);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+            ImGui::Text("Hello from another window!");
+            if (ImGui::Button("Close Me"))
+                showAnotherWindow = false;
+            ImGui::End();
+        }
+    ImGui::Render();
+    drawData = ImGui::GetDrawData();
+}
+
 void OsmiumGLInstance::drawFrame() {
+
+    ImDrawData* imgGuiDrawData;
+    ImguiDrawFrame(imgGuiDrawData);
+
     vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
 
     uint32_t imageIndex;
@@ -1355,7 +1468,7 @@ void OsmiumGLInstance::drawFrame() {
 
     vkResetFences(device, 1, &inflightFences[currentFrame]);
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);//have to reset only the command buffer here as the pool itself is used by other frames in flight
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex, imgGuiDrawData);
 
     updateUniformBuffer(currentFrame);
 

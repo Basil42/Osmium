@@ -7,6 +7,7 @@
 
 #include "Core.h"
 
+
 int main() {
     try {
         OsmiumGLInstance app;

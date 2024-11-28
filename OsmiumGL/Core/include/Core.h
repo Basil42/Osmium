@@ -5,6 +5,7 @@
 #ifndef CORE_H
 #define CORE_H
 #include <cstdint>
+#include <imgui_impl_vulkan.h>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include "TutorialVertex.h"
@@ -78,6 +79,9 @@ private:
     VkImageView textureImageView = VK_NULL_HANDLE;
     VkSampler textureSampler = VK_NULL_HANDLE;
 
+    //imgui
+    ImGui_ImplVulkanH_Window imguiWindowsData;
+
     const std::vector<const char*> deviceExtensions =  {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
@@ -86,6 +90,11 @@ private:
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
+    bool showDemoWindow;
+    bool showAnotherWindow;
+    ImVec4 imGuiClearColor;
+    ImGuiIO io;
+
     [[nodiscard]] bool checkValidationLayerSupport() const;
 #endif
     void createInstance();;
@@ -119,7 +128,7 @@ private:
 
     void createCommandBuffers();
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData);
 
     void createSyncObjects();
 
@@ -163,6 +172,10 @@ private:
 
     void createColorResources();
 
+    //void createImGuiWindow();
+
+    void setupImGui();
+
     void initVulkan();
 
 
@@ -179,6 +192,8 @@ private:
     uint32_t currentFrame = 0;
 
     void updateUniformBuffer(uint32_t currentImage);
+
+    void ImguiDrawFrame(ImDrawData *&drawData);
 
     void drawFrame();
     void recreateSwapChain();

@@ -1,15 +1,14 @@
-//
-// Created by nicolas.gerard on 2024-11-07.
-//
 
 #ifndef TUTORIALVERTEX_H
 #define TUTORIALVERTEX_H
 #include <array>
 #include <glm\glm.hpp>
+#include <vulkan/vulkan_core.h>
 struct DefaultVertex {
     glm::vec3 position;
     glm::vec3 color;
     glm::vec2 texCoordinates;
+    //glm::vec3 testPadding;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription = {};
@@ -48,9 +47,9 @@ struct DefaultVertex {
 #include <glm/gtx/hash.hpp>
 namespace std {
     template <> struct hash<DefaultVertex> {
-        size_t operator()(const DefaultVertex& t) const {
+        size_t operator()(const DefaultVertex& t) const noexcept {
             return ((hash<glm::vec3>()(t.position) ^ (hash<glm::vec3>()(t.color) << 1)) >> 1) ^
-                (hash<glm::vec2>()(t.texCoordinates) << 1);
+                (hash<glm::vec2>()(t.texCoordinates) << 1);// ^ (hash<glm::vec3>()(t.testPadding) << 1);
         }
     };
 }

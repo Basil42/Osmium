@@ -29,10 +29,5 @@
   }, {
     "name" : "tinyobjloader",
     "version>=" : "2.0.0rc13"
-  }, {
-    "name" : "imgui",
-    "version>=" : "1.91.0",
-    "features": ["vulkan-binding",
-      "glfw-binding"]
   } ]
 }
