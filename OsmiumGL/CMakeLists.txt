@@ -7,26 +7,34 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DVk_VALIDATION_LAYER=1)
 endif ()
 set(IMGUI_SOURCES
-    ../imgui/imgui.cpp
-    ../imgui/imgui_demo.cpp
-    ../imgui/imgui_draw.cpp
-    ../imgui/imgui_widgets.cpp
+        ../imgui/imgui.cpp
+        ../imgui/imgui_demo.cpp
+        ../imgui/imgui_draw.cpp
+        ../imgui/imgui_widgets.cpp
         ../imgui/backends/imgui_impl_glfw.cpp
         ../imgui/backends/imgui_impl_vulkan.cpp
         ../imgui/imgui_tables.cpp
 )
-add_executable(OsmiumGL main.cpp
+set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
-        ShaderUtilities/TutorialVertex.h
         Core/src/Descriptors.cpp
+    )
+set(OSMIUMGL_EXECUTABLE_HEADERS
+        ShaderUtilities/TutorialVertex.h
         Core/include/Descriptors.h
+        Core/include/Core.h
+    )
+add_library(OsmiumGL STATIC
+        ${OSMIUMGL_SOURCES}
+        ${OSMIUMGL_EXECUTABLE_HEADERS}
         ${IMGUI_SOURCES})
-target_include_directories(OsmiumGL PRIVATE ../imgui)
-target_include_directories(OsmiumGL PRIVATE ../imgui/backends)
+#I should have an interface class to not require all these public header and only use one public entry point
+target_include_directories(OsmiumGL PUBLIC ../imgui)
+target_include_directories(OsmiumGL PUBLIC ../imgui/backends)
 target_include_directories(OsmiumGL PUBLIC Core/include)
 target_include_directories(OsmiumGL PUBLIC ShaderUtilities)
-target_include_directories(OsmiumGL PRIVATE Initialization)
-target_include_directories(OsmiumGL PRIVATE DebugUtils)
+target_include_directories(OsmiumGL PUBLIC Initialization)
+target_include_directories(OsmiumGL PUBLIC DebugUtils)
 target_include_directories(OsmiumGL PRIVATE DefaultResources)
 
 find_package(glfw3 CONFIG REQUIRED)
@@ -34,7 +42,7 @@ target_link_libraries(OsmiumGL PRIVATE glfw)
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glm::glm)
 find_package(Vulkan REQUIRED)
-target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
+target_link_libraries(OsmiumGL PUBLIC Vulkan::Vulkan)
 find_package(Stb REQUIRED)
 target_include_directories(OsmiumGL PRIVATE ${Stb_INCLUDE_DIR})
 find_package(tinyobjloader CONFIG REQUIRED)
@@ -47,3 +55,6 @@ add_custom_target(copy_default_resources COMMAND ${CMAKE_COMMAND} -E copy_direct
 add_dependencies(OsmiumGL copy_default_resources)
 add_custom_target(copy_default_shaders COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/TestShaders ${CMAKE_CURRENT_BINARY_DIR}/TestShaders)
 add_dependencies(OsmiumGL copy_default_shaders)
+
+add_executable(OsmiumGLTest main.cpp)
+target_link_libraries(OsmiumGLTest PRIVATE OsmiumGL)

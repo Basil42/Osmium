@@ -3,9 +3,8 @@
 // ReSharper disable once CppClassNeedsConstructorBecauseOfUninitializedMember
 
 
+#include <Core.h>
 #include <iostream>
-
-#include "Core.h"
 
 
 int main() {

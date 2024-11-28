@@ -4,11 +4,10 @@
 
 #ifndef COMPONENT_H
 #define COMPONENT_H
-
+#include <vector>
 
 
 class Component {
-
 };
 
 

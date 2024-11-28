@@ -1,21 +1,24 @@
 //
 // Created by nicolas.gerard on 2024-11-05.
 //
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <vulkan/vulkan.h>
+#include <cstdint>
+#include <imgui_impl_vulkan.h>
+#include <InitUtilVk.h>
 #ifndef NDEBUG
 // #define Vk_VALIDATION_LAYER
 #endif
 #define GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <iostream>
-#include <stdexcept>
 #include <cstring>
+#include <iostream>
 #include <map>
 #include <set>
+#include <stdexcept>
 #include <vector>
+#include <GLFW/glfw3.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -24,16 +27,16 @@
 #define  STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
-#include "InitUtilVk.h"
-#include "ShaderUtilities.h"
-#include "SwapChains/SwapChainUtilities.h"
 #include "Core.h"
 
 #include <chrono>
+#include <tiny_obj_loader.h>
 #include <unordered_map>
 
 #include "Descriptors.h"
+#include "ShaderUtilities.h"
+#include "TutorialVertex.h"
+#include "SwapChains/SwapChainUtilities.h"
 
 // Volk headers
 #ifdef IMGUI_IMPL_VULKAN_USE_VOLK

@@ -5,14 +5,16 @@
 #ifndef CORE_H
 #define CORE_H
 #include <cstdint>
+#include<string>
 #include <imgui_impl_vulkan.h>
+#include <InitUtilVk.h>
 #include <vector>
 #include <vulkan/vulkan.h>
+
 #include "TutorialVertex.h"
-#include <InitUtilVk.h>
 
 
-class GLFWwindow;
+struct GLFWwindow;
 
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:

@@ -6,13 +6,15 @@
 #define GAMEOBJECT_H
 #include "Component.h"
 
-
+/**
+ * Non ecs entities, for convenience and getting started
+ */
 class GameObject {
 public:
     void Addcomponent(Component* component);
     bool RemoveComponent(Component* component);
-private:
     void UpdateComponents();
+
 };
 
 

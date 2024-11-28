@@ -11,5 +11,10 @@ add_executable(OsmiumCore Base/Entity.cpp Base/Entity.h
         Base/GameObject.cpp
         Base/GameObject.h
         Base/GameObjectComponent.h
-        Components/MeshRenderer.cpp
-        Components/MeshRenderer.h)
+        Components/C_MeshRenderer.cpp
+        Components/C_MeshRenderer.h
+        main.cpp
+        GOComponents/GOC_MeshRenderer.cpp
+        GOComponents/GOC_MeshRenderer.h)
+
+target_link_libraries(OsmiumCore PRIVATE OsmiumGL)

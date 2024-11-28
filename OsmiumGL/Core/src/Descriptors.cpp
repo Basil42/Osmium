@@ -4,6 +4,7 @@
 
 #include "Descriptors.h"
 
+#include <array>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
