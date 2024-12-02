@@ -5,15 +5,15 @@
 #ifndef CORE_H
 #define CORE_H
 #include <cstdint>
-#include<string>
+#include <string>
 #include <imgui_impl_vulkan.h>
-#include <InitUtilVk.h>
 #include <vector>
 #include <vulkan/vulkan.h>
 
 #include "TutorialVertex.h"
 
 
+#include <InitUtilVk.h>
 struct GLFWwindow;
 
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
@@ -80,12 +80,14 @@ private:
     VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
     VkImageView textureImageView = VK_NULL_HANDLE;
     VkSampler textureSampler = VK_NULL_HANDLE;
-
+    VkDescriptorUpdateTemplate VikingPushTemplate;
     //imgui
     ImGui_ImplVulkanH_Window imguiWindowsData;
 
     const std::vector<const char*> deviceExtensions =  {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,
+        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
     };
     VkSampleCountFlagBits msaaFlags = VK_SAMPLE_COUNT_1_BIT;
 #ifdef Vk_VALIDATION_LAYER
@@ -96,6 +98,7 @@ private:
     bool showAnotherWindow;
     ImVec4 imGuiClearColor;
     ImGuiIO io;
+
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
 #endif
@@ -129,6 +132,8 @@ private:
     void createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool &poolHandle, uint32_t queueFamilyIndex);
 
     void createCommandBuffers();
+
+    void VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkRenderPassBeginInfo renderPassBeginInfo);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData);
 
@@ -177,6 +182,8 @@ private:
     //void createImGuiWindow();
 
     void setupImGui();
+
+    void VikingTest();
 
     void initVulkan();
 

@@ -18,31 +18,35 @@ set(IMGUI_SOURCES
 set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
         Core/src/Descriptors.cpp
-    )
+        API/OsmiumGL_API.cpp
+)
 set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/TutorialVertex.h
         Core/include/Descriptors.h
         Core/include/Core.h
-    )
+        API/OsmiumGL_API.h
+        DebugUtils/InitUtilVk.h
+)
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
         ${OSMIUMGL_EXECUTABLE_HEADERS}
         ${IMGUI_SOURCES})
 #I should have an interface class to not require all these public header and only use one public entry point
 target_include_directories(OsmiumGL PUBLIC ../imgui)
-target_include_directories(OsmiumGL PUBLIC ../imgui/backends)
-target_include_directories(OsmiumGL PUBLIC Core/include)
-target_include_directories(OsmiumGL PUBLIC ShaderUtilities)
-target_include_directories(OsmiumGL PUBLIC Initialization)
-target_include_directories(OsmiumGL PUBLIC DebugUtils)
+target_include_directories(OsmiumGL PRIVATE ../imgui/backends)
+target_include_directories(OsmiumGL PRIVATE Core/include)
+target_include_directories(OsmiumGL PRIVATE ShaderUtilities)
+target_include_directories(OsmiumGL PRIVATE Initialization)
+target_include_directories(OsmiumGL PRIVATE DebugUtils)
 target_include_directories(OsmiumGL PRIVATE DefaultResources)
+target_include_directories(OsmiumGL PUBLIC API)
 
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glfw)
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glm::glm)
 find_package(Vulkan REQUIRED)
-target_link_libraries(OsmiumGL PUBLIC Vulkan::Vulkan)
+target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
 find_package(Stb REQUIRED)
 target_include_directories(OsmiumGL PRIVATE ${Stb_INCLUDE_DIR})
 find_package(tinyobjloader CONFIG REQUIRED)
@@ -56,5 +60,5 @@ add_dependencies(OsmiumGL copy_default_resources)
 add_custom_target(copy_default_shaders COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/TestShaders ${CMAKE_CURRENT_BINARY_DIR}/TestShaders)
 add_dependencies(OsmiumGL copy_default_shaders)
 
-add_executable(OsmiumGLTest main.cpp)
-target_link_libraries(OsmiumGLTest PRIVATE OsmiumGL)
+add_executable(OsmiumGLTest OsmiumGlTest.cpp)
+target_link_libraries(OsmiumGLTest OsmiumGL)

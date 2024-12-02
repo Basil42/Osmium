@@ -6,22 +6,33 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
 #include <set>
+
+extern PFN_vkCmdPushDescriptorSetKHR descriptorPushFuncPtr;
+#define vkCmdPushDescriptorSetKHR descriptorPushFuncPtr;
+extern PFN_vkCmdPushDescriptorSetWithTemplateKHR pushSetWithTemplateFuncPtr;
+#define vkCmdPushDescriptorSetWithTemplateKHR pushSetWithTemplateFuncPtr;
+inline PFN_vkCmdPushDescriptorSetKHR descriptorPushFuncPtr = nullptr;
+inline PFN_vkCmdPushDescriptorSetWithTemplateKHR pushSetWithTemplateFuncPtr = nullptr;
 //
 // Created by nicolas.gerard on 2024-11-01.
 //
-namespace vkInitUtils {
-    inline std::vector<const char*> getRequiredExtensions() {//TODO:Move to utility folder
+class vkInitUtils {
+public:
+    static std::vector<const char*> getRequiredExtensions() {//TODO:Move to utility folder
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
         std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
+
+
 #ifdef Vk_VALIDATION_LAYER
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
         return extensions;
     }
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -35,7 +46,7 @@ namespace vkInitUtils {
         return VK_FALSE;
     }
 
-    inline VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
                                                  const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
         auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
         if(func != nullptr)
@@ -44,7 +55,16 @@ namespace vkInitUtils {
             return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
 
-    inline void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,const VkAllocationCallbacks* pAllocator) {
+    static VkResult LoadDescriptorExtension(VkDevice device, PFN_vkCmdPushDescriptorSetKHR &DescriptorPushFuncPointer) {
+        DescriptorPushFuncPointer = reinterpret_cast<PFN_vkCmdPushDescriptorSetKHR>(vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR"));
+        if(!DescriptorPushFuncPointer)throw std::runtime_error("failed to load descriptor push descriptor function pointer");
+        pushSetWithTemplateFuncPtr = reinterpret_cast<PFN_vkCmdPushDescriptorSetWithTemplateKHR>(vkGetDeviceProcAddr(
+            device, "vkCmdPushDescriptorSetWithTemplateKHR"));
+        if(!pushSetWithTemplateFuncPtr)throw std::runtime_error("failed to load descriptor push descriptor function pointer");
+        return VK_SUCCESS;
+    }
+
+    static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,const VkAllocationCallbacks* pAllocator) {
         auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
         if(func != nullptr)
             func(instance, debugMessenger, pAllocator);
@@ -84,7 +104,7 @@ namespace vkInitUtils {
         return indices;
     }
 
-    inline bool checkDeviceExtensionSupport(VkPhysicalDevice device, std::vector<const char*>& requiredDeviceExtensions) {
+    static bool checkDeviceExtensionSupport(VkPhysicalDevice device, std::vector<const char*>& requiredDeviceExtensions) {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
         std::vector<VkExtensionProperties> availableExtensions(extensionCount);
@@ -102,7 +122,8 @@ namespace vkInitUtils {
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> presentModes;
     };
-    inline SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
+
+    static SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
         SwapChainSupportDetails details;
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
         uint32_t formatCount;
@@ -119,7 +140,8 @@ namespace vkInitUtils {
         }
         return details;
     }
-    inline uint32_t RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
+
+    static uint32_t RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
         VkPhysicalDeviceProperties deviceProperties;
         VkPhysicalDeviceFeatures deviceFeatures;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -149,10 +171,12 @@ namespace vkInitUtils {
             std::cout << "Missing swap chain support, scoring it 0" << std::endl;
             return 0;
         }
+
         std::cout << "scored " << score << std::endl;
         return score;
     }
-    inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice &device) {
+
+    static uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice &device) {
         VkPhysicalDeviceMemoryProperties memoryProperties;
         vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
         for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
@@ -163,5 +187,5 @@ namespace vkInitUtils {
         throw std::runtime_error("failed to find suitable memory type");
     }
 
-}
+};
 #endif

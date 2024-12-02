@@ -6,9 +6,12 @@
 #define SHADERUTILITIES_H
 #include <fstream>
 #include <vector>
+#include <bits/fs_fwd.h>
+#include <bits/fs_path.h>
 
 namespace ShaderUtils{
     static std::vector<char> readfile(const std::string& filename) {
+        auto check = std::filesystem::current_path();
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
         if(!file.is_open()) {
             throw std::runtime_error("Failed to open file " + filename);

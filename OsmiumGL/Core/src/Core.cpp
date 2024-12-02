@@ -405,12 +405,16 @@ void OsmiumGLInstance::createGraphicsPipeline() {
         .blendConstants = {1.0f, 1.0f, 1.0f, 1.0f}
     };
 
+    VkPushConstantRange pushConstantRange = {
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .offset = 0,
+    .size = sizeof(Descriptors::UniformBufferObject)};
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &descriptorSetLayout,
-        .pushConstantRangeCount = 0,
-        .pPushConstantRanges = nullptr
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &pushConstantRange
     };
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
@@ -570,6 +574,34 @@ void OsmiumGLInstance::createCommandBuffers() {
     }
 }
 
+void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkRenderPassBeginInfo renderPassBeginInfo) {
+    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] ={0};
+    vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
+    vkCmdBindIndexBuffer(commandBuffer,indexBuffer,0,VK_INDEX_TYPE_UINT32);
+
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+                            &descriptorSets[currentFrame], 0, nullptr);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
+
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    Descriptors::UniformBufferObject ubo = {
+        .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
+        .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
+        .proj = glm::perspective(glm::radians(45.0f),swapChainExtent.width/ static_cast<float>(swapChainExtent.height),0.1f,10.0f),
+        };
+    ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
+
+    pushSetWithTemplateFuncPtr(commandBuffer,VikingPushTemplate,pipelineLayout,0,&ubo);
+}
+
 void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData) {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -594,15 +626,6 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     clearValues[1].depthStencil = {1.0f, 0};
     renderPassBeginInfo.clearValueCount = clearValues.size();
     renderPassBeginInfo.pClearValues = clearValues.data();
-
-    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-    VkBuffer vertexBuffers[] = {vertexBuffer};
-    VkDeviceSize offsets[] ={0};
-    vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
-    vkCmdBindIndexBuffer(commandBuffer,indexBuffer,0,VK_INDEX_TYPE_UINT32);
-
     VkViewport viewport = {
         viewport.x = 0.0f,
         viewport.y = 0.0f,
@@ -618,9 +641,8 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
         .extent = swapChainExtent
     };
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-                            &descriptorSets[currentFrame], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
+
+    VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
     ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -1270,6 +1292,39 @@ void OsmiumGLInstance::setupImGui() {
 // }
 
 
+void OsmiumGLInstance::VikingTest() {
+    Descriptors::createDescriptorSetLayout(device,descriptorSetLayout);
+    createGraphicsPipeline();
+    loadModel(MODEL_PATH.c_str());
+    createTextureImage(TEXTURE_PATH.c_str());
+    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, miplevels);
+    createVertexBuffer();
+    createIndexBuffer();
+    createUniformBuffer();
+    Descriptors::createDescriptorPool(device,descriptorPool,MAX_FRAMES_IN_FLIGHT);
+    Descriptors::createDescriptorSets(device,descriptorSetLayout,MAX_FRAMES_IN_FLIGHT,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
+    const VkDescriptorUpdateTemplateEntry descriptorUpdateTemplateEntries[] = {
+        {
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .offset = offsetof(Descriptors::UniformBufferObject,model),
+            .stride = 0
+        }
+    };
+    const VkDescriptorUpdateTemplateCreateInfo descriptorUpdateTemplateCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO,
+        .descriptorUpdateEntryCount = 1,
+        .pDescriptorUpdateEntries = descriptorUpdateTemplateEntries,
+        .templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR,
+        .descriptorSetLayout =  0,
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .pipelineLayout = OsmiumGLInstance::pipelineLayout,
+        .set = 0};
+    vkCreateDescriptorUpdateTemplate(device,&descriptorUpdateTemplateCreateInfo,nullptr,&VikingPushTemplate);//TODO clean it
+}
+
 void OsmiumGLInstance::initVulkan() {
     //actual init, necessary before doing anything
     createInstance();
@@ -1278,7 +1333,9 @@ void OsmiumGLInstance::initVulkan() {
 
     pickPhysicalDevice();
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
+
     createLogicalDevice();
+    vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
     createSwapChain();
     createSwapchainImageViews();
     //more game specific, but arcane enough that it should not be exposed for now
@@ -1286,21 +1343,13 @@ void OsmiumGLInstance::initVulkan() {
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
     //specific, should probably not be in here
-    Descriptors::createDescriptorSetLayout(device,descriptorSetLayout);
-    createGraphicsPipeline();
 
     createColorResources();
     createDepthResources();
     createFrameBuffer();
-    createTextureImage(TEXTURE_PATH.c_str());
-    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, miplevels);
     createTextureSampler();
-    loadModel(MODEL_PATH.c_str());
-    createVertexBuffer();
-    createIndexBuffer();
-    createUniformBuffer();
-    Descriptors::createDescriptorPool(device,descriptorPool,MAX_FRAMES_IN_FLIGHT);
-    Descriptors::createDescriptorSets(device,descriptorSetLayout,MAX_FRAMES_IN_FLIGHT,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
+
+    VikingTest();
     createCommandBuffers();
     createSyncObjects();
     setupImGui();
@@ -1473,7 +1522,7 @@ void OsmiumGLInstance::drawFrame() {
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);//have to reset only the command buffer here as the pool itself is used by other frames in flight
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex, imgGuiDrawData);
 
-    updateUniformBuffer(currentFrame);
+    //updateUniformBuffer(currentFrame);
 
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO

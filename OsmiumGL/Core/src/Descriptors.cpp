@@ -39,7 +39,7 @@ void Descriptors::createDescriptorSetLayout(const VkDevice& device, VkDescriptor
 
 void Descriptors::createDescriptorPool(const VkDevice& device, VkDescriptorPool&descriptorPool,const int MAX_FRAMES_IN_FLIGHT) {
 
-    std::array<VkDescriptorPoolSize, 3> poolSizes{};
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
     poolSizes[0] = {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -49,9 +49,10 @@ void Descriptors::createDescriptorPool(const VkDevice& device, VkDescriptorPool&
       .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
     };
-    poolSizes[2] = {
-    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+    // poolSizes[2] = {
+    // .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    // .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)
+    //};
     VkDescriptorPoolCreateInfo poolInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
