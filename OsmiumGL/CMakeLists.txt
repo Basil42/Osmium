@@ -18,14 +18,18 @@ set(IMGUI_SOURCES
 set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
         Core/src/Descriptors.cpp
-        API/OsmiumGL_API.cpp
+        API/src/OsmiumGL_API.cpp
+        API/src/Mesh.cpp
+        API/src/Material.cpp
 )
 set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/TutorialVertex.h
         Core/include/Descriptors.h
         Core/include/Core.h
-        API/OsmiumGL_API.h
+        API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
+        API/include/Mesh.h
+        API/include/Material.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
@@ -34,12 +38,14 @@ add_library(OsmiumGL STATIC
 #I should have an interface class to not require all these public header and only use one public entry point
 target_include_directories(OsmiumGL PUBLIC ../imgui)
 target_include_directories(OsmiumGL PRIVATE ../imgui/backends)
-target_include_directories(OsmiumGL PRIVATE Core/include)
-target_include_directories(OsmiumGL PRIVATE ShaderUtilities)
-target_include_directories(OsmiumGL PRIVATE Initialization)
-target_include_directories(OsmiumGL PRIVATE DebugUtils)
-target_include_directories(OsmiumGL PRIVATE DefaultResources)
-target_include_directories(OsmiumGL PUBLIC API)
+target_include_directories(OsmiumGL PRIVATE
+        Core/include
+        ShaderUtilities
+        Initialization
+        DebugUtils
+        DefaultResources
+)
+target_include_directories(OsmiumGL PUBLIC API/include)
 
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glfw)

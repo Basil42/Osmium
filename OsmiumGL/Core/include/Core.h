@@ -20,7 +20,23 @@ class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
     void run();
 
+    void initialize();
+
+    void startImguiFrame();
+
+    void StartFrame();
+
+    void endImgGuiFrame();
+
+    void EndFrame();
+
+    void Shutdown();
+
+    bool closing = false;
+
+
 private:
+    ImDrawData * imgGuiDrawData;
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
@@ -96,8 +112,9 @@ private:
     };
     bool showDemoWindow;
     bool showAnotherWindow;
-    ImVec4 imGuiClearColor;
+
     ImGuiIO io;
+
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -202,7 +219,6 @@ private:
 
     void updateUniformBuffer(uint32_t currentImage);
 
-    void ImguiDrawFrame(ImDrawData *&drawData);
 
     void drawFrame();
     void recreateSwapChain();

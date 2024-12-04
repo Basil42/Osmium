@@ -1,7 +1,10 @@
-#include "Helpers/Memcheck.h"
+
+#include "Base/GameInstance.h"
 //
 // Created by Shadow on 11/28/2024.
 //
 int main(int argc, char *argv[]) {
-    CanAllocate(0);
+    GameInstance game;
+    game.run();
+
 }

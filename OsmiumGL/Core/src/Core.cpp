@@ -56,12 +56,48 @@ static void glfw_error_callback(int error, const char* description) {
         fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-void OsmiumGLInstance::run() {
+void OsmiumGLInstance::run() {//used by early test, deprecated
     initWindow();
     initVulkan();
     mainLoop();
     cleanup();
 }
+
+void OsmiumGLInstance::initialize() {
+    initWindow();
+    initVulkan();
+}
+
+void OsmiumGLInstance::startImguiFrame() {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}
+
+void OsmiumGLInstance::StartFrame() {
+    if(glfwWindowShouldClose(window)) {
+        closing = true;
+        return;
+    }
+    glfwPollEvents();
+    //start IMGUI frame
+    startImguiFrame();
+}
+
+void OsmiumGLInstance::endImgGuiFrame() {
+    ImGui::Render();
+    imgGuiDrawData = ImGui::GetDrawData();
+}
+
+void OsmiumGLInstance::EndFrame() {
+    endImgGuiFrame();
+    drawFrame();
+}
+
+void OsmiumGLInstance::Shutdown() {
+    cleanup();
+}
+
 #ifdef Vk_VALIDATION_LAYER
 bool OsmiumGLInstance::checkValidationLayerSupport() const {
     uint32_t layerCount;
@@ -1268,7 +1304,6 @@ void OsmiumGLInstance::setupImGui() {
     showAnotherWindow = false;
 
 
-    imGuiClearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 }
 
 // void OsmiumGLInstance::createImGuiWindow() {
@@ -1342,6 +1377,7 @@ void OsmiumGLInstance::mainLoop() {
         drawFrame();
     }
     vkDeviceWaitIdle(device);
+    closing = true;
 }
 
 void OsmiumGLInstance::cleanupSwapChain() {
@@ -1435,56 +1471,9 @@ void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) {//example rot
     memcpy(uniformBuffersMapped[currentImage],&ubo,sizeof(ubo));//Note this sort of operation shoudl be done using push constant
 }
 
-void OsmiumGLInstance::ImguiDrawFrame(ImDrawData* &drawData) {
-    // Start the Dear ImGui frame
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (showDemoWindow)
-            ImGui::ShowDemoWindow(&showDemoWindow);
 
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &showAnotherWindow);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&imGuiClearColor); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::End();
-        }
-
-        // 3. Show another simple window.
-        if (showAnotherWindow)
-        {
-            ImGui::Begin("Another Window", &showAnotherWindow);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                showAnotherWindow = false;
-            ImGui::End();
-        }
-    ImGui::Render();
-    drawData = ImGui::GetDrawData();
-}
-
-void OsmiumGLInstance::drawFrame() {
-
-    ImDrawData* imgGuiDrawData;
-    ImguiDrawFrame(imgGuiDrawData);
+void OsmiumGLInstance::drawFrame() {//used for test, deprecated
 
     vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
 

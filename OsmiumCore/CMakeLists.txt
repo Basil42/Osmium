@@ -3,20 +3,40 @@ project(OsmiumCore)
 
 
 set(CMAKE_CXX_STANDARD 20)
-add_library(OsmiumCore Base/Entity.cpp Base/Entity.h
+set(OSMIUMCORE_SOURCES
         Base/Component.cpp
-        Base/Component.h
         Base/System.cpp
-        Base/System.h
         Base/GameObject.cpp
+        Components/C_MeshRenderer.cpp
+        GOComponents/GOC_MeshRenderer.cpp
+        GOComponents/GOC_Transform.cpp
+        Base/GameInstance.cpp
+        Base/Entity.cpp
+)
+set(OSMIUMCORE_HEADERS
+        Base/Component.h
+        Base/System.h
         Base/GameObject.h
         Base/GameObjectComponent.h
-        Components/C_MeshRenderer.cpp
         Components/C_MeshRenderer.h
-        GOComponents/GOC_MeshRenderer.cpp
         GOComponents/GOC_MeshRenderer.h
-        Helpers/Memcheck.h)
+        Helpers/Memcheck.h
+        GOComponents/GOC_Transform.h
+        Base/GameInstance.h
+        Base/Entity.h
+        Helpers/Properties.h
+)
 
-target_link_libraries(OsmiumCore PRIVATE OsmiumGL)
+add_library(OsmiumCore STATIC
+        ${OSMIUMCORE_SOURCES}
+        ${OSMIUMCORE_HEADERS}
+        )
 
-add_executable(MemTest main.cpp Helpers/Memcheck.h)
+
+target_link_libraries(OsmiumCore PUBLIC OsmiumGL)
+find_package(glm CONFIG REQUIRED)
+target_link_libraries(OsmiumCore PUBLIC glm::glm)
+
+add_executable(CoreTest main.cpp)
+target_link_libraries(CoreTest PRIVATE OsmiumCore)
+
