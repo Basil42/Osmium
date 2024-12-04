@@ -9,13 +9,13 @@
 #include <vulkan/vulkan_core.h>
 
 void Descriptors::createDescriptorSetLayout(const VkDevice& device, VkDescriptorSetLayout& descriptorSetLayout) {
-    VkDescriptorSetLayoutBinding uboLayoutBinding = {
-        .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .pImmutableSamplers = nullptr,
-        };
+    // VkDescriptorSetLayoutBinding uboLayoutBinding = {
+    //     .binding = 0,
+    //     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    //     .descriptorCount = 1,
+    //     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    //     .pImmutableSamplers = nullptr,
+    //     };
 
 
     VkDescriptorSetLayoutBinding samplerLayoutBinding = {
@@ -25,7 +25,7 @@ void Descriptors::createDescriptorSetLayout(const VkDevice& device, VkDescriptor
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
         .pImmutableSamplers = nullptr
     };
-    std::array<VkDescriptorSetLayoutBinding,2> bindings = {uboLayoutBinding,samplerLayoutBinding};
+    std::array<VkDescriptorSetLayoutBinding,1> bindings = {samplerLayoutBinding};
     VkDescriptorSetLayoutCreateInfo uboLayoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = bindings.size(),
@@ -92,19 +92,19 @@ void Descriptors::createDescriptorSets(VkDevice& device, VkDescriptorSetLayout& 
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         };
 
-        std::array<VkWriteDescriptorSet,2> descriptorWrites{};
+        std::array<VkWriteDescriptorSet,1> descriptorWrites{};
+        // descriptorWrites[0] = {
+        //     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        //     .dstSet = descriptorSets[i],
+        //     .dstBinding = 0,
+        //     .dstArrayElement = 0,
+        //     .descriptorCount = 1,
+        //     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        //     .pImageInfo = nullptr,
+        //     .pBufferInfo = &descriptorBufferInfo,
+        //     .pTexelBufferView = nullptr
+        //     };
         descriptorWrites[0] = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = descriptorSets[i],
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &descriptorBufferInfo,
-            .pTexelBufferView = nullptr
-            };
-        descriptorWrites[1] = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstSet = descriptorSets[i],
             .dstBinding = 1,

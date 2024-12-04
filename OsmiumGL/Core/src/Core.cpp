@@ -582,11 +582,6 @@ void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkR
     vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
     vkCmdBindIndexBuffer(commandBuffer,indexBuffer,0,VK_INDEX_TYPE_UINT32);
 
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-                            &descriptorSets[currentFrame], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
-
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -599,7 +594,13 @@ void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkR
         };
     ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
 
-    pushSetWithTemplateFuncPtr(commandBuffer,VikingPushTemplate,pipelineLayout,0,&ubo);
+    vkCmdPushConstants(commandBuffer,pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ubo),&ubo);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+                            &descriptorSets[currentFrame], 0, nullptr);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
+
+
 }
 
 void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData) {
@@ -1303,26 +1304,6 @@ void OsmiumGLInstance::VikingTest() {
     createUniformBuffer();
     Descriptors::createDescriptorPool(device,descriptorPool,MAX_FRAMES_IN_FLIGHT);
     Descriptors::createDescriptorSets(device,descriptorSetLayout,MAX_FRAMES_IN_FLIGHT,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
-    const VkDescriptorUpdateTemplateEntry descriptorUpdateTemplateEntries[] = {
-        {
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .offset = offsetof(Descriptors::UniformBufferObject,model),
-            .stride = 0
-        }
-    };
-    const VkDescriptorUpdateTemplateCreateInfo descriptorUpdateTemplateCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO,
-        .descriptorUpdateEntryCount = 1,
-        .pDescriptorUpdateEntries = descriptorUpdateTemplateEntries,
-        .templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR,
-        .descriptorSetLayout =  0,
-        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .pipelineLayout = OsmiumGLInstance::pipelineLayout,
-        .set = 0};
-    vkCreateDescriptorUpdateTemplate(device,&descriptorUpdateTemplateCreateInfo,nullptr,&VikingPushTemplate);//TODO clean it
 }
 
 void OsmiumGLInstance::initVulkan() {
