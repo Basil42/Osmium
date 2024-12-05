@@ -643,6 +643,11 @@ void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, con
 
 }
 
+void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const {
+    //
+    ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
+}
+
 void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData) const {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -684,7 +689,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
-    ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
+    RecordImGuiDrawCommand(commandBuffer, imgGuiDrawData);
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer");

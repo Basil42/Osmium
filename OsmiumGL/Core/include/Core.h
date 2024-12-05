@@ -150,6 +150,8 @@ private:
 
     void VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const;
 
+    void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
+
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData) const;
 
     void createSyncObjects();

@@ -4,26 +4,62 @@
 
 #include "GameInstance.h"
 
+#include <condition_variable>
 #include <imgui.h>
+#include <thread>
 
 #include "OsmiumGL_API.h"
 
 
+void GameInstance::GameLoop(std::mutex& SimulationMutex,
+    bool &isSimOver,
+    std::condition_variable& SimulationConditionVariable,
+    std::mutex& renderDataUpdateMutex,
+    bool &isRenderDataUpdateOver,
+    std::condition_variable& renderDataUpdateConditionVariable,
+    std::mutex& ImguiMutex,
+    bool &isImguiUpdateOver,
+    std::condition_variable& ImguiUpdateConditionVariable) {
+    while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
+
+        std::unique_lock<std::mutex> ImGuiLock(ImguiMutex);
+        ImguiUpdateConditionVariable.wait(ImGuiLock, [&isImguiUpdateOver] { return isImguiUpdateOver; });
+
+        isSimOver = false;
+        std::unique_lock<std::mutex> SimulationLock(SimulationMutex);
+
+
+        //Do simulation things
+        isSimOver = true;
+        SimulationLock.unlock();
+        SimulationConditionVariable.notify_one();
+
+        std::unique_lock<std::mutex> renderDataUpdateLock(renderDataUpdateMutex);
+        renderDataUpdateConditionVariable.wait(renderDataUpdateLock, [&isRenderDataUpdateOver]() {return isRenderDataUpdateOver;});
+
+
+    }
+}
 
 void GameInstance::run() {
-    OsmiumGL::Init();
 
-    LoadInitialScene()
+    auto initThread = std::thread(OsmiumGL::Init);
+    //load the initial assets
+    //LoadInitialScene()
+    initThread.join();
+    std::mutex SimulationCompletionMutex;
+    auto SimulationThread = std::thread(GameLoop, &SimulationCompletionMutex);
+    auto ImGuiThread = std::thread(RenderImGuiFrameTask);
     io = ImGui::GetIO();
     while (!OsmiumGL::ShouldClose()) {
         OsmiumGL::StartFrame();
-        RenderImGuiFrame();//ideally I would do that wherever and send it as a message to the render thread
+        RenderImGuiFrameTask();//ideally I would do that wherever and send it as a message to the render thread
         OsmiumGL::EndFrame();
     }
     OsmiumGL::Shutdown();
 }
 
-void GameInstance::RenderImGuiFrame() {
+void GameInstance::RenderImGuiFrameTask() {
     // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
     if (showDemoWindow)
         ImGui::ShowDemoWindow(&showDemoWindow);
