@@ -319,9 +319,9 @@ void OsmiumGLInstance::createSwapchainImageViews() {
 //this is what unity would generate using all the stage contained in a single shader file (you'd need some kind of parsing mechanism to do the same
 void OsmiumGLInstance::createGraphicsPipeline() {
     auto vertShaderCode = ShaderUtils::readfile(
-        "TestShaders/trivialTriangleVert.spv");
+        "../OsmiumGL/TestShaders/trivialTriangleVert.spv");
     auto fragShaderCode = ShaderUtils::readfile(
-        "TestShaders/trivialTriangleFrag.spv");
+        "../OsmiumGL/TestShaders/trivialTriangleFrag.spv");
 
     VkShaderModule vertShaderModule = ShaderUtils::createShaderModule(vertShaderCode, device);
     VkShaderModule fragShaderModule = ShaderUtils::createShaderModule(fragShaderCode, device);
@@ -1351,7 +1351,8 @@ void OsmiumGLInstance::initVulkan() {
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
 
     createLogicalDevice();
-    vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
+
+    //vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
     createSwapChain();
     createSwapchainImageViews();
     //more game specific, but arcane enough that it should not be exposed for now

@@ -40,8 +40,8 @@ private:
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
-    const std::string MODEL_PATH = "DefaultResources/models/viking_room.obj";
-    const std::string TEXTURE_PATH = "DefaultResources/textures/viking_room.png";
+    const std::string MODEL_PATH = "../OsmiumGL/DefaultResources/models/viking_room.obj";
+    const std::string TEXTURE_PATH = "../OsmiumGL/DefaultResources/textures/viking_room.png";
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
     GLFWwindow* window = nullptr;
@@ -101,9 +101,7 @@ private:
     ImGui_ImplVulkanH_Window imguiWindowsData;
 
     const std::vector<const char*> deviceExtensions =  {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,
-        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
     VkSampleCountFlagBits msaaFlags = VK_SAMPLE_COUNT_1_BIT;
 #ifdef Vk_VALIDATION_LAYER
@@ -195,8 +193,6 @@ private:
     static const bool hasStencilComponent(VkFormat format);
 
     void createColorResources();
-
-    //void createImGuiWindow();
 
     void setupImGui();
 

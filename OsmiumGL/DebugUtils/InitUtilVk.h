@@ -56,6 +56,7 @@ public:
     }
 
     static VkResult LoadDescriptorExtension(VkDevice device, PFN_vkCmdPushDescriptorSetKHR &DescriptorPushFuncPointer) {
+        //should check if the extension is actually suported
         DescriptorPushFuncPointer = reinterpret_cast<PFN_vkCmdPushDescriptorSetKHR>(vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR"));
         if(!DescriptorPushFuncPointer)throw std::runtime_error("failed to load descriptor push descriptor function pointer");
         pushSetWithTemplateFuncPtr = reinterpret_cast<PFN_vkCmdPushDescriptorSetWithTemplateKHR>(vkGetDeviceProcAddr(
