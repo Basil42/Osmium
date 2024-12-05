@@ -23,5 +23,5 @@ void OsmiumGL::Shutdown() {
 }
 
 bool OsmiumGL::ShouldClose() {
-    return instance->closing;
+    return instance->ShouldClose();
 }

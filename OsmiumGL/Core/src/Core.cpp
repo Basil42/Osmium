@@ -1,9 +1,12 @@
 //
 // Created by nicolas.gerard on 2024-11-05.
 //
+// ReSharper disable CppDFAConstantParameter
+// ReSharper disable CppDFAConstantConditions
+// ReSharper disable CppDFAUnreachableCode
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
-#include <vulkan/vulkan.h>
 #include <cstdint>
 #include <imgui_impl_vulkan.h>
 #include <InitUtilVk.h>
@@ -68,20 +71,16 @@ void OsmiumGLInstance::initialize() {
     initVulkan();
 }
 
-void OsmiumGLInstance::startImguiFrame() {
+void OsmiumGLInstance::startImGuiFrame() {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 }
 
 void OsmiumGLInstance::StartFrame() {
-    if(glfwWindowShouldClose(window)) {
-        closing = true;
-        return;
-    }
     glfwPollEvents();
     //start IMGUI frame
-    startImguiFrame();
+    startImGuiFrame();
 }
 
 void OsmiumGLInstance::endImgGuiFrame() {
@@ -95,7 +94,12 @@ void OsmiumGLInstance::EndFrame() {
 }
 
 void OsmiumGLInstance::Shutdown() {
+    vkDeviceWaitIdle(device);
     cleanup();
+}
+
+bool OsmiumGLInstance::ShouldClose() const {
+    return glfwWindowShouldClose(window);
 }
 
 #ifdef Vk_VALIDATION_LAYER
@@ -310,7 +314,7 @@ void OsmiumGLInstance::createSwapChain() {
     swapChainExtent = extent;
 }
 
-void OsmiumGLInstance::createSwapchainImageViews() {
+void OsmiumGLInstance::createSwapChainImageViews() {
     swapChainImageViews.resize(swapChainImages.size());
     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
         swapChainImageViews[i] = createImageView(swapChainImages[i],swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
@@ -485,7 +489,7 @@ void OsmiumGLInstance::createGraphicsPipeline() {
 }
 
 void OsmiumGLInstance::createRenderPass() {
-    VkAttachmentDescription depthAttachement = {
+    VkAttachmentDescription depthAttachment = {
         .format = findDepthFormat(),
         .samples = msaaFlags,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -538,7 +542,7 @@ void OsmiumGLInstance::createRenderPass() {
         .pResolveAttachments = &colorAttachmentResolveReference,
         .pDepthStencilAttachment = &depthAttachmentReference,
     };
-    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment,depthAttachement,colorAttachmentResolve};
+    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment,depthAttachment,colorAttachmentResolve};
     VkRenderPassCreateInfo renderPassCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .attachmentCount = attachments.size(),
@@ -585,7 +589,7 @@ void OsmiumGLInstance::createFrameBuffer() {
     }
 }
 
-void OsmiumGLInstance::createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool& poolHandle, uint32_t queueFamilyIndex) {
+void OsmiumGLInstance::createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool& poolHandle, uint32_t queueFamilyIndex) const {
 
     VkCommandPoolCreateInfo commandPoolCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -610,7 +614,7 @@ void OsmiumGLInstance::createCommandBuffers() {
     }
 }
 
-void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkRenderPassBeginInfo renderPassBeginInfo) {
+void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
     VkBuffer vertexBuffers[] = {vertexBuffer};
@@ -626,7 +630,7 @@ void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkR
     Descriptors::UniformBufferObject ubo = {
         .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
         .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
-        .proj = glm::perspective(glm::radians(45.0f),swapChainExtent.width/ static_cast<float>(swapChainExtent.height),0.1f,10.0f),
+        .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f),
         };
     ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
 
@@ -639,7 +643,7 @@ void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkR
 
 }
 
-void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData) {
+void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData) const {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0,
@@ -745,7 +749,7 @@ void OsmiumGLInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usag
     vkBindBufferMemory(device,buffer,bufferMemory,0);
 }
 
-void OsmiumGLInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+void OsmiumGLInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const {
 
     VkCommandBuffer commandBuffer = beginSingleTimeCommands(transferQueue);
 
@@ -817,24 +821,24 @@ void OsmiumGLInstance::createIndexBuffer() {
 }
 
 void OsmiumGLInstance::createUniformBuffer() {
-    VkDeviceSize bufferSize = sizeof(Descriptors::UniformBufferObject);
-
     uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
     uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
     for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        constexpr VkDeviceSize bufferSize = sizeof(Descriptors::UniformBufferObject);
         createBuffer(bufferSize,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            uniformBuffers[i],
-            uniformBuffersMemory[i]);
+                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     uniformBuffers[i],
+                     uniformBuffersMemory[i]);
         vkMapMemory(device,uniformBuffersMemory[i],0,bufferSize,0,&uniformBuffersMapped[i]);
     }
 }
 
-void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
-                                   tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory) {
+void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,
+                                   VkSampleCountFlagBits numSamples, VkFormat format,
+                                   const VkImageTiling tiling, VkImageUsageFlags usage, VkImage &image, VkDeviceMemory &imageMemory) {
     VkImageCreateInfo imageCreateInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .flags = 0,
@@ -898,7 +902,7 @@ void OsmiumGLInstance::createTextureImage(const char* path) {
                 VK_FORMAT_R8G8B8A8_SRGB,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+                textureImage, textureImageMemory);
 
     transitionImageLayout(textureImage,VK_FORMAT_R8G8B8_SRGB,VK_IMAGE_LAYOUT_UNDEFINED,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, miplevels);//we don't care about what is currently in it
     copyBufferToImage(stagingBuffer,textureImage,static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
@@ -909,11 +913,11 @@ void OsmiumGLInstance::createTextureImage(const char* path) {
 
 }
 
-void OsmiumGLInstance::generateMipMaps(VkImage image,VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
+void OsmiumGLInstance::generateMipMaps(VkImage image,VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) const {
     VkFormatProperties formatProperties;
     vkGetPhysicalDeviceFormatProperties(physicalDevice,imageFormat,&formatProperties);
     if(!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
-        throw std::runtime_error("Texture image format is not supported by device");//should probably be in physical deviec evaluation if it is going to stop execution, but mipmaps should be prebaked anyway
+        throw std::runtime_error("Texture image format is not supported by device");//should probably be in physical device evaluation if it is going to stop execution, but mipmaps should be pre-baked anyway
     VkCommandBuffer command_buffer = beginSingleTimeCommands(graphicsQueue);
 
     VkImageMemoryBarrier barrier = {
@@ -1004,7 +1008,7 @@ void OsmiumGLInstance::loadModel(const char *path) {
     }
 
     std::unordered_map<DefaultVertex, uint32_t> uniqueVertices {};
-    bool useTextCoord = attrib.texcoords.size() > 0;
+    bool useTextCoord = !attrib.texcoords.empty();
     for(const auto& shape : shapes) {
         for(const auto& index : shape.mesh.indices) {
             DefaultVertex vertex{
@@ -1029,7 +1033,7 @@ void OsmiumGLInstance::loadModel(const char *path) {
         vertices.reserve(vertices.size());
 }
 
-void OsmiumGLInstance::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+void OsmiumGLInstance::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const {
     VkCommandBuffer cmdBuffer = beginSingleTimeCommands(graphicsQueue);
 
     VkBufferImageCopy region{
@@ -1053,8 +1057,8 @@ void OsmiumGLInstance::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_
     endSingleTimeCommands(cmdBuffer, graphicsQueue);
 }
 
-void OsmiumGLInstance::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                             VkImageLayout newLayout,uint32_t mipLevels) {
+void OsmiumGLInstance::transitionImageLayout(VkImage image, VkFormat format, const VkImageLayout oldLayout,
+                                             VkImageLayout newLayout,uint32_t mipLevels) const {
 
 
 
@@ -1126,7 +1130,7 @@ void OsmiumGLInstance::transitionImageLayout(VkImage image, VkFormat format, VkI
 
 }
 
-VkCommandBuffer OsmiumGLInstance::beginSingleTimeCommands(VkQueue queue) {
+VkCommandBuffer OsmiumGLInstance::beginSingleTimeCommands(VkQueue queue) const {
     VkCommandBufferAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = queue == transferQueue ? transientCommandPool : commandPool,
@@ -1144,7 +1148,7 @@ VkCommandBuffer OsmiumGLInstance::beginSingleTimeCommands(VkQueue queue) {
     return commandBuffer;
 }
 
-void OsmiumGLInstance::endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue queue) {
+void OsmiumGLInstance::endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue queue) const {
     vkEndCommandBuffer(commandBuffer);
 
     VkSubmitInfo submitInfo = {
@@ -1159,7 +1163,7 @@ void OsmiumGLInstance::endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQue
     vkFreeCommandBuffers(device,queue == transferQueue ? transientCommandPool: commandPool,1,&commandBuffer);
 }
 
-VkImageView OsmiumGLInstance::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) {
+VkImageView OsmiumGLInstance::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const {
     VkImageViewCreateInfo viewInfo{
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
     .image = image,
@@ -1212,7 +1216,7 @@ void OsmiumGLInstance::createDepthResources() {
                 depthFormat,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+                depthImage, depthImageMemory);
     depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 
     //optional
@@ -1254,18 +1258,17 @@ VkSampleCountFlagBits OsmiumGLInstance::getMaxSampleCount() const {
     return VK_SAMPLE_COUNT_1_BIT;
 }
 
-const bool OsmiumGLInstance::hasStencilComponent(VkFormat format) {
+bool OsmiumGLInstance::hasStencilComponent(const VkFormat format) {
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
 void OsmiumGLInstance::createColorResources() {
     VkFormat colorFormat = swapChainImageFormat;
     createImage(swapChainExtent.width,swapChainExtent.height,1,msaaFlags,
-        colorFormat,VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        colorImage,
-        colorImageMemory);
+                colorFormat,VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                colorImage,
+                colorImageMemory);
     colorImageView = createImageView(colorImage,colorFormat,VK_IMAGE_ASPECT_COLOR_BIT,1);
 }
 
@@ -1354,7 +1357,7 @@ void OsmiumGLInstance::initVulkan() {
 
     //vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
     createSwapChain();
-    createSwapchainImageViews();
+    createSwapChainImageViews();
     //more game specific, but arcane enough that it should not be exposed for now
     createRenderPass();
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
@@ -1378,7 +1381,6 @@ void OsmiumGLInstance::mainLoop() {
         drawFrame();
     }
     vkDeviceWaitIdle(device);
-    closing = true;
 }
 
 void OsmiumGLInstance::cleanupSwapChain() {
@@ -1388,11 +1390,11 @@ void OsmiumGLInstance::cleanupSwapChain() {
     vkDestroyImageView(device,depthImageView,nullptr);
     vkDestroyImage(device,depthImage,nullptr);
     vkFreeMemory(device,depthImageMemory,nullptr);
-    for (auto &swapChainFrameBuffer: swapChainFrameBuffers) {
+    for (const auto &swapChainFrameBuffer: swapChainFrameBuffers) {
         vkDestroyFramebuffer(device, swapChainFrameBuffer, nullptr);
     }
-    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-        vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+    for (const auto & swapChainImageView : swapChainImageViews) {
+        vkDestroyImageView(device, swapChainImageView, nullptr);
     }
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
@@ -1454,9 +1456,10 @@ void OsmiumGLInstance::initWindow() {
     window = glfwCreateWindow(static_cast<int>(WIDTH), static_cast<int>(HEIGHT), "Vulkan", nullptr, nullptr);
     glfwSetWindowUserPointer(window,this);
     glfwSetFramebufferSizeCallback(window, frameBufferResizeCallback);
+    glfwSetErrorCallback(glfw_error_callback);
 }
 
-void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) {//example rotation function
+void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) const {//example rotation function
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -1465,7 +1468,7 @@ void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) {//example rot
     Descriptors::UniformBufferObject ubo = {
         .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
         .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
-        .proj = glm::perspective(glm::radians(45.0f),swapChainExtent.width/ static_cast<float>(swapChainExtent.height),0.1f,10.0f),
+        .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width)/ static_cast<float>(swapChainExtent.height),0.1f,10.0f),
         };
     ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
 
@@ -1550,7 +1553,7 @@ void OsmiumGLInstance::recreateSwapChain() {
     cleanupSwapChain();
 
     createSwapChain();
-    createSwapchainImageViews();
+    createSwapChainImageViews();
     createColorResources();
     createDepthResources();
     createFrameBuffer();

@@ -22,9 +22,9 @@ public:
 
     void initialize();
 
-    void startImguiFrame();
+    static void startImGuiFrame();
 
-    void StartFrame();
+    static void StartFrame();
 
     void endImgGuiFrame();
 
@@ -32,7 +32,7 @@ public:
 
     void Shutdown();
 
-    bool closing = false;
+    bool ShouldClose() const;
 
 
 private:
@@ -135,7 +135,7 @@ private:
 
     void createSwapChain();
 
-    void createSwapchainImageViews();
+    void createSwapChainImageViews();
 
     void createGraphicsPipeline();
 
@@ -144,19 +144,19 @@ private:
     void createFrameBuffer();
 
 
-    void createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool &poolHandle, uint32_t queueFamilyIndex);
+    void createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool &poolHandle, uint32_t queueFamilyIndex) const;
 
     void createCommandBuffers();
 
-    void VikingTestDrawCommands(VkCommandBuffer commandBuffer, VkRenderPassBeginInfo renderPassBeginInfo);
+    void VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const;
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData);
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData) const;
 
     void createSyncObjects();
 
     void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memProperties, VkBuffer& vk_buffer, VkDeviceMemory& bufferMemory);
 
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const;
 
     void createVertexBuffer();
 
@@ -164,21 +164,21 @@ private:
 
     void createUniformBuffer();
 
-    void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags
-                     properties, VkImage
+    void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
+                     tiling, VkImageUsageFlags usage, VkImage
                      &image, VkDeviceMemory &imageMemory);
 
 
     void createTextureImage(const char *path);
-    void generateMipMaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+    void generateMipMaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) const;
     void loadModel(const char *path);
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) const;
 
-    VkCommandBuffer beginSingleTimeCommands(VkQueue queue);
-    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue);
+    VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue) const;
 
-    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
 
     void createTextureSampler();
 
@@ -190,7 +190,7 @@ private:
     [[nodiscard]] VkFormat findDepthFormat() const;
     VkSampleCountFlagBits getMaxSampleCount() const;
 
-    static const bool hasStencilComponent(VkFormat format);
+    static bool hasStencilComponent(VkFormat format);
 
     void createColorResources();
 
@@ -213,7 +213,7 @@ private:
 
     uint32_t currentFrame = 0;
 
-    void updateUniformBuffer(uint32_t currentImage);
+    void updateUniformBuffer(uint32_t currentImage) const;
 
 
     void drawFrame();

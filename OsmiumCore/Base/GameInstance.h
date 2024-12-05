@@ -9,6 +9,7 @@
 
 class GameInstance {
     void RenderImGuiFrame();
+    //temp
     bool showDemoWindow;
     bool showAnotherWindow;
     //Ecapsulate these two fields into a separate struct
@@ -22,6 +23,8 @@ public:
 
 };
 
+struct gameConfig {
 
+};
 
 #endif //GAMEINSTANCE_H

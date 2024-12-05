@@ -15,6 +15,7 @@ public:
     bool RemoveComponent(Component* component);
     void UpdateComponents();
 
+    void Destroy();
 };
 
 

@@ -12,6 +12,8 @@
 
 void GameInstance::run() {
     OsmiumGL::Init();
+
+    LoadInitialScene()
     io = ImGui::GetIO();
     while (!OsmiumGL::ShouldClose()) {
         OsmiumGL::StartFrame();

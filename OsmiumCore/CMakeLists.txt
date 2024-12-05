@@ -12,6 +12,8 @@ set(OSMIUMCORE_SOURCES
         GOComponents/GOC_Transform.cpp
         Base/GameInstance.cpp
         Base/Entity.cpp
+        Base/SceneManager.cpp
+
 )
 set(OSMIUMCORE_HEADERS
         Base/Component.h
@@ -25,6 +27,7 @@ set(OSMIUMCORE_HEADERS
         Base/GameInstance.h
         Base/Entity.h
         Helpers/Properties.h
+        Base/SceneManager.h
 )
 
 add_library(OsmiumCore STATIC
