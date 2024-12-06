@@ -11,22 +11,14 @@
 #include "OsmiumGL_API.h"
 
 
-void GameInstance::GameLoop(std::mutex& SimulationMutex,
-    bool &isSimOver,
-    std::condition_variable& SimulationConditionVariable,
-    std::mutex& renderDataUpdateMutex,
-    bool &isRenderDataUpdateOver,
-    std::condition_variable& renderDataUpdateConditionVariable,
-    std::mutex& ImguiMutex,
-    bool &isImguiUpdateOver,
-    std::condition_variable& ImguiUpdateConditionVariable) {
+void GameInstance::GameLoop() {
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
         std::unique_lock<std::mutex> ImGuiLock(ImguiMutex);
-        ImguiUpdateConditionVariable.wait(ImGuiLock, [&isImguiUpdateOver] { return isImguiUpdateOver; });
+        ImguiUpdateConditionVariable.wait(ImGuiLock, [this] { return isImguiUpdateOver; });
 
         isSimOver = false;
-        std::unique_lock<std::mutex> SimulationLock(SimulationMutex);
+        std::unique_lock<std::mutex> SimulationLock(SimulationCompletionMutex);
 
 
         //Do simulation things
@@ -34,8 +26,8 @@ void GameInstance::GameLoop(std::mutex& SimulationMutex,
         SimulationLock.unlock();
         SimulationConditionVariable.notify_one();
 
-        std::unique_lock<std::mutex> renderDataUpdateLock(renderDataUpdateMutex);
-        renderDataUpdateConditionVariable.wait(renderDataUpdateLock, [&isRenderDataUpdateOver]() {return isRenderDataUpdateOver;});
+        std::unique_lock<std::mutex> renderDataUpdateLock(renderDataMutex);
+        renderDataUpdateConditionVariable.wait(renderDataUpdateLock, [this]() {return isRenderUpdateOver;});
 
 
     }
@@ -43,23 +35,47 @@ void GameInstance::GameLoop(std::mutex& SimulationMutex,
 
 void GameInstance::run() {
 
-    auto initThread = std::thread(OsmiumGL::Init);
-    //load the initial assets
+    OsmiumGL::Init;
+    //load the initial assets, probably in its own thread
     //LoadInitialScene()
-    initThread.join();
-    std::mutex SimulationCompletionMutex;
-    auto SimulationThread = std::thread(GameLoop, &SimulationCompletionMutex);
-    auto ImGuiThread = std::thread(RenderImGuiFrameTask);
-    io = ImGui::GetIO();
-    while (!OsmiumGL::ShouldClose()) {
-        OsmiumGL::StartFrame();
-        RenderImGuiFrameTask();//ideally I would do that wherever and send it as a message to the render thread
-        OsmiumGL::EndFrame();
+
+
+
+    auto SimulationThread = std::thread(GameLoop,this);
+
+    std::unique_lock<std::mutex> ImGuiLock(ImguiMutex,std::defer_lock);
+    std::unique_lock<std::mutex> RenderDataLock(renderDataMutex, std::defer_lock);
+    auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
+    while(!OsmiumGL::ShouldClose()) {
+        ImGuiLock.lock();
+        OsmiumGL::StartFrame();//poll glfw events and start imGui frame
+        //imgui update is free to start if simulation is done
+        isImguiNewFrameReady = true;
+        ImGuiLock.unlock();
+        ImguiUpdateConditionVariable.notify_one();
+        //the function will wait until as late as possible to hold execution for imGui
+        OsmiumGL::EndFrame(ImguiMutex,ImguiUpdateConditionVariable,isImguiUpdateOver);
+        RenderDataLock.lock();
+        SimulationConditionVariable.wait(RenderDataLock,[this]() {return isSimOver;});
+
+        RenderDateUpdate();
+        isRenderUpdateOver = true;
+        renderDataUpdateConditionVariable.notify_one();
+        RenderDataLock.unlock();
+
     }
-    OsmiumGL::Shutdown();
+    // io = ImGui::GetIO();
+    // while (!OsmiumGL::ShouldClose()) {
+    //     OsmiumGL::StartFrame();
+    //     RenderImGuiFrameTask();//ideally I would do that wherever and send it as a message to the render thread
+    //     OsmiumGL::EndFrame();
+    // }
+    // OsmiumGL::Shutdown();
 }
 
 void GameInstance::RenderImGuiFrameTask() {
+
+
     // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
     if (showDemoWindow)
         ImGui::ShowDemoWindow(&showDemoWindow);

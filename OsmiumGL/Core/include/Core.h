@@ -4,6 +4,7 @@
 
 #ifndef CORE_H
 #define CORE_H
+#include <condition_variable>
 #include <cstdint>
 #include <string>
 #include <imgui_impl_vulkan.h>
@@ -14,11 +15,11 @@
 
 
 #include <InitUtilVk.h>
+#include <bits/std_mutex.h>
 struct GLFWwindow;
 
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
-    void run();
 
     void initialize();
 
@@ -28,7 +29,7 @@ public:
 
     void endImgGuiFrame();
 
-    void EndFrame();
+    void EndFrame(std::mutex &imGUiMutex, std::condition_variable &imGuiCV, bool &isImguiFrameReady);
 
     void Shutdown();
 
@@ -152,7 +153,8 @@ private:
 
     void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData) const;
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData, std::mutex &imGuiMutex, std::
+                             condition_variable &imGuiUpdateCV, bool &isImGuiFrameComplete) const;
 
     void createSyncObjects();
 
@@ -202,9 +204,6 @@ private:
 
     void initVulkan();
 
-
-    void mainLoop();
-
     void cleanupSwapChain();
     // ReSharper disable once CppMemberFunctionMayBeConst
     void cleanup();
@@ -218,7 +217,7 @@ private:
     void updateUniformBuffer(uint32_t currentImage) const;
 
 
-    void drawFrame();
+    void drawFrame(std::mutex &imGuiMutex, std::condition_variable &imGuiCV, bool &isImGuiFrameComplete);
     void recreateSwapChain();
 };
 

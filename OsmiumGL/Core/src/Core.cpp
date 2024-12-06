@@ -33,6 +33,8 @@
 #include "Core.h"
 
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <tiny_obj_loader.h>
 #include <unordered_map>
 
@@ -59,12 +61,7 @@ static void glfw_error_callback(int error, const char* description) {
         fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-void OsmiumGLInstance::run() {//used by early test, deprecated
-    initWindow();
-    initVulkan();
-    mainLoop();
-    cleanup();
-}
+
 
 void OsmiumGLInstance::initialize() {
     initWindow();
@@ -88,9 +85,8 @@ void OsmiumGLInstance::endImgGuiFrame() {
     imgGuiDrawData = ImGui::GetDrawData();
 }
 
-void OsmiumGLInstance::EndFrame() {
-    endImgGuiFrame();
-    drawFrame();
+void OsmiumGLInstance::EndFrame(std::mutex& imGUiMutex,std::condition_variable& imGuiCV, bool& isImguiFrameReady) {
+    drawFrame(imGUiMutex,imGuiCV,isImguiFrameReady);
 }
 
 void OsmiumGLInstance::Shutdown() {
@@ -648,7 +644,7 @@ void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImD
     ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
 }
 
-void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData) const {
+void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData,std::mutex& imGuiMutex,std::condition_variable &imGuiUpdateCV,bool &isImGuiFrameComplete) const {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0,
@@ -689,7 +685,11 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
+    std::unique_lock<std::mutex> ImGuiLock{imGuiMutex};
+    imGuiUpdateCV.wait(ImGuiLock,[&isImGuiFrameComplete]{return isImGuiFrameComplete;});
+    isImGuiFrameComplete = false;//imgui has to wait for a new frame now
     RecordImGuiDrawCommand(commandBuffer, imgGuiDrawData);
+    ImGuiLock.unlock();
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer");
@@ -1380,13 +1380,13 @@ void OsmiumGLInstance::initVulkan() {
     setupImGui();
 }
 
-void OsmiumGLInstance::mainLoop() {
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-        drawFrame();
-    }
-    vkDeviceWaitIdle(device);
-}
+// void OsmiumGLInstance::mainLoop() {
+//     while (!glfwWindowShouldClose(window)) {
+//         glfwPollEvents();
+//         drawFrame();
+//     }
+//     vkDeviceWaitIdle(device);
+// }
 
 void OsmiumGLInstance::cleanupSwapChain() {
     vkDestroyImageView(device, colorImageView,nullptr);
@@ -1482,7 +1482,7 @@ void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) const {//examp
 
 
 
-void OsmiumGLInstance::drawFrame() {//used for test, deprecated
+void OsmiumGLInstance::drawFrame(std::mutex& imGuiMutex,std::condition_variable& imGuiCV,bool& isImGuiFrameComplete) {//used for test, deprecated
 
     vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
 
@@ -1499,7 +1499,7 @@ void OsmiumGLInstance::drawFrame() {//used for test, deprecated
 
     vkResetFences(device, 1, &inflightFences[currentFrame]);
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);//have to reset only the command buffer here as the pool itself is used by other frames in flight
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex, imgGuiDrawData);
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex, imgGuiDrawData, imGuiMutex, imGuiCV, isImGuiFrameComplete);
 
     //updateUniformBuffer(currentFrame);
 

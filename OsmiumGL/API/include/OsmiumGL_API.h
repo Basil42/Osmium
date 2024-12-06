@@ -4,7 +4,9 @@
 
 #ifndef OSMIUMGL_API_H
 #define OSMIUMGL_API_H
+#include <condition_variable>
 #include <imgui.h>
+#include <bits/std_mutex.h>
 
 #include "Mesh.h"
 
@@ -17,7 +19,7 @@ public:
     static void Init();
     static void StartFrame();
     //run imgui in between;
-    static void EndFrame();
+    static void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
     static void Shutdown();
 
     //handles for mesh renderers

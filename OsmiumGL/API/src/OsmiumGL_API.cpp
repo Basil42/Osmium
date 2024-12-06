@@ -3,6 +3,8 @@
 //
 #include "OsmiumGL_API.h"
 
+#include <mutex>
+
 #include "Core.h"
 OsmiumGLInstance* OsmiumGL::instance;
 void OsmiumGL::Init() {
@@ -14,8 +16,8 @@ void OsmiumGL::StartFrame() {
     instance->StartFrame();
 }
 
-void OsmiumGL::EndFrame() {
-    instance->EndFrame();
+void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,bool& isImgGuiFrameRendered) {
+    instance->EndFrame(ImGuiMutex,imGuiCV,isImgGuiFrameRendered);
 }
 
 void OsmiumGL::Shutdown() {
