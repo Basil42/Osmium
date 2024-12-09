@@ -28,6 +28,8 @@ public:
 
     void RegisterMeshRenderer(PushHandle &push_handle,MeshHandle &mesh_handle,MaterialHandle &material_handle);
 
+    static void ImguiEndImGuiFrame();
+
     static bool ShouldClose();
 };
 

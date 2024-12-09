@@ -24,6 +24,10 @@ void OsmiumGL::Shutdown() {
     instance->Shutdown();
 }
 
+void OsmiumGL::ImguiEndImGuiFrame() {
+    instance->endImgGuiFrame();
+}
+
 bool OsmiumGL::ShouldClose() {
     return instance->ShouldClose();
 }

@@ -153,8 +153,8 @@ private:
 
     void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, ImDrawData *imgGuiDrawData, std::mutex &imGuiMutex, std::
-                             condition_variable &imGuiUpdateCV, bool &isImGuiFrameComplete) const;
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, std::mutex &imGuiMutex, std::condition_variable &imGuiUpdateCV, bool
+                             &isImGuiFrameComplete) const;
 
     void createSyncObjects();
 

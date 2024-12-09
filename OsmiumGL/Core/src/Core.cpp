@@ -644,7 +644,7 @@ void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImD
     ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
 }
 
-void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,ImDrawData* imgGuiDrawData,std::mutex& imGuiMutex,std::condition_variable &imGuiUpdateCV,bool &isImGuiFrameComplete) const {
+void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,std::mutex& imGuiMutex,std::condition_variable &imGuiUpdateCV,bool &isImGuiFrameComplete) const {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0,
@@ -1499,7 +1499,7 @@ void OsmiumGLInstance::drawFrame(std::mutex& imGuiMutex,std::condition_variable&
 
     vkResetFences(device, 1, &inflightFences[currentFrame]);
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);//have to reset only the command buffer here as the pool itself is used by other frames in flight
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex, imgGuiDrawData, imGuiMutex, imGuiCV, isImGuiFrameComplete);
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex, imGuiMutex, imGuiCV, isImGuiFrameComplete);
 
     //updateUniformBuffer(currentFrame);
 

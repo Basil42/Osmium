@@ -19,9 +19,12 @@ class GameInstance {
     std::condition_variable renderDataUpdateConditionVariable;
     bool isRenderUpdateOver;
     std::mutex ImguiMutex;
+    std::condition_variable ImguiNewFrameConditionVariable;
     bool isImguiNewFrameReady;
-    bool isImguiUpdateOver;
+    bool isImguiUpdateOver = true;//should skip over that update on the first sim tick
     std::condition_variable ImguiUpdateConditionVariable;
+    bool ImGuiShouldShutoff;
+    bool simShouldShutoff;
 
     void RenderImGuiFrameTask();
     //temp
@@ -34,7 +37,7 @@ class GameInstance {
     void GameLoop();
     void RenderLoop();
 
-    void RenderDateUpdate();
+    void RenderDataUpdate();
 
 public:
 

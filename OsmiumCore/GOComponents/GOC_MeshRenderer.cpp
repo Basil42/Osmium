@@ -3,3 +3,6 @@
 //
 
 #include "GOC_MeshRenderer.h"
+
+void GOC_MeshRenderer::Update() {
+}

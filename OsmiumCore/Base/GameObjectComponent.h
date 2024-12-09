@@ -11,7 +11,7 @@ typedef unsigned long GOC_Handle;
 class GameObjectComponent {
     GOC_Handle handle;
     GameObject* parent;
-    virtual void Update(){}//used for a more classical loop based update
+    virtual void Update() {};//used for a more classical loop based update
 
 };
 

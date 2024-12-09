@@ -13,6 +13,7 @@ set(OSMIUMCORE_SOURCES
         Base/GameInstance.cpp
         Base/Entity.cpp
         Base/SceneManager.cpp
+        AssetManagement/Asset.cpp
 
 )
 set(OSMIUMCORE_HEADERS
@@ -28,6 +29,10 @@ set(OSMIUMCORE_HEADERS
         Base/Entity.h
         Helpers/Properties.h
         Base/SceneManager.h
+
+        AssetManagement/Asset.h
+        AssetManagement/AssetManager.cpp
+        AssetManagement/AssetManager.h
 )
 
 add_library(OsmiumCore STATIC
