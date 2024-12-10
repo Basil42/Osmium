@@ -33,6 +33,10 @@ set(OSMIUMCORE_HEADERS
         AssetManagement/Asset.h
         AssetManagement/AssetManager.cpp
         AssetManagement/AssetManager.h
+        Base/ResourceManager.cpp
+        Base/ResourceManager.h
+        AssetManagement/AssetType/MeshAsset.cpp
+        AssetManagement/AssetType/MeshAsset.h
 )
 
 add_library(OsmiumCore STATIC

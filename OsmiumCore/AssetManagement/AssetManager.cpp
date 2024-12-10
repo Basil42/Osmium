@@ -8,32 +8,44 @@
 #include <iostream>
 
 #include "Asset.h"
+#include "../Base/ResourceManager.h"
 
-void AssetManager::LoadAsset(AssetId assetId, void(*OnLoaded)(Asset *loadedAsset)) {
+void AssetManager::LoadAsset(AssetId assetId, void(*OnLoaded)(AssetId assetId)) {
     if(const auto AssetIt = AssetDatabase.find(assetId); AssetIt != AssetDatabase.end()) {
         //asset is already loaded this shoudl be avoided
-        if(loadedAssets.contains(AssetIt->first)) {
+        std::unique_lock loadListLock(loadedCollectionMutex);
+        if(loadedAssets.contains(assetId)) {//creates a potential delay for already loaded assets
             #if defined EDITOR_MODE || defined _DEBUG
             std::cout << AssetIt->second.name << " at " << AssetIt->second.path << " already loaded" << std::endl;
             #endif
-            OnLoaded(&AssetIt->second);
+            OnLoaded(assetId);
             return;
         }
+        loadListLock.unlock();
         //asset is currently loading, we pass the callback along
-        if(loadingAssets.contains(AssetIt->first)) {
-            loadingMutex.lock();
-            loadingAssets.at(AssetIt->first).push_back(OnLoaded);
-            loadingMutex.unlock();
+        if(loadingAssets.contains(assetId)) {
+            std::lock_guard<std::mutex> guard(loadingCollectionMutex);
+            loadingAssets.at(assetId).push_back(OnLoaded);
             return;
         }
         //asset is not loaded, we start loading it
-        Asset asset = AssetIt->second;
+        {
+            std::lock_guard<std::mutex> guard(loadingCollectionMutex);
+            loadingAssets.try_emplace(assetId, std::vector<void (*)(AssetId assetId)>());
+            loadingAssets.at(assetId).push_back(OnLoaded);
+        }
 
-        loadingMutex.lock();
-        loadingAssets.try_emplace(asset.id, std::vector<void (*)(Asset loadedASset)>());
-        loadingAssets.at(asset.id).push_back(OnLoaded);
-        loadingMutex.unlock();
-        //we let the loading thread take care of the actual loading, or we dispatch an async task
-        std::cout << "trying to load an asset but loasding is not implemented" << std::endl;
+        Asset* asset = AssetDatabase.at(assetId);//this ref is valid as long as the asset itself is not reloaded,
+
+        asset->Load();//the asset type takes care of loading the data correctly and send it to the correct systems (eg ECS and graphics data)
+
+        std::scoped_lock bookKeepingAndNotificationLock(loadingCollectionMutex,loadedCollectionMutex,asset->GetRessourceMutex());
+        for(const auto callback : loadingAssets.at(assetId)) {
+            callback(assetId);
+        }
+        //not 100% sure about doing this here, as the callbacks might see the assets as not yet fully loaded if they check
+        loadingAssets.erase(assetId);
+        loadedAssets.emplace(assetId);
+
     }
 }
