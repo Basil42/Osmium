@@ -142,7 +142,26 @@ public:
         return details;
     }
 
-    static uint32_t RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,std::vector<const char*> requiredDeviceExtensions) {
+    static uint32_t getAllocatorExtensionScore(const VkPhysicalDevice& device, const std::set<const char *> &allocatorExtensions) {
+        uint32_t extensionCount;
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+        uint32_t score = 0;
+
+
+        for (auto available_extension: availableExtensions) {
+            if(allocatorExtensions.contains(available_extension.extensionName))
+                score += 100;
+        }
+        return score;
+    }
+
+    static uint32_t RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,
+                                          std::vector<const char*> requiredDeviceExtensions,
+                                          std::set<const char *> const &allocatorExtensions
+    ) {
         VkPhysicalDeviceProperties deviceProperties;
         VkPhysicalDeviceFeatures deviceFeatures;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -153,6 +172,7 @@ public:
         uint32_t score = 0;
         if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 1000;
         score += deviceProperties.limits.maxImageDimension2D;
+
         if(!findQueueFamilies(device, surface).isComplete()) {
             std::cout << "Missing required queue families, scoring it 0." << std::endl;
             return 0;
@@ -172,7 +192,7 @@ public:
             std::cout << "Missing swap chain support, scoring it 0" << std::endl;
             return 0;
         }
-
+        score += getAllocatorExtensionScore(device,allocatorExtensions);
         std::cout << "scored " << score << std::endl;
         return score;
     }

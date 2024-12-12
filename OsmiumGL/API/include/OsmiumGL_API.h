@@ -8,7 +8,7 @@
 #include <imgui.h>
 #include <bits/std_mutex.h>
 
-#include "Mesh.h"
+#include "DefaultVertex.h"
 
 class OsmiumGLInstance;
 
@@ -26,7 +26,9 @@ public:
     typedef unsigned long PushHandle;
 
 
-    void RegisterMeshRenderer(PushHandle &push_handle,MeshHandle &mesh_handle,MaterialHandle &material_handle);
+    void RegisterMeshRenderer(PushHandle &push_handle,unsigned long &mesh_handle,unsigned long &material_handle);
+
+    static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>  &vertices, std::vector<unsigned>  &indices);
 
     static void ImguiEndImGuiFrame();
 

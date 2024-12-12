@@ -10,18 +10,23 @@
 #include <imgui_impl_vulkan.h>
 #include <vector>
 #include <vulkan/vulkan.h>
-
-#include "TutorialVertex.h"
+#include <vk_mem_alloc.h>
+#include "DefaultVertex.h"
 
 
 #include <InitUtilVk.h>
 #include <bits/std_mutex.h>
-struct GLFWwindow;
 
+
+#define MAX_FRAMES_IN_FLIGHT 2
+struct GLFWwindow;
+struct PassBindings;
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
 
     void initialize();
+
+    unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
 
     static void startImGuiFrame();
 
@@ -36,14 +41,15 @@ public:
     bool ShouldClose() const;
 
 
+
 private:
+    VmaAllocator allocator;
     ImDrawData * imgGuiDrawData;
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
     const std::string MODEL_PATH = "../OsmiumGL/DefaultResources/models/viking_room.obj";
     const std::string TEXTURE_PATH = "../OsmiumGL/DefaultResources/textures/viking_room.png";
-    const int MAX_FRAMES_IN_FLIGHT = 2;
 
     GLFWwindow* window = nullptr;
     VkInstance instance = nullptr;
@@ -109,11 +115,21 @@ private:
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
+    const std::set<const char*> allocatorExtensions = {
+        VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME
+        VK_KHR_BIND_MEMORY_2_EXTENSION_NAME
+        VK_KHR_MAINTENANCE_4_EXTENSION_NAME
+        VK_KHR_MAINTENANCE_5_EXTENSION_NAME
+        VK_EXT_MEMORY_BUDGET_EXTENSION_NAME
+        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
+        VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME
+        VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME
+    };
     bool showDemoWindow;
     bool showAnotherWindow;
 
     ImGuiIO io;
-
+    PassBindings*passTree = nullptr ;
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -152,6 +168,8 @@ private:
     void VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const;
 
     void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
+
+    void DrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginIno, const PassBindings &passBindings) const;
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, std::mutex &imGuiMutex, std::condition_variable &imGuiUpdateCV, bool
                              &isImGuiFrameComplete) const;
@@ -201,6 +219,8 @@ private:
     void setupImGui();
 
     void VikingTest();
+
+    void createAllocator();
 
     void initVulkan();
 

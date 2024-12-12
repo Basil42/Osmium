@@ -37,7 +37,7 @@ void Descriptors::createDescriptorSetLayout(const VkDevice& device, VkDescriptor
     }
 }
 
-void Descriptors::createDescriptorPool(const VkDevice& device, VkDescriptorPool&descriptorPool,const int MAX_FRAMES_IN_FLIGHT) {
+void Descriptors::createDescriptorPool(const VkDevice& device, VkDescriptorPool&descriptorPool) {
 
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
@@ -65,7 +65,7 @@ void Descriptors::createDescriptorPool(const VkDevice& device, VkDescriptorPool&
 }
 
 void Descriptors::createDescriptorSets(VkDevice& device, VkDescriptorSetLayout& descriptorSetLayout,
-                                       int MAX_FRAMES_IN_FLIGHT, VkDescriptorPool& descriptorPool, std::vector<VkDescriptorSet>& descriptorSets, std::vector<VkBuffer>& uniformBuffers,
+                                        VkDescriptorPool& descriptorPool, std::vector<VkDescriptorSet>& descriptorSets, std::vector<VkBuffer>& uniformBuffers,
                                        VkImageView imageView = VK_NULL_HANDLE,
                                        VkSampler sampler = VK_NULL_HANDLE) {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);

@@ -19,17 +19,14 @@ set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
         Core/src/Descriptors.cpp
         API/src/OsmiumGL_API.cpp
-        API/src/Mesh.cpp
-        API/src/Material.cpp
 )
 set(OSMIUMGL_EXECUTABLE_HEADERS
-        ShaderUtilities/TutorialVertex.h
+        ShaderUtilities/DefaultVertex.h
         Core/include/Descriptors.h
         Core/include/Core.h
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
-        API/include/Mesh.h
-        API/include/Material.h
+        Core/include/PassBindings.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
@@ -40,12 +37,13 @@ target_include_directories(OsmiumGL PUBLIC ../imgui)
 target_include_directories(OsmiumGL PRIVATE ../imgui/backends)
 target_include_directories(OsmiumGL PRIVATE
         Core/include
-        ShaderUtilities
         Initialization
         DebugUtils
         DefaultResources
 )
-target_include_directories(OsmiumGL PUBLIC API/include)
+target_include_directories(OsmiumGL PUBLIC
+        API/include
+        ShaderUtilities)
 
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glfw)
@@ -57,6 +55,9 @@ find_package(Stb REQUIRED)
 target_include_directories(OsmiumGL PRIVATE ${Stb_INCLUDE_DIR})
 find_package(tinyobjloader CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE tinyobjloader::tinyobjloader)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
+
 
 set(CMAKE_EXE_LINKER_FLAGS " -static")
 target_link_libraries(OsmiumGL PRIVATE -static-libgcc -static-libstdc++)

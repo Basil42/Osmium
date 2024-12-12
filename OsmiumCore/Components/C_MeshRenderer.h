@@ -8,14 +8,14 @@
 /**
  * Component used for rendered objects
  */
-class Material;
+class MaterialBindings;
 template<class VertexType, typename VertexType::vertexFormat n = 0>
 class C_MeshRenderer : Component//depends on a transform component
 {
     void* meshData;
     size_t meshDataSize;
     //material class pointer
-    Material* material;
+    MaterialBindings* material;
 };
 
 

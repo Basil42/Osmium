@@ -19,6 +19,7 @@ class AssetManager {
     static std::map<AssetId,Asset*> AssetDatabase;
     static std::mutex loadingCollectionMutex;
     static std::mutex loadedCollectionMutex;
+    static std::mutex assetDatabaseMutex;
     public:
     static bool isAssetLoaded(AssetId assetId);
     static void LoadAsset(AssetId assetId, void (*OnLoaded)(AssetId assetId) = nullptr);

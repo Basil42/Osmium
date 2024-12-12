@@ -3,7 +3,7 @@
 #define TUTORIALVERTEX_H
 #include <array>
 #include <glm\glm.hpp>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_core.h>//it would be nice to declare things that depends on this header in another file
 struct DefaultVertex {
     glm::vec3 position;
     glm::vec3 color;

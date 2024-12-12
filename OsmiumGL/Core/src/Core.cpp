@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <imgui_impl_vulkan.h>
 #include <InitUtilVk.h>
+
 #ifndef NDEBUG
 // #define Vk_VALIDATION_LAYER
 #endif
@@ -30,6 +31,7 @@
 #define  STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #define TINYOBJLOADER_IMPLEMENTATION
+#define VMA_IMPLEMENTATION
 #include "Core.h"
 
 #include <chrono>
@@ -40,7 +42,8 @@
 
 #include "Descriptors.h"
 #include "ShaderUtilities.h"
-#include "TutorialVertex.h"
+#include "DefaultVertex.h"
+#include "PassBindings.h"
 #include "SwapChains/SwapChainUtilities.h"
 
 // Volk headers
@@ -66,6 +69,11 @@ static void glfw_error_callback(int error, const char* description) {
 void OsmiumGLInstance::initialize() {
     initWindow();
     initVulkan();
+}
+
+unsigned long OsmiumGLInstance::LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> &vertices,
+    const std::vector<unsigned int> &indices) {
+    throw std::runtime_error("OsmiumGLInstance::LoadMeshToDefaultBuffer");
 }
 
 void OsmiumGLInstance::startImGuiFrame() {
@@ -208,7 +216,7 @@ void OsmiumGLInstance::pickPhysicalDevice() {
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
     std::multimap<uint32_t, VkPhysicalDevice> CandidateDevices;
     for (uint32_t i = 0; i < deviceCount; i++) {
-        uint32_t Score = vkInitUtils::RateDeviceSuitability(devices[i], surface, deviceExtensions);
+        uint32_t Score = vkInitUtils::RateDeviceSuitability(devices[i], surface, deviceExtensions,allocatorExtensions);
         CandidateDevices.insert(std::make_pair(Score, devices[i]));
     }
     if (CandidateDevices.rbegin()->first > 0) {
@@ -235,13 +243,23 @@ void OsmiumGLInstance::createLogicalDevice() {
     }
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
+    std::vector<const char*> enabledExtensions = deviceExtensions;
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+    for (auto available_extension: availableExtensions) {
+        if(allocatorExtensions.contains(available_extension.extensionName))
+            enabledExtensions.push_back(available_extension.extensionName);
+    }
+
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.pQueueCreateInfos = QueueCreateInfos.data();
     createInfo.queueCreateInfoCount = QueueCreateInfos.size();
     createInfo.pEnabledFeatures = &deviceFeatures;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
+    createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 #ifdef Vk_VALIDATION_LAYER
     createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
     createInfo.ppEnabledLayerNames = validationLayers.data();
@@ -644,6 +662,43 @@ void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImD
     ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
 }
 
+void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
+    const VkRenderPassBeginInfo &renderPassBeginIno,
+    const PassBindings &passBindings) const {
+    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
+    for (auto const &mat: passBindings.Materials) {
+        vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,mat.pipeline);
+        for (auto const & matInstance : mat.matInstances) {
+            //keeping some things default here
+            vkCmdBindDescriptorSets(commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                mat.pipelineLayout,
+                0,
+                1,
+                &matInstance.descriptorSet[currentFrame],
+                0,
+                nullptr
+                );
+            for (auto const &mesh: matInstance.meshes) {
+                vkCmdBindVertexBuffers(commandBuffer,mesh.firstBinding,mesh.bindingCount,mesh.vertexBuffers.data(),mesh.vertexBufferOffsets.data());
+                vkCmdBindIndexBuffer(commandBuffer,mesh.indexBuffer,mesh.indexBufferOffset,VK_INDEX_TYPE_UINT32);
+
+                for(int i = 0; i < mesh.objectCount;i++) {
+                    vkCmdPushConstants(commandBuffer,
+                        mat.pipelineLayout,
+                        VK_SHADER_STAGE_VERTEX_BIT,
+                        i*mat.PushConstantStride,
+                        mat.PushConstantStride,
+                        mesh.ObjectPushConstantData);
+                    vkCmdDrawIndexed(commandBuffer,mesh.indexCount,1,mesh.indexBufferOffset,0,0);
+
+                }
+            }
+        }
+
+    }
+}
+
 void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex,std::mutex& imGuiMutex,std::condition_variable &imGuiUpdateCV,bool &isImGuiFrameComplete) const {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -683,7 +738,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
         .extent = swapChainExtent
     };
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
+    if(passTree != nullptr)DrawCommands(commandBuffer,renderPassBeginInfo, *passTree);
     VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
     std::unique_lock<std::mutex> ImGuiLock{imGuiMutex};
     imGuiUpdateCV.wait(ImGuiLock,[&isImGuiFrameComplete]{return isImGuiFrameComplete;});
@@ -1345,8 +1400,56 @@ void OsmiumGLInstance::VikingTest() {
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffer();
-    Descriptors::createDescriptorPool(device,descriptorPool,MAX_FRAMES_IN_FLIGHT);
-    Descriptors::createDescriptorSets(device,descriptorSetLayout,MAX_FRAMES_IN_FLIGHT,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
+    Descriptors::createDescriptorPool(device,descriptorPool);
+    Descriptors::createDescriptorSets(device,descriptorSetLayout,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
+}
+
+void OsmiumGLInstance::createAllocator() {
+
+
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+
+    VmaAllocatorCreateFlags allocFlags = {};
+    std::set<const char *> enabledAllocatorExtensions;
+    for (auto available_extension: availableExtensions) {
+            if(allocatorExtensions.contains(available_extension.extensionName))
+                enabledAllocatorExtensions.insert(available_extension.extensionName);
+    }
+
+    if(enabledAllocatorExtensions.contains(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
+    if(enabledAllocatorExtensions.contains(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
+    if(enabledAllocatorExtensions.contains(VK_KHR_MAINTENANCE_4_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT;
+    if(enabledAllocatorExtensions.contains(VK_KHR_MAINTENANCE_5_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT;
+    if(enabledAllocatorExtensions.contains(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    if(enabledAllocatorExtensions.contains(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    if(enabledAllocatorExtensions.contains(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
+    if(enabledAllocatorExtensions.contains(VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME))
+        allocFlags |= VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY_BIT;
+    std::cout << "allocator related extension enabled: " << std::endl;
+    for (auto extension: enabledAllocatorExtensions) {
+        std::cout << extension << std::endl;
+    }
+    //I could add conditional flags to support memory coherence related extension for a cheap performance gain on some hardware
+    VmaAllocatorCreateInfo allocatorCreateInfo{
+        .flags = allocFlags,
+        .physicalDevice = physicalDevice,
+        .device = device,
+        .pHeapSizeLimit = nullptr,
+        .pVulkanFunctions = nullptr,
+        .instance = instance,
+        .vulkanApiVersion = VK_API_VERSION_1_1,
+    };
+    vmaCreateAllocator(&allocatorCreateInfo,&allocator);
 }
 
 void OsmiumGLInstance::initVulkan() {
@@ -1359,7 +1462,7 @@ void OsmiumGLInstance::initVulkan() {
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
 
     createLogicalDevice();
-
+    createAllocator();
     //vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
     createSwapChain();
     createSwapChainImageViews();
@@ -1439,6 +1542,7 @@ void OsmiumGLInstance::cleanup() {
 
     vkDestroyCommandPool(device, commandPool, nullptr);
     vkDestroyCommandPool(device, transientCommandPool,nullptr);
+    vmaDestroyAllocator(allocator);
     vkDestroyDevice(device, nullptr);
 #ifdef Vk_VALIDATION_LAYER
     vkInitUtils::DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);

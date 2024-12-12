@@ -6,8 +6,6 @@
 #define GOC_MESHRENDERER_H
 
 #include "../Base/GameObjectComponent.h"
-class Material;
-class Mesh;
 class GOC_Transform;
 typedef unsigned long MeshHandle;
 typedef unsigned long MaterialHandle;
@@ -19,10 +17,6 @@ class GOC_MeshRenderer : public GameObjectComponent {
     void Update() override;
 
     public:
-    GOC_MeshRenderer(GameObject* parent,
-        Mesh* mesh,
-        Material* material
-        );
 
     // GOC_MeshRenderer(GameObject* parent,
     //     MeshAsset* meshAsset,

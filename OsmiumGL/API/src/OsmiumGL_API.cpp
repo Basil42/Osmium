@@ -24,6 +24,15 @@ void OsmiumGL::Shutdown() {
     instance->Shutdown();
 }
 
+void OsmiumGL::RegisterMeshRenderer(PushHandle &push_handle, unsigned long &mesh_handle,
+    unsigned long &material_handle) {
+}
+
+void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>& vertices,
+                                         std::vector<unsigned int>& indices) {
+    mesh_handle = instance->LoadMeshToDefaultBuffer(vertices,indices);
+}
+
 void OsmiumGL::ImguiEndImGuiFrame() {
     instance->endImgGuiFrame();
 }

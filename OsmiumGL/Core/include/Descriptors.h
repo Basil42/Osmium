@@ -15,9 +15,9 @@ namespace Descriptors {
         glm::mat4 proj;
     };
     void createDescriptorSetLayout(const VkDevice &device, VkDescriptorSetLayout &descriptorSetLayout);
-    void createDescriptorPool(const VkDevice &device, VkDescriptorPool &descriptorPool, int MAX_FRAMES_IN_FLIGHT);
+    void createDescriptorPool(const VkDevice &device, VkDescriptorPool &descriptorPool);
 
-    void createDescriptorSets(VkDevice &device, VkDescriptorSetLayout &descriptorSetLayout, int MAX_FRAMES_IN_FLIGHT, VkDescriptorPool &
+    void createDescriptorSets(VkDevice &device, VkDescriptorSetLayout &descriptorSetLayout, VkDescriptorPool &
                               descriptorPool, std::vector<VkDescriptorSet> &descriptorSets, std::vector<VkBuffer> &uniformBuffers, VkImageView
                               imageView, VkSampler sampler);
 }
