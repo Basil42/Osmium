@@ -1,2 +1,2 @@
-%VULKAN_SDK%/Bin/glslc.exe TestShaders/trivialTriangle.vert -o TestShaders/trivialTriangleVert.spv
-%VULKAN_SDK%/Bin/glslc.exe TestShaders/trivialTriangle.frag -o TestShaders/trivialTriangleFrag.spv
+"%VULKAN_SDK%/Bin/glslc.exe" %~dp0trivialTriangle.vert -o %~dp0trivialTriangleVert.spv
+"%VULKAN_SDK%/Bin/glslc.exe" %~dp0trivialTriangle.frag -o %~dp0trivialTriangleFrag.spv
