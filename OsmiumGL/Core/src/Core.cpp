@@ -1397,6 +1397,7 @@ void OsmiumGLInstance::VikingTest() {
     loadModel(MODEL_PATH.c_str());
     createTextureImage(TEXTURE_PATH.c_str());
     textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, miplevels);
+    //Replace with buffer creation using the allocator
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffer();
@@ -1450,6 +1451,72 @@ void OsmiumGLInstance::createAllocator() {
         .vulkanApiVersion = VK_API_VERSION_1_1,
     };
     vmaCreateAllocator(&allocatorCreateInfo,&allocator);
+}
+
+void OsmiumGLInstance::createDefaultMeshBuffers(std::vector<DefaultVertex> vertexVector,std::vector<uint32_t> indicesVector,VkBuffer &vertexBuffer,VmaAllocation &vertexAllocation, VkBuffer &indexBuffer,VmaAllocation & indexAllocation)
+{
+    {
+        VkBufferCreateInfo vertexStagingBufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        vertexStagingBufferInfo.size = sizeof(DefaultVertex) * vertexVector.size();
+        vertexStagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+        VmaAllocationCreateInfo vertexStagingAllocationCreateInfo = {
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,};
+
+        VkBuffer vertexStagingBuffer;
+        VmaAllocation vertexStagingAlloc;
+        //VmaAllocationInfo vertexStagingAllocationInfo;
+        vmaCreateBuffer(allocator,&vertexStagingBufferInfo,&vertexStagingAllocationCreateInfo,&vertexStagingBuffer,&vertexStagingAlloc,nullptr);
+
+        void* data;
+        vmaMapMemory(allocator,vertexStagingAlloc,&data);
+        memcpy(data,vertexVector.data(),vertexStagingBufferInfo.size);
+        vmaUnmapMemory(allocator,vertexStagingAlloc);
+
+        VkBufferCreateInfo vertexBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        vertexBufferCreateInfo.size = sizeof(DefaultVertex) * vertexVector.size();
+        vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        VmaAllocationCreateInfo vertexBufferAllocationCreateInfo;
+        vertexBufferCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        vmaCreateBuffer(allocator,&vertexBufferCreateInfo,&vertexBufferAllocationCreateInfo,&vertexBuffer,&vertexAllocation,nullptr);
+        copyBuffer(vertexStagingBuffer,vertexBuffer,vertexBufferCreateInfo.size);
+
+        vmaDestroyBuffer(allocator,vertexStagingBuffer,vertexStagingAlloc);
+    }
+
+    {
+        //index buffer
+        VkBufferCreateInfo indexStagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        indexStagingBufferCreateInfo.size = sizeof(uint32_t) * indicesVector.size();
+        indexStagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        VmaAllocationCreateInfo indexStagingAllocationCreateInfo{
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,};
+
+        VkBuffer indexStagingBuffer;
+        VmaAllocation indexStagingAlloc;
+        vmaCreateBuffer(allocator, &indexStagingBufferCreateInfo, &indexStagingAllocationCreateInfo,
+                        &indexStagingBuffer, &indexStagingAlloc, nullptr);
+
+        void* data;
+        vmaMapMemory(allocator,indexStagingAlloc,&data);
+        memcpy(data,indicesVector.data(),sizeof(uint32_t) * indicesVector.size());
+        vmaUnmapMemory(allocator,indexStagingAlloc);
+        VkBufferCreateInfo indexBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        indexBufferCreateInfo.size = sizeof(uint32_t) * indicesVector.size();
+        indexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        VmaAllocationCreateInfo indexBufferAllocationCreateInfo;
+        indexBufferCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        vmaCreateBuffer(allocator, &indexBufferCreateInfo, &indexBufferAllocationCreateInfo, &indexBuffer, &indexAllocation,nullptr);
+        copyBuffer(indexStagingBuffer,indexBuffer,indexBufferCreateInfo.size);
+        vmaDestroyBuffer(allocator,indexStagingBuffer,indexStagingAlloc);
+
+
+    }
+
+
+
 }
 
 void OsmiumGLInstance::initVulkan() {

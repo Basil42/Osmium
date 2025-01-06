@@ -130,6 +130,8 @@ private:
 
     ImGuiIO io;
     PassBindings*passTree = nullptr ;
+    VkBuffer defaultVertexBuffer = VK_NULL_HANDLE;
+    VmaAllocation defaultMeshBufferAllocation = VMA_NULL;
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -222,6 +224,8 @@ private:
 
     void createAllocator();
 
+    void createDefaultMeshBuffers(std::vector<DefaultVertex> vertexVector, std::vector<uint32_t> indicesVector, VkBuffer& vertexBuffer, VmaAllocation&
+                                  vertexAllocation, VkBuffer& indexBuffer, VmaAllocation& indexAllocation);
     void initVulkan();
 
     void cleanupSwapChain();
