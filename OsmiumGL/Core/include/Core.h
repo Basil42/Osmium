@@ -130,8 +130,6 @@ private:
 
     ImGuiIO io;
     PassBindings*passTree = nullptr ;
-    VkBuffer defaultVertexBuffer = VK_NULL_HANDLE;
-    VmaAllocation defaultMeshBufferAllocation = VMA_NULL;
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
