@@ -4,6 +4,7 @@ layout(push_constant, std430)uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
+    mat4 normal;
 } ubo;
 
 layout(location = 0)in vec3 inPosition;
@@ -24,5 +25,6 @@ layout(location = 1)out BlingPhongFragInput{
 void main() {
     vec4 vertPos4 = (ubo.view * ubo.model * vec4(inPosition,1.0));
     VPosition = vec3(vertPos4) / vertPos4.w;
-
+    TexCoord0 = inTexCoordinates;
+    VNormal = ubo.view * ubo.normal * inNormal;
 }

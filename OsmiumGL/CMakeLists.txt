@@ -27,6 +27,9 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
         Core/include/PassBindings.h
+        ShaderUtilities/DefaultShaders.cpp
+        ShaderUtilities/DefaultShaders.h
+        ShaderUtilities/BlinnPhongVertex.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}

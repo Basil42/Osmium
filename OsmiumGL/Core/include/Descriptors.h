@@ -13,6 +13,7 @@ namespace Descriptors {
         glm::mat4 model;
         glm::mat4 view;
         glm::mat4 proj;
+        glm::mat4 normal;
     };
     void createDescriptorSetLayout(const VkDevice &device, VkDescriptorSetLayout &descriptorSetLayout);
     void createDescriptorPool(const VkDevice &device, VkDescriptorPool &descriptorPool);
