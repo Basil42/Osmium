@@ -19,6 +19,8 @@ set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
         Core/src/Descriptors.cpp
         API/src/OsmiumGL_API.cpp
+        ShaderUtilities/DefaultShaders.cpp
+
 )
 set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/DefaultVertex.h
@@ -27,7 +29,6 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
         Core/include/PassBindings.h
-        ShaderUtilities/DefaultShaders.cpp
         ShaderUtilities/DefaultShaders.h
         ShaderUtilities/BlinnPhongVertex.h
 )

@@ -10,19 +10,18 @@
 class DefaultShaders {
   public:
   static VkPipeline GetBlinnPhongPipeline();
-  static void InitializeDefaultPipelines(VkDevice device);
+  static void InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass);
 
-  static void DestoryBlinnPhongPipeline(VkDevice device);
 
   static void DestroyDefaultPipelines(VkDevice device);
-private:
-  static void CreateBlinnPhongDescriptorSet();
 
-  static VkPipeline CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkDescriptorSetLayout descriptorSetLayout, VkRenderPass renderPass);
+private:
+  static void DestoryBlinnPhongPipeline(VkDevice device);
+  static void CreateBlinnPhongDescriptorSetLayout(VkDevice device);
+  static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass);
   static VkPipeline blinnPhongPipeline;
-  static VkPipelineLayout pipelineLayout;
-  static VkPipeline pipeline;
-  static VkDescriptorSetLayout BlinnPhongdescriptorSetLayout;
+  static VkPipelineLayout blinnPhongPipelineLayout;
+  static VkDescriptorSetLayout blinnPhongDescriptorSetLayout;
 };
 
 

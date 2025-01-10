@@ -10,20 +10,26 @@
 #include "Descriptors.h"
 
 VkPipeline DefaultShaders::GetBlinnPhongPipeline() {
+    return blinnPhongPipeline;
 }
 
-void DefaultShaders::InitializeDefaultPipelines(VkDevice device) {
-    CreateBlinnPhongPipeline(device, TODO, TODO, TODO);
+void DefaultShaders::InitializeDefaultPipelines(VkDevice device,VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass) {
+    CreateBlinnPhongPipeline(device, msaaFlags, renderPass);
 }
 
 void DefaultShaders::DestoryBlinnPhongPipeline(VkDevice device) {
+    vkDestroyPipeline(device, blinnPhongPipeline, nullptr);
+    vkDestroyPipelineLayout(device, blinnPhongPipelineLayout,nullptr);
+    vkDestroyDescriptorSetLayout(device, blinnPhongDescriptorSetLayout, nullptr);
 }
 
 void DefaultShaders::DestroyDefaultPipelines(VkDevice device) {
     DestoryBlinnPhongPipeline(device);
 }
 
-void DefaultShaders::CreateBlinnPhongDescriptorSet() {
+VkDescriptorSetLayout DefaultShaders::blinnPhongDescriptorSetLayout = VK_NULL_HANDLE;
+
+void DefaultShaders::CreateBlinnPhongDescriptorSetLayout(VkDevice device) {
     //push constant on vert shader isn't in the layout
 
     //sampler on frag
@@ -37,19 +43,35 @@ void DefaultShaders::CreateBlinnPhongDescriptorSet() {
 
     //Directional property block on fragment
     VkDescriptorSetLayoutBinding DirectionalLightBlockBiding = {
-    .binding = 2,
-    .descriptorType = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK,
-    .descriptorCount = 1,};
-    //TODO finish this
+        .binding = 2,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .pImmutableSamplers = nullptr};
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
+        samplerLayoutBinding, DirectionalLightBlockBiding
+    };
+    VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = bindings.size(),
+    .pBindings = bindings.data(),};
 
     //potentially ambiantlight here
     //optionnaly gamma
+    if (vkCreateDescriptorSetLayout(device,&DescriptorSetLayoutCreateInfo,nullptr,&blinnPhongDescriptorSetLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create descriptor set layout for blinnphond default pipeline!");
+    }
 }
 
+VkPipeline DefaultShaders::blinnPhongPipeline = VK_NULL_HANDLE;
+VkPipelineLayout DefaultShaders::blinnPhongPipelineLayout = VK_NULL_HANDLE;
 
-VkPipeline DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkDescriptorSetLayout descriptorSetLayout, VkRenderPass renderPass) {
-    auto vertShaderCode = ShaderUtils::readfile("../DefaultResources/shaders/BlinnPhongVert.spv");
-    auto fragShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/BlinnPhongFrag.spv");
+void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags,
+                                              VkRenderPass renderPass) {
+    auto vertShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongVert.spv");
+    auto fragShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongFrag.spv");
 
     VkShaderModule vertShaderModule = ShaderUtils::createShaderModule(vertShaderCode,device);
     VkShaderModule fragShaderModule = ShaderUtils::createShaderModule(fragShaderCode,device);
@@ -73,11 +95,11 @@ VkPipeline DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCou
     vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributreDescription.size());
     vertexInputStateCreateInfo.pVertexAttributeDescriptions = attributreDescription.data();
-    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 1;
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
     vertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
-    inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
 
@@ -150,16 +172,16 @@ VkPipeline DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCou
     .offset = 0,
     .size = sizeof(Descriptors::UniformBufferObject)};
 
-    CreateBlinnPhongDescriptorSet();
+    CreateBlinnPhongDescriptorSetLayout(device);
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
     .setLayoutCount = 1,
-    .pSetLayouts = &descriptorSetLayout,//might need to create it on the spot
+    .pSetLayouts = &blinnPhongDescriptorSetLayout,
     .pushConstantRangeCount = 1,
     .pPushConstantRanges = &pushConstantRange};
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo,nullptr,&pipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo,nullptr,&blinnPhongPipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout for BlinnPhong");
     }
 
@@ -175,13 +197,13 @@ VkPipeline DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCou
     .pDepthStencilState = &depthStencilStateCreateInfo,
     .pColorBlendState = &colorBlendStateCreateInfo,
     .pDynamicState = &dynamicStateCreateInfo,
-    .layout = pipelineLayout,
+    .layout = blinnPhongPipelineLayout,
     .renderPass = renderPass,
     .subpass = 0,
     .basePipelineHandle = VK_NULL_HANDLE,//might need to enable it to do "derived" materials
     .basePipelineIndex = -1};
 
-    if (vkCreateGraphicsPipelines(device,VK_NULL_HANDLE,1, &pipelineCreateInfo,nullptr,&pipeline) == VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(device,VK_NULL_HANDLE,1, &pipelineCreateInfo,nullptr,&blinnPhongPipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline for BlinnPhong");
     }
 

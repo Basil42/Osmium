@@ -40,6 +40,7 @@
 #include <tiny_obj_loader.h>
 #include <unordered_map>
 
+#include "DefaultShaders.h"
 #include "Descriptors.h"
 #include "ShaderUtilities.h"
 #include "DefaultVertex.h"
@@ -1548,6 +1549,7 @@ void OsmiumGLInstance::initVulkan() {
     createCommandBuffers();
     createSyncObjects();
     setupImGui();
+    DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass);
 }
 
 // void OsmiumGLInstance::mainLoop() {
@@ -1575,6 +1577,7 @@ void OsmiumGLInstance::cleanupSwapChain() {
 }
 
 void OsmiumGLInstance::cleanup() {
+    DefaultShaders::DestroyDefaultPipelines(device);
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
