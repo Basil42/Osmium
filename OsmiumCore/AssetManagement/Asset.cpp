@@ -6,16 +6,19 @@
 
 #include "AssetManager.h"
 
-AssetId getAssetId(std::string const &assetPath) {
-    constexpr std::hash<std::string> hasher;
-    return hasher(assetPath);
+AssetId Asset::getAssetId(std::filesystem::path const &assetPath) {
+    return hash_value(assetPath);
 }
 
 bool Asset::isLoaded() const {
     return AssetManager::isAssetLoaded(id);
 }
 
-Asset::Asset(std::string const &assetPath) : id(getAssetId(assetPath)),path(assetPath)
+AssetType Asset::getType() const {
+    return type;
+}
+
+Asset::Asset(std::filesystem::path const &assetPath) : id(getAssetId(assetPath)),path(assetPath)
  #if defined EDITOR_MODE || defined _DEBUG
 name("tempName")
 #endif

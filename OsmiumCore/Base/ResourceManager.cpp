@@ -7,6 +7,8 @@
 #include <iostream>
 
 namespace Resources {
+    std::map<unsigned short,std::pair<std::string,std::mutex>> ResourceManager::resourcesMutexes;
+    std::map<std::string, ResourceType> ResourceManager::resourceTable;
     /**
      * Get a mutex that can be used to safely interact with a resource type, Components and GameObject components should be able to provide it directly
      * @param resourceType the identifer of the resource type, can be obtained using ResourceManager::getResourceType, or the DefaultResourceType enum for built-in types

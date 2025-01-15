@@ -6,6 +6,12 @@
 
 #include <stdexcept>
 
+GOC_Transform::~GOC_Transform() {
+    while(!childrenTransforms.empty()) {
+
+    }
+}
+
 glm::vec3 GOC_Transform::getPosition() const {
     throw std::runtime_error("GOC_Transform::getPosition() is not implemented");
 }
@@ -30,3 +36,17 @@ void GOC_Transform::setRotation(const glm::vec4 &newRotation) {
     throw std::runtime_error("GOC_Transform::setRotation() is not implemented");
 }
 
+GOC_Transform::GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform = nullptr): GameObjectComponent(parent) {
+    if (NewParentTransform) {
+        model = glm::mat4();
+        parentTransform = NewParentTransform->GetHandle();
+    } else {
+        model = glm::mat4();
+        parentTransform = 0; //0 shoudl be the root transform
+    }
+}
+
+GOC_Transform::GOC_Transform(GameObject *parent) : GameObjectComponent(parent) {
+    model = glm::mat4();
+    parentTransform = 0;
+}

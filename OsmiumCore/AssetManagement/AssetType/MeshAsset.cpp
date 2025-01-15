@@ -75,3 +75,17 @@ void MeshAsset::Load() {//loading to default format for now
 std::mutex& MeshAsset::GetRessourceMutex() {
     return Resources::ResourceManager::getResourceMutex(Resources::ResourceType_Mesh);
 }
+
+unsigned long MeshAsset::GetMeshHandle() const {
+    return MeshHandle;
+}
+
+
+void MeshAsset::Unload() {
+    OsmiumGL::UnloadMesh(MeshHandle);
+}
+
+MeshAsset::MeshAsset(const std::filesystem::path &path) : Asset(path){
+    MeshHandle = -1;// starts unloaded
+    type = mesh;
+}

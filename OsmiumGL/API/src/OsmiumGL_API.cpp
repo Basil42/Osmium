@@ -28,6 +28,10 @@ void OsmiumGL::RegisterMeshRenderer(PushHandle &push_handle, unsigned long &mesh
     unsigned long &material_handle) {
 }
 
+void OsmiumGL::UnloadMesh(unsigned long mesh_handle) {
+    throw std::runtime_error("OsmiumGL::UnloadMesh: Not Implemented");
+}
+
 void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>& vertices,
                                          std::vector<unsigned int>& indices) {
     mesh_handle = instance->LoadMeshToDefaultBuffer(vertices,indices);

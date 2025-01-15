@@ -7,11 +7,18 @@
 #include <condition_variable>
 #include <imgui.h>
 #include <thread>
+#include <GLFW/glfw3.h>
 
+#include "DefaultShaders.h"
 #include "OsmiumGL_API.h"
+#include "../AssetManagement/AssetManager.h"
+#include "../AssetManagement/AssetType/MeshAsset.h"
+#include "../GOComponents/GOC_MeshRenderer.h"
+#include "../GOComponents/GOC_Transform.h"
 
 
 void GameInstance::GameLoop() {
+    //double lastFrameTime = glfwGetTime();
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
         std::unique_lock<std::mutex> ImGuiLock(ImguiMutex);
@@ -41,6 +48,7 @@ void GameInstance::run() {
 
     OsmiumGL::Init();
     //load the initial assets, probably in its own thread
+    AssetManager::LoadAssetDatabase();
     //LoadInitialScene()
 
 
@@ -87,6 +95,11 @@ void GameInstance::run() {
     // OsmiumGL::Shutdown();
 }
 
+GameObject * GameInstance::CreateNewGameObject() {
+    gameObjects.emplace_back(GameObject());
+    return &gameObjects.back();
+}
+
 void GameInstance::RenderImGuiFrameTask() {
 
 
@@ -98,6 +111,16 @@ void GameInstance::RenderImGuiFrameTask() {
         isImguiNewFrameReady = false;
 
         io = ImGui::GetIO();
+        static bool warningTriggered = false;
+        if(warningTriggered) {
+            static float lastAbnormalDeltaTime = io.DeltaTime;
+            ImGui::Begin("frame drop alert");
+            if(io.DeltaTime > 1.0f/60.0f)lastAbnormalDeltaTime = io.DeltaTime;
+            ImGui::Text("deltaTime: %f", lastAbnormalDeltaTime);
+            ImGui::End();
+        }else {
+            warningTriggered = io.DeltaTime > 1.0f/60.0f;
+        }
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         if (showDemoWindow)
             ImGui::ShowDemoWindow(&showDemoWindow);
@@ -122,6 +145,17 @@ void GameInstance::RenderImGuiFrameTask() {
             ImGui::Text("counter = %d", counter);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);//this shoudl probably be a reference to stay up to date
+            static unsigned int frameNumber = 0;
+            ImGui::Text("Frame Number: %u", frameNumber++);
+            if(ImGui::Button("Create Default Entity")) {
+                //set the transform to something convenient here
+                    GameObject* defaultObject = CreateNewGameObject();
+                    defaultObject->Addcomponent<GOC_Transform>();
+                    const auto defaultGOMeshRenderer = defaultObject->Addcomponent<GOC_MeshRenderer>();
+                    defaultGOMeshRenderer->SetMaterial(DefaultShaders::blinnPhongMaterialHandle);//assuming this will be the handle for the default Blinn Phong Mat
+                    defaultGOMeshRenderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/monkey.obj"));//should finish the setup on its own;
+
+            }
             ImGui::End();
 
         }

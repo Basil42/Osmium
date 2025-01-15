@@ -28,6 +28,8 @@ public:
 
     void RegisterMeshRenderer(PushHandle &push_handle,unsigned long &mesh_handle,unsigned long &material_handle);
 
+    static void UnloadMesh(unsigned long mesh_handle);
+
     static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>  &vertices, std::vector<unsigned>  &indices);
 
     static void ImguiEndImGuiFrame();

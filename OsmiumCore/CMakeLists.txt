@@ -37,6 +37,9 @@ set(OSMIUMCORE_HEADERS
         Base/ResourceManager.h
         AssetManagement/AssetType/MeshAsset.cpp
         AssetManagement/AssetType/MeshAsset.h
+        Base/GameObjectComponent.cpp
+        AssetManagement/AssetType/DefaultAsset.cpp
+        AssetManagement/AssetType/DefaultAsset.h
 )
 
 add_library(OsmiumCore STATIC
@@ -51,4 +54,6 @@ target_link_libraries(OsmiumCore PUBLIC glm::glm)
 
 add_executable(CoreTest main.cpp)
 target_link_libraries(CoreTest PRIVATE OsmiumCore)
+
+target_compile_features(CoreTest PRIVATE cxx_std_20)
 

@@ -6,7 +6,6 @@
 #define DEFAULTSHADERS_H
 #include <vulkan/vulkan_core.h>
 
-
 class DefaultShaders {
   public:
   static VkPipeline GetBlinnPhongPipeline();
@@ -14,11 +13,12 @@ class DefaultShaders {
 
 
   static void DestroyDefaultPipelines(VkDevice device);
-
+  static constexpr unsigned long blinnPhongMaterialHandle = 1;//might need more than one handle for different uniform sets
 private:
   static void DestoryBlinnPhongPipeline(VkDevice device);
   static void CreateBlinnPhongDescriptorSetLayout(VkDevice device);
   static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass);
+
   static VkPipeline blinnPhongPipeline;
   static VkPipelineLayout blinnPhongPipelineLayout;
   static VkDescriptorSetLayout blinnPhongDescriptorSetLayout;

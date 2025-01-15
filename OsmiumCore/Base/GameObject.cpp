@@ -3,3 +3,14 @@
 //
 
 #include "GameObject.h"
+
+#include "GameObjectComponent.h"
+
+
+void GameObject::Destroy() {
+    for (auto component: components) {
+        delete component.second;
+    }
+    components.clear();
+
+}

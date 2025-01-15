@@ -12,14 +12,20 @@
 
 struct DefaultVertex;
 
-class MeshAsset : Asset{
+class MeshAsset : public Asset{
+protected:
+    ~MeshAsset() = default;
+
 public:
     void LoadFromObj(std::vector<DefaultVertex> &vertices, std::vector<uint32_t> &indices);
 
     void Load() override;
 
     std::mutex& GetRessourceMutex() override;
-    unsigned long GetMeshHandle();
+    unsigned long GetMeshHandle() const;
+    void Unload() override;
+
+    explicit MeshAsset(const std::filesystem::path &path);
 private:
     unsigned long MeshHandle;
 };

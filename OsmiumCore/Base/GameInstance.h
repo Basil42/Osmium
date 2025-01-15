@@ -7,7 +7,9 @@
 #include <condition_variable>
 #include <imgui.h>
 #include <mutex>
+#include <vector>
 
+#include "GameObject.h"
 
 
 class GameInstance {
@@ -25,6 +27,10 @@ class GameInstance {
     std::condition_variable ImguiUpdateConditionVariable;
     bool ImGuiShouldShutoff;
     bool simShouldShutoff;
+
+    std::vector<GameObject> gameObjects;
+
+    GameObject * CreateNewGameObject();
 
     void RenderImGuiFrameTask();
     //temp
