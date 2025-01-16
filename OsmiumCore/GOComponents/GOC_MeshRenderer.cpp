@@ -6,6 +6,7 @@
 
 #include <iostream>
 
+#include "OsmiumGL_API.h"
 #include "../AssetManagement/Asset.h"
 #include "../AssetManagement/AssetType/MeshAsset.h"
 #include "../Base/GameObject.h"
@@ -28,6 +29,7 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(pare
 
 void GOC_MeshRenderer::UpdateRenderedObject() {
     throw std::runtime_error("GOC_MeshRenderer::UpdateRenderedObject: Not implemented");
+    OsmiumGL::UnregisterRenderedObject(renderedObject);
 }
 
 void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {

@@ -17,6 +17,8 @@
 #include <InitUtilVk.h>
 #include <bits/std_mutex.h>
 
+#include "RenderedObject.h"
+
 
 #define MAX_FRAMES_IN_FLIGHT 2
 struct GLFWwindow;
@@ -27,6 +29,9 @@ public:
     void initialize();
 
     unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
+
+    bool RemoveRenderedObject(RenderedObject rendered_object) const;
+    void AddRenderedObject(RenderedObject rendered_object);
 
     static void startImGuiFrame();
 

@@ -31,6 +31,8 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/PassBindings.h
         ShaderUtilities/DefaultShaders.h
         ShaderUtilities/BlinnPhongVertex.h
+        API/src/RenderedObject.cpp
+        API/include/RenderedObject.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}

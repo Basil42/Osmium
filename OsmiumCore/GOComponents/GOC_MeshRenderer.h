@@ -5,6 +5,7 @@
 #ifndef GOC_MESHRENDERER_H
 #define GOC_MESHRENDERER_H
 
+#include "RenderedObject.h"
 #include "../Base/GameObjectComponent.h"
 #include "../AssetManagement/AssetManager.h"
 class GOC_Transform;
@@ -13,6 +14,7 @@ typedef unsigned long MaterialHandle;
 
 class GOC_MeshRenderer : public GameObjectComponent {
     GOC_Transform* transform;//outside of ECS a reference to the transform seems acceptable
+    RenderedObject renderedObject;
     void Update() override;
     MaterialHandle material;//this would include descriptorsets
     MeshHandle mesh;

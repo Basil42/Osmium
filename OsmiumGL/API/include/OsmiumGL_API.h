@@ -9,6 +9,8 @@
 #include <bits/std_mutex.h>
 
 #include "DefaultVertex.h"
+#include "RenderedObject.h"
+
 
 class OsmiumGLInstance;
 
@@ -27,6 +29,8 @@ public:
 
 
     void RegisterMeshRenderer(PushHandle &push_handle,unsigned long &mesh_handle,unsigned long &material_handle);
+
+    static void UnregisterRenderedObject(RenderedObject rendered_object);
 
     static void UnloadMesh(unsigned long mesh_handle);
 

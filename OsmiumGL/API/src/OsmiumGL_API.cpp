@@ -28,6 +28,10 @@ void OsmiumGL::RegisterMeshRenderer(PushHandle &push_handle, unsigned long &mesh
     unsigned long &material_handle) {
 }
 
+void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {
+    instance->RemoveRenderedObject(rendered_object);
+}
+
 void OsmiumGL::UnloadMesh(unsigned long mesh_handle) {
     throw std::runtime_error("OsmiumGL::UnloadMesh: Not Implemented");
 }

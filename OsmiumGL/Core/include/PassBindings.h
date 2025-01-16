@@ -21,11 +21,13 @@ struct MeshBindings {
     unsigned int objectCount;
 };
 struct MaterialInstanceBindings {
+    MatInstanceHandle matInstanceHandle;
     std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;
     std::vector<MeshBindings> meshes;
 };
 
 struct MaterialBindings {
+    MaterialHandle materialHandle;
     VkPipeline pipeline;
     VkPipelineLayout pipelineLayout;
     uint32_t PushConstantStride;

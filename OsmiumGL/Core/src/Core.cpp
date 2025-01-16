@@ -77,6 +77,39 @@ unsigned long OsmiumGLInstance::LoadMeshToDefaultBuffer(const std::vector<Defaul
     throw std::runtime_error("OsmiumGLInstance::LoadMeshToDefaultBuffer");
 }
 
+bool OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) const {//very indented and obtuse, shoudl be cleaned up
+    bool found = false;
+    auto matIt = passTree->Materials.begin();
+    while (matIt != passTree->Materials.end()) {
+        if (matIt->materialHandle == rendered_object.material) {
+            auto insanceIt = matIt->matInstances.begin();
+            while (insanceIt != matIt->matInstances.end()) {
+                if (insanceIt->matInstanceHandle == rendered_object.matInstance) {
+                    auto meshIt = insanceIt->meshes.begin();
+                    while (meshIt != insanceIt->meshes.end()) {
+                        if (meshIt->MeshHandle == rendered_object.mesh) {
+                            meshIt->bindingCount--;
+                            found = true;
+                            if (meshIt->bindingCount == 0) insanceIt->meshes.erase(meshIt);
+                            break;
+                        }
+                    }
+                    if (insanceIt->meshes.empty()) matIt->matInstances.erase(insanceIt);
+                    break;
+                }
+            }
+            //remove the material instance from the tree if no more object are using it
+            if(matIt->matInstances.empty()) passTree->Materials.erase(matIt);
+            break;
+        }
+    }
+    return found;
+}
+
+void OsmiumGLInstance::AddRenderedObject(RenderedObject rendered_object) {
+    throw std::runtime_error("OsmiumGLInstance::AddRenderedObject not implemented");
+}
+
 void OsmiumGLInstance::startImGuiFrame() {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
