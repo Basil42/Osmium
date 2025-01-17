@@ -15,6 +15,7 @@
 void GOC_MeshRenderer::Update() {
 }
 
+
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, MaterialHandle materialHandle): GameObjectComponent(parent) {
     mesh = meshHandle;
     material = materialHandle;
