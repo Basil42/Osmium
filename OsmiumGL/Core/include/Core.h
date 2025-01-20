@@ -20,6 +20,7 @@
 #include "RenderedObject.h"
 #include "MaterialData.h"
 #include "MeshData.h"
+#include "ResourceArray.h"
 
 
 struct GLFWwindow;
@@ -49,6 +50,7 @@ public:
 
     bool ShouldClose() const;
 
+    ~OsmiumGLInstance();
 
 
 private:
@@ -137,8 +139,12 @@ private:
     bool showDemoWindow;
     bool showAnotherWindow;
 
-    ImGuiIO io;
+    ImGuiIO& io;
     PassBindings*passTree = nullptr ;
+    ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
+    ResourceArray<MeshData,MAX_LOADED_MESHES>* LoadedMeshes = new ResourceArray<MeshData, MAX_LOADED_MESHES>();
+
+
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;

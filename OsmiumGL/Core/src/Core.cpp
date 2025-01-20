@@ -175,6 +175,12 @@ bool OsmiumGLInstance::ShouldClose() const {
     return glfwWindowShouldClose(window);
 }
 
+OsmiumGLInstance::~OsmiumGLInstance() {
+    //the content of these structure should already be cleaned up by now
+    delete LoadedMaterials;
+    delete LoadedMeshes;
+}
+
 #ifdef Vk_VALIDATION_LAYER
 bool OsmiumGLInstance::checkValidationLayerSupport() const {
     uint32_t layerCount;
@@ -731,9 +737,13 @@ void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImD
     ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
 }
 
+MaterialData OsmiumGLInstance::getMaterialData(MaterialHandle material_handle) const {
+
+}
+
 void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
-    const VkRenderPassBeginInfo &renderPassBeginIno,
-    const PassBindings &passBindings) const {
+                                    const VkRenderPassBeginInfo &renderPassBeginIno,
+                                    const PassBindings &passBindings) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
     for (auto const &matBinding: passBindings.Materials) {
         const MaterialData matData = getMaterialData(matBinding.materialHandle);

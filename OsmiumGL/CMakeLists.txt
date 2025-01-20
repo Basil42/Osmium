@@ -36,6 +36,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/MaterialData.h
         Core/include/config.h
         Core/include/MeshData.h
+        Common/include/ResourceArray.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
@@ -49,6 +50,7 @@ target_include_directories(OsmiumGL PRIVATE
         Initialization
         DebugUtils
         DefaultResources
+        Common/include
 )
 target_include_directories(OsmiumGL PUBLIC
         API/include

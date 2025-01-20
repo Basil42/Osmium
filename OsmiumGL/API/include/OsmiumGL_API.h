@@ -11,8 +11,6 @@
 #include "DefaultVertex.h"
 #include "RenderedObject.h"
 
-#include
-
 
 class OsmiumGLInstance;
 
