@@ -40,11 +40,13 @@
 #include <tiny_obj_loader.h>
 #include <unordered_map>
 
+#include "config.h"
 #include "DefaultShaders.h"
 #include "Descriptors.h"
 #include "ShaderUtilities.h"
 #include "DefaultVertex.h"
 #include "PassBindings.h"
+#include "../include/MaterialData.h"
 #include "SwapChains/SwapChainUtilities.h"
 
 // Volk headers
@@ -77,8 +79,7 @@ unsigned long OsmiumGLInstance::LoadMeshToDefaultBuffer(const std::vector<Defaul
     throw std::runtime_error("OsmiumGLInstance::LoadMeshToDefaultBuffer");
 }
 
-bool OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) const {//very indented and obtuse, shoudl be cleaned up
-    bool found = false;
+void OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) const {//very indented and obtuse, shoudl be cleaned up
     auto matIt = passTree->Materials.begin();
     while (matIt != passTree->Materials.end()) {
         if (matIt->materialHandle == rendered_object.material) {
@@ -88,9 +89,8 @@ bool OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) cons
                     auto meshIt = insanceIt->meshes.begin();
                     while (meshIt != insanceIt->meshes.end()) {
                         if (meshIt->MeshHandle == rendered_object.mesh) {
-                            meshIt->bindingCount--;
-                            found = true;
-                            if (meshIt->bindingCount == 0) insanceIt->meshes.erase(meshIt);
+                            meshIt->objectCount--;
+                            if (meshIt->objectCount == 0) insanceIt->meshes.erase(meshIt);
                             break;
                         }
                     }
@@ -103,11 +103,46 @@ bool OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) cons
             break;
         }
     }
-    return found;
 }
 
-void OsmiumGLInstance::AddRenderedObject(RenderedObject rendered_object) {
-    throw std::runtime_error("OsmiumGLInstance::AddRenderedObject not implemented");
+void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) {
+    //materials
+    MaterialBindings* material_binding;
+    bool found = false;
+    for (auto& mat: passTree->Materials) {
+        if (mat.materialHandle == rendered_object.material) {
+            material_binding = &mat;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        passTree->Materials.push_back(MaterialBindings(rendered_object.material));
+        material_binding = &passTree->Materials.back();
+    }
+    //material instances
+    MaterialInstanceBindings* mat_instance_binding;
+    found = false;
+    for (auto& matInstance : material_binding->matInstances) {
+        if (matInstance.matInstanceHandle == rendered_object.matInstance) {
+            mat_instance_binding = &matInstance;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        material_binding->matInstances.push_back(MaterialInstanceBindings(rendered_object.material));
+        mat_instance_binding = &material_binding->matInstances.back();
+    }
+    for (auto& mesh : mat_instance_binding->meshes) {
+        if (mesh.MeshHandle == rendered_object.mesh) {
+            mesh.objectCount++;
+            return;
+        }
+    }
+    mat_instance_binding->meshes.push_back(MeshBindings(rendered_object.mesh));
+
+
 }
 
 void OsmiumGLInstance::startImGuiFrame() {
@@ -700,29 +735,31 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
     const VkRenderPassBeginInfo &renderPassBeginIno,
     const PassBindings &passBindings) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
-    for (auto const &mat: passBindings.Materials) {
-        vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,mat.pipeline);
-        for (auto const & matInstance : mat.matInstances) {
+    for (auto const &matBinding: passBindings.Materials) {
+        const MaterialData matData = getMaterialData(matBinding.materialHandle);
+        vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipeline);
+        for (auto const & matInstanceBinding : matBinding.matInstances) {
+            MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle);
             //keeping some things default here
             vkCmdBindDescriptorSets(commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
-                mat.pipelineLayout,
+                matData.pipelineLayout,
                 0,
                 1,
-                &matInstance.descriptorSet[currentFrame],
+                &matInstanceData.descriptorSet[currentFrame],
                 0,
                 nullptr
                 );
-            for (auto const &mesh: matInstance.meshes) {
+            for (auto const &mesh: matInstanceBinding.meshes) {
                 vkCmdBindVertexBuffers(commandBuffer,mesh.firstBinding,mesh.bindingCount,mesh.vertexBuffers.data(),mesh.vertexBufferOffsets.data());
                 vkCmdBindIndexBuffer(commandBuffer,mesh.indexBuffer,mesh.indexBufferOffset,VK_INDEX_TYPE_UINT32);
 
                 for(int i = 0; i < mesh.objectCount;i++) {
                     vkCmdPushConstants(commandBuffer,
-                        mat.pipelineLayout,
+                        matData.pipelineLayout,
                         VK_SHADER_STAGE_VERTEX_BIT,
-                        i*mat.PushConstantStride,
-                        mat.PushConstantStride,
+                        i*matData.PushConstantStride,
+                        matData.PushConstantStride,
                         mesh.ObjectPushConstantData);
                     vkCmdDrawIndexed(commandBuffer,mesh.indexCount,1,mesh.indexBufferOffset,0,0);
 
@@ -1487,7 +1524,7 @@ void OsmiumGLInstance::createAllocator() {
     vmaCreateAllocator(&allocatorCreateInfo,&allocator);
 }
 
-void OsmiumGLInstance::createDefaultMeshBuffers(std::vector<DefaultVertex> vertexVector,std::vector<uint32_t> indicesVector,VkBuffer &vertexBuffer,VmaAllocation &vertexAllocation, VkBuffer &indexBuffer,VmaAllocation & indexAllocation)
+void OsmiumGLInstance::createDefaultMeshBuffers(const std::vector<DefaultVertex> &vertexVector, const std::vector<uint32_t> &indicesVector,VkBuffer &vertexBuffer,VmaAllocation &vertexAllocation, VkBuffer &indexBuffer,VmaAllocation & indexAllocation)
 {
     {
         VkBufferCreateInfo vertexStagingBufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};

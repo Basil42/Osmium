@@ -15,6 +15,8 @@ typedef unsigned long MaterialHandle;
 class GOC_MeshRenderer : public GameObjectComponent {
     GOC_Transform* transform;//outside of ECS a reference to the transform seems acceptable
     RenderedObject renderedObject;
+    bool registered;
+
     void Update() override;
     MaterialHandle material;//this would include descriptorsets
     MeshHandle mesh;

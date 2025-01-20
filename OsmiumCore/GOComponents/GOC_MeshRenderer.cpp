@@ -6,6 +6,7 @@
 
 #include <iostream>
 
+#include "DefaultShaders.h"
 #include "OsmiumGL_API.h"
 #include "../AssetManagement/Asset.h"
 #include "../AssetManagement/AssetType/MeshAsset.h"
@@ -24,12 +25,18 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, Ma
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(parent) {
     transform = parent->GetComponent<GOC_Transform>();
     mesh = -1;//empty by default
-    material = -1;//maybe blinn phong by default
+    material = DefaultShaders::blinnPhongMaterialHandle;//maybe blinn phong by default
 }
 
 void GOC_MeshRenderer::UpdateRenderedObject() {
-    throw std::runtime_error("GOC_MeshRenderer::UpdateRenderedObject: Not implemented");
-    OsmiumGL::UnregisterRenderedObject(renderedObject);
+    if (registered)OsmiumGL::UnregisterRenderedObject(renderedObject);
+
+    if (mesh != 0 && material != 0) {
+        renderedObject.mesh = mesh;
+        renderedObject.material = material;
+        OsmiumGL::RegisterRenderedObject(renderedObject);
+        registered = true;
+    }
 }
 
 void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {

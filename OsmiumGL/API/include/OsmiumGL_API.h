@@ -11,6 +11,8 @@
 #include "DefaultVertex.h"
 #include "RenderedObject.h"
 
+#include
+
 
 class OsmiumGLInstance;
 
@@ -28,7 +30,7 @@ public:
     typedef unsigned long PushHandle;
 
 
-    void RegisterMeshRenderer(PushHandle &push_handle,unsigned long &mesh_handle,unsigned long &material_handle);
+    static void RegisterRenderedObject(RenderedObject &rendered_object);
 
     static void UnregisterRenderedObject(RenderedObject rendered_object);
 

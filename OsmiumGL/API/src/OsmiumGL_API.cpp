@@ -24,8 +24,9 @@ void OsmiumGL::Shutdown() {
     instance->Shutdown();
 }
 
-void OsmiumGL::RegisterMeshRenderer(PushHandle &push_handle, unsigned long &mesh_handle,
-    unsigned long &material_handle) {
+
+void OsmiumGL::RegisterRenderedObject(RenderedObject &rendered_object) {
+    instance->AddRenderedObject(rendered_object);
 }
 
 void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {

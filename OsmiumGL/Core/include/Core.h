@@ -7,9 +7,9 @@
 #include <condition_variable>
 #include <cstdint>
 #include <string>
+#include <vulkan/vulkan.h>
 #include <imgui_impl_vulkan.h>
 #include <vector>
-#include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
 #include "DefaultVertex.h"
 
@@ -18,9 +18,10 @@
 #include <bits/std_mutex.h>
 
 #include "RenderedObject.h"
+#include "MaterialData.h"
+#include "MeshData.h"
 
 
-#define MAX_FRAMES_IN_FLIGHT 2
 struct GLFWwindow;
 struct PassBindings;
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
@@ -30,8 +31,11 @@ public:
 
     unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
 
-    bool RemoveRenderedObject(RenderedObject rendered_object) const;
+    void RemoveRenderedObject(RenderedObject rendered_object) const;
     void AddRenderedObject(RenderedObject rendered_object);
+    void RemoveMaterial(MaterialHandle material) const;
+    MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
+    //MaterialHandle RegisterMaterial()
 
     static void startImGuiFrame();
 
@@ -174,6 +178,10 @@ private:
 
     void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
 
+    [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
+    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
+    [[nodiscard]] MeshData getMeshData(MeshHandle mesh_handle) const;
+
     void DrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginIno, const PassBindings &passBindings) const;
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, std::mutex &imGuiMutex, std::condition_variable &imGuiUpdateCV, bool
@@ -227,7 +235,7 @@ private:
 
     void createAllocator();
 
-    void createDefaultMeshBuffers(std::vector<DefaultVertex> vertexVector, std::vector<uint32_t> indicesVector, VkBuffer& vertexBuffer, VmaAllocation&
+    void createDefaultMeshBuffers(const std::vector<DefaultVertex> &vertexVector, const std::vector<uint32_t> &indicesVector, VkBuffer& vertexBuffer, VmaAllocation&
                                   vertexAllocation, VkBuffer& indexBuffer, VmaAllocation& indexAllocation);
     void initVulkan();
 

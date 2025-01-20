@@ -9,6 +9,9 @@
 
 struct MeshBindings {
     unsigned long MeshHandle;
+    unsigned int objectCount = 1;
+
+    //Remove all these from the bindings
     std::vector<VkBuffer> vertexBuffers;//I could do one buffer per input
     std::vector<VkDeviceSize> vertexBufferOffsets;
     uint32_t firstBinding;
@@ -18,20 +21,14 @@ struct MeshBindings {
     uint32_t indexCount;
 
     void* ObjectPushConstantData;//I'd like something less dangerous than this
-    unsigned int objectCount;
 };
 struct MaterialInstanceBindings {
     MatInstanceHandle matInstanceHandle;
-    std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;
     std::vector<MeshBindings> meshes;
 };
 
 struct MaterialBindings {
     MaterialHandle materialHandle;
-    VkPipeline pipeline;
-    VkPipelineLayout pipelineLayout;
-    uint32_t PushConstantStride;
-    //std::string name;//probably could be optional
     std::vector<MaterialInstanceBindings> matInstances;
 };
 struct PassBindings {
