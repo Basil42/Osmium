@@ -7,16 +7,22 @@
 #include <vulkan/vulkan_core.h>
 
 #include "config.h"
+#include "ResourceArray.h"
+struct MaterialInstanceData {
+  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;
+
+};
 
 struct MaterialData {
   VkPipeline pipeline;
   VkPipelineLayout pipelineLayout;
   VkDescriptorSetLayout descriptorSetLayout;
   uint32_t PushConstantStride;
+  ResourceArray<MaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* instances;
+
+  ~MaterialData();
+  MaterialData();
 };
 
-struct MaterialInstanceData {
-  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;
 
-};
 #endif //MATERIALDATA_H

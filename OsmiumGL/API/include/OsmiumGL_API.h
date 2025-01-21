@@ -6,10 +6,13 @@
 #define OSMIUMGL_API_H
 #include <condition_variable>
 #include <imgui.h>
+#include <iosfwd>
+#include <vector>
 #include <bits/std_mutex.h>
 
 #include "DefaultVertex.h"
 #include "RenderedObject.h"
+#include "VertexDescriptor.h"
 
 
 class OsmiumGLInstance;
@@ -24,6 +27,7 @@ public:
     static void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
     static void Shutdown();
 
+
     //handles for mesh renderers
     typedef unsigned long PushHandle;
 
@@ -35,6 +39,10 @@ public:
     static void UnloadMesh(unsigned long mesh_handle);
 
     static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>  &vertices, std::vector<unsigned>  &indices);
+
+    static void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
+                         bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attribute_flags, const std::vector<
+                         unsigned int> &indices);
 
     static void ImguiEndImGuiFrame();
 

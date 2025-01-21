@@ -34,12 +34,17 @@ void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {
 }
 
 void OsmiumGL::UnloadMesh(unsigned long mesh_handle) {
-    throw std::runtime_error("OsmiumGL::UnloadMesh: Not Implemented");
+    instance->UnloadMesh(mesh_handle);
 }
 
 void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>& vertices,
                                          std::vector<unsigned int>& indices) {
     mesh_handle = instance->LoadMeshToDefaultBuffer(vertices,indices);
+}
+
+void OsmiumGL::LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count,
+    const std::vector<VertexBufferDescriptor> &bufferDescriptors,DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attribute_flags, const std::vector<unsigned int> &indices) {
+    mesh_handle = instance->LoadMesh(verticesData,attribute_flags,custom_attribute_flags,vertex_count, bufferDescriptors, indices);
 }
 
 void OsmiumGL::ImguiEndImGuiFrame() {

@@ -3,7 +3,16 @@
 //
 #ifndef MESHDATA_H
 #define MESHDATA_H
+#include "VertexDescriptor.h"
+#include <map>
+
 struct MeshData {
-  MeshHandle meshHandle;
+  DefaultVertexAttributeFlags attributeFlags;
+  unsigned int customAttributesFlags;//user defined custom attributes like color
+  unsigned int numVertices;
+  //buffers data, could probably be a lot faster
+  std::map<DefaultVertexAttributeFlags, std::pair<VkBuffer,VmaAllocation>> buffers;
+  VkBuffer indexBuffer;
+  VmaAllocation IndexBufferAlloc;
 };
 #endif //MESHDATA_H

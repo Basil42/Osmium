@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "VertexDescriptor.h"
 #include "../Asset.h"
 
 
@@ -15,9 +16,14 @@ struct DefaultVertex;
 class MeshAsset : public Asset{
 protected:
     ~MeshAsset() = default;
+    DefaultVertexAttributeFlags vertexAttributeFlags =
+        POSITION | NORMAL | TEXCOORD0;
+    unsigned int customAttributeFlags = 0;//might need to add some definitions to obtain them
 
 public:
     void LoadFromObj(std::vector<DefaultVertex> &vertices, std::vector<uint32_t> &indices);
+
+    void loadMeshToDeprecatedFormat();
 
     void Load() override;
 

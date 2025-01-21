@@ -48,8 +48,8 @@ void MeshAsset::LoadFromObj(std::vector<DefaultVertex>& vertices,std::vector<uin
 
 
 }
-
-void MeshAsset::Load() {//loading to default format for now
+[[deprecated("Use version with vertex format instead")]]
+void MeshAsset::loadMeshToDeprecatedFormat() {
     if(AssetManager::isAssetLoaded(id)) {
         std::cout << "trying to load asset that is already loaded" << std::endl;
         return;
@@ -68,8 +68,73 @@ void MeshAsset::Load() {//loading to default format for now
     }
 
     OsmiumGL::LoadMeshWithDefaultFormat(MeshHandle
-        ,vertices,
-        indices);
+                                        ,vertices,
+                                        indices);
+}
+
+
+void MeshAsset::Load() {
+    if (AssetManager::isAssetLoaded(id)) {
+        std::cout << "trying to load asset that is already loaded" << std::endl;
+        return;
+    }
+    auto fileExtension = path.extension();
+    std::vector<DefaultVertex> vertices;
+    std::vector<uint32_t> indices;
+    //check that the file extension is supported
+    if(fileExtension == ".obj") {
+        //obj loading here, might encapsulate later for more formats
+        LoadFromObj(vertices, indices);
+
+    }else {
+        throw std::runtime_error("File extension " + fileExtension.string() + "  is not supported");
+    }
+
+    std::vector<VertexBufferDescriptor> buffersDescriptors;
+    unsigned int vertexCount = vertices.size();
+    std::allocator<std::byte> allocator;
+    unsigned int allocationSize = 0;
+    if (POSITION & vertexAttributeFlags) {
+        allocationSize += sizeof(DefaultVertex::position);
+    }
+    if (TEXCOORD0 & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::texCoordinates);
+    if (NORMAL & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::normal);
+
+    //there are probably nicer de interleaving algorithm somewhere
+    std::vector<glm::vec3> positions(vertexCount);
+    std::vector<glm::vec2> texcoords(vertexCount);
+    std::vector<glm::vec3> normals(vertexCount);
+    //doing everything in one loop is likely better cache wise
+    for(unsigned int i = 0; i < vertices.size(); i++) {
+        positions[i] = vertices[i].position;
+        texcoords[i] = vertices[i].texCoordinates;
+        normals[i] = vertices[i].normal;
+    }
+    std::byte *buffer = allocator.allocate(allocationSize);
+    unsigned int offset = 0;
+    //I can probably turn that into a loop, everything is allignment 4
+    if (POSITION & vertexAttributeFlags) {
+        unsigned int totalSize
+        = sizeof(DefaultVertex::position) * vertexCount;
+        memcpy(buffer + offset, positions.data(), totalSize);
+        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::position), .data = buffer + offset,.attribute = POSITION});
+        offset += totalSize;
+    }
+    if (TEXCOORD0 & vertexAttributeFlags) {
+        unsigned int totalSize
+        = sizeof(DefaultVertex::texCoordinates) * vertexCount;
+        memcpy(buffer + offset, texcoords.data(), totalSize);
+        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::texCoordinates), .data = buffer + offset,.attribute = TEXCOORD0});
+        offset += totalSize;
+    }
+    if (NORMAL & vertexAttributeFlags) {
+        unsigned int totalSize
+        = sizeof(DefaultVertex::normal) * vertexCount;
+        memcpy(buffer + offset, normals.data(), totalSize);
+        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::normal), .data = buffer + offset,.attribute = NORMAL});
+        offset += totalSize;
+    }
+    OsmiumGL::LoadMesh(MeshHandle,buffer,vertexCount,buffersDescriptors,vertexAttributeFlags, customAttributeFlags, indices);
 }
 
 std::mutex& MeshAsset::GetRessourceMutex() {

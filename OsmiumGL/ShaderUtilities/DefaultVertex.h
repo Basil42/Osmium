@@ -4,11 +4,14 @@
 #include <array>
 #include <glm\glm.hpp>
 #include <vulkan/vulkan_core.h>//it would be nice to declare things that depends on this header in another file
+//TODO refresh this struct
+//might need to change the bindings in attribute description now that they are not interleaved
+//might need to entirelyu move out the vertex input description from here and have it in material data
 struct DefaultVertex {
     glm::vec3 position;
     glm::vec3 color;
     glm::vec2 texCoordinates;
-    //glm::vec3 testPadding;
+    glm::vec3 normal;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription = {};
@@ -19,8 +22,8 @@ struct DefaultVertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription,3> attributeDescriptions = {};
+    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription,4> attributeDescriptions = {};
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -36,6 +39,10 @@ struct DefaultVertex {
         attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
         attributeDescriptions[2].offset = offsetof(DefaultVertex,texCoordinates);
 
+        attributeDescriptions[3].binding = 0;
+        attributeDescriptions[3].location = 3;
+        attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[3].offset = offsetof(DefaultVertex, normal);
         return attributeDescriptions;
     }
     bool operator==(const DefaultVertex& other) const {

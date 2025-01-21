@@ -23,6 +23,10 @@ class  ResourceArray {
   unsigned int Add(T resource);
   bool Remove(unsigned int handle);
   T get(unsigned int handle);
+
+  unsigned int GetCount() {
+    return resourceVector.size();
+  }
 };
 
 template<typename T, size_t MAX_Capacity>

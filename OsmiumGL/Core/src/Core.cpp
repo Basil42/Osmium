@@ -105,9 +105,9 @@ void OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) cons
     }
 }
 
-void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) {
+void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) const {
     //materials
-    MaterialBindings* material_binding;
+    MaterialBindings* material_binding = nullptr;
     bool found = false;
     for (auto& mat: passTree->Materials) {
         if (mat.materialHandle == rendered_object.material) {
@@ -121,7 +121,7 @@ void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) {
         material_binding = &passTree->Materials.back();
     }
     //material instances
-    MaterialInstanceBindings* mat_instance_binding;
+    MaterialInstanceBindings* mat_instance_binding = nullptr;
     found = false;
     for (auto& matInstance : material_binding->matInstances) {
         if (matInstance.matInstanceHandle == rendered_object.matInstance) {
@@ -143,6 +143,102 @@ void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) {
     mat_instance_binding->meshes.push_back(MeshBindings(rendered_object.mesh));
 
 
+}
+
+
+void OsmiumGLInstance::createBuffer(uint64_t buffer_size, VkBufferUsageFlags usage_flags,
+                                    VmaMemoryUsage mem_flags, VkBuffer &vk_buffer, VmaAllocation &vma_allocation) const {
+    VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferCreateInfo.size = buffer_size;
+    bufferCreateInfo.usage = usage_flags;
+    VmaAllocationCreateInfo vma_allocation_create_info;
+    vma_allocation_create_info.usage = mem_flags;//sounds wrong I should probably fill the AllocationCreateInfoStruct
+    if (vmaCreateBuffer(allocator,&bufferCreateInfo,&vma_allocation_create_info,&vk_buffer,&vma_allocation,nullptr) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create vertex attribute buffer");
+    }
+}
+
+void OsmiumGLInstance::createVertexAttributeBuffer(const VertexBufferDescriptor &buffer_descriptor,unsigned int vertexCount, VkBuffer&vk_buffer,
+                                                   VmaAllocation&vma_allocation) const {
+    VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    stagingBufferCreateInfo.size = buffer_descriptor.AttributeStride * vertexCount;
+    stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+    VmaAllocationCreateInfo vma_staging_allocation_create_info = {
+    .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+    .usage = VMA_MEMORY_USAGE_AUTO};
+
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+    vmaCreateBuffer(allocator,&stagingBufferCreateInfo,&vma_staging_allocation_create_info,&stagingBuffer,&stagingAllocation,nullptr);
+
+    void* data;
+    vmaMapMemory(allocator,stagingAllocation,&data);
+    memcpy(data,&buffer_descriptor.data,stagingBufferCreateInfo.size);
+    vmaUnmapMemory(allocator,stagingAllocation);
+
+
+    createBuffer(buffer_descriptor.AttributeStride * vertexCount,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_AUTO,
+                vk_buffer,
+                vma_allocation);
+    copyBuffer(stagingBuffer,vk_buffer,stagingBufferCreateInfo.size);
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
+
+}
+
+void OsmiumGLInstance::createIndexBuffer(const std::vector<unsigned int> &indices, VkBuffer&vk_buffer,
+    VmaAllocation&vma_allocation) {
+    VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    stagingBufferCreateInfo.size = sizeof(unsigned int) * indices.size();
+    stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+    VmaAllocationCreateInfo vma_staging_allocation_create_info = {
+        .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO};
+
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+    vmaCreateBuffer(allocator,&stagingBufferCreateInfo,&vma_staging_allocation_create_info,&stagingBuffer,&stagingAllocation,nullptr);
+
+    void* data;
+    vmaMapMemory(allocator,stagingAllocation,&data);
+    memcpy(data,indices.data(),sizeof(unsigned int) * indices.size());
+    vmaUnmapMemory(allocator,stagingAllocation);
+
+    createBuffer(stagingBufferCreateInfo.size,VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VMA_MEMORY_USAGE_AUTO,
+        vk_buffer,
+        vma_allocation);
+    copyBuffer(stagingBuffer,vk_buffer,stagingBufferCreateInfo.size);
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
+}
+
+MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttributeFlags attribute_flags,unsigned int custom_attributeFlags, unsigned int vertex_count,
+                                      const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices) {
+    MeshData meshData;
+    meshData.attributeFlags = attribute_flags;
+    meshData.customAttributesFlags = custom_attributeFlags;
+    meshData.numVertices = vertex_count;
+    for (auto buffer_descriptor: bufferDescriptors) {
+        VkBuffer buffer_handle;
+        VmaAllocation buffer_memory;
+        createVertexAttributeBuffer(buffer_descriptor,vertex_count,buffer_handle, buffer_memory);
+        meshData.buffers[buffer_descriptor.attribute] = {buffer_handle,buffer_memory};
+    }
+    //indices
+    createIndexBuffer(indices, meshData.indexBuffer,meshData.IndexBufferAlloc);
+    return LoadedMeshes->Add(meshData);
+}
+
+void OsmiumGLInstance::UnloadMesh(MeshHandle mesh) const {
+    auto data =LoadedMeshes->get(mesh);
+    for (const auto buffer : data.buffers) {
+        vmaDestroyBuffer(allocator,buffer.second.first,buffer.second.second);
+    }
+    vmaDestroyBuffer(allocator,data.indexBuffer,data.IndexBufferAlloc);
+    LoadedMeshes->Remove(mesh);
 }
 
 void OsmiumGLInstance::startImGuiFrame() {
@@ -738,18 +834,24 @@ void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImD
 }
 
 MaterialData OsmiumGLInstance::getMaterialData(MaterialHandle material_handle) const {
-
+    return LoadedMaterials->get(material_handle);
 }
+
+MaterialInstanceData OsmiumGLInstance::getMaterialInstanceData(MatInstanceHandle mat_instance_handle,
+    MaterialHandle material_handle) const {
+    return getMaterialData(material_handle).instances->get(mat_instance_handle);
+}
+
 
 void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                                     const VkRenderPassBeginInfo &renderPassBeginIno,
                                     const PassBindings &passBindings) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
     for (auto const &matBinding: passBindings.Materials) {
-        const MaterialData matData = getMaterialData(matBinding.materialHandle);
+        const MaterialData matData = LoadedMaterials->get(matBinding.materialHandle);// getMaterialData(matBinding.materialHandle);
         vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipeline);
         for (auto const & matInstanceBinding : matBinding.matInstances) {
-            MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle);
+            MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle,matBinding.materialHandle);
             //keeping some things default here
             vkCmdBindDescriptorSets(commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1417,7 +1519,7 @@ void OsmiumGLInstance::setupImGui() {
     //context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    io = ImGui::GetIO();
+    auto& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 

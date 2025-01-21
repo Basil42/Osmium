@@ -33,9 +33,20 @@ public:
     unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
 
     void RemoveRenderedObject(RenderedObject rendered_object) const;
-    void AddRenderedObject(RenderedObject rendered_object);
+    void AddRenderedObject(RenderedObject rendered_object) const;
     void RemoveMaterial(MaterialHandle material) const;
     MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
+    void createBuffer(uint64_t buffer_size, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_flags, VkBuffer& vk_buffer, VmaAllocation& vma_allocation) const;
+
+
+    void createVertexAttributeBuffer(const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation &
+                                     vma_allocation) const;
+
+    void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation);
+
+    MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attributeFlags, unsigned int
+                        vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
+    void UnloadMesh(MeshHandle mesh) const;
     //MaterialHandle RegisterMaterial()
 
     static void startImGuiFrame();
@@ -136,10 +147,9 @@ private:
         VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME
         VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME
     };
-    bool showDemoWindow;
-    bool showAnotherWindow;
+    bool showDemoWindow = true;
+    bool showAnotherWindow = true;
 
-    ImGuiIO& io;
     PassBindings*passTree = nullptr ;
     ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
     ResourceArray<MeshData,MAX_LOADED_MESHES>* LoadedMeshes = new ResourceArray<MeshData, MAX_LOADED_MESHES>();
@@ -185,7 +195,7 @@ private:
     void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
 
     [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
-    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
+    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle,MaterialHandle material_handle) const;
     [[nodiscard]] MeshData getMeshData(MeshHandle mesh_handle) const;
 
     void DrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginIno, const PassBindings &passBindings) const;

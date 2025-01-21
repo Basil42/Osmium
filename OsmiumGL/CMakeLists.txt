@@ -37,6 +37,8 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/config.h
         Core/include/MeshData.h
         Common/include/ResourceArray.h
+        ShaderUtilities/VertexDescriptor.h
+        Core/src/MaterialData.cpp
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
