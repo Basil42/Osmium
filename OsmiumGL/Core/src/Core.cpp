@@ -1744,7 +1744,7 @@ void OsmiumGLInstance::initVulkan() {
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
     //specific, should probably not be in here
 
-    Descriptors::createDirectionalLightDescriptor(device,DirectionalLightDescriptorPool, TODO);
+
     createColorResources();
     createDepthResources();
     createFrameBuffer();

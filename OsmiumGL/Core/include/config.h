@@ -8,4 +8,8 @@
 #define MAX_LOADED_MATERIALS 255
 #define MAX_LOADED_MATERIAL_INSTANCES 255
 #define MAX_LOADED_MESHES 255
+
+//built in scene descriptors
+#define BUILT_IN_DESCRIPTOR_POOL_SIZE_COUNT 1//it should be possible to know this at compile time even with custom descriptors
+
 #endif //CONFIG_H

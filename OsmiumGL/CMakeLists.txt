@@ -19,26 +19,29 @@ set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
         Core/src/Descriptors.cpp
         API/src/OsmiumGL_API.cpp
-        ShaderUtilities/DefaultShaders.cpp
+        ShaderUtilities/src/DefaultShaders.cpp
+        API/src/RenderedObject.cpp
+        Core/src/MaterialData.cpp
 
 )
+#this is here for the IDE
 set(OSMIUMGL_EXECUTABLE_HEADERS
-        ShaderUtilities/DefaultVertex.h
+        ShaderUtilities/include/DefaultVertex.h
         Core/include/Descriptors.h
         Core/include/Core.h
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
         Core/include/PassBindings.h
-        ShaderUtilities/DefaultShaders.h
-        ShaderUtilities/BlinnPhongVertex.h
-        API/src/RenderedObject.cpp
+        ShaderUtilities/include/DefaultShaders.h
+        ShaderUtilities/include/BlinnPhongVertex.h
         API/include/RenderedObject.h
         Core/include/MaterialData.h
         Core/include/config.h
         Core/include/MeshData.h
         Common/include/ResourceArray.h
-        ShaderUtilities/VertexDescriptor.h
-        Core/src/MaterialData.cpp
+        ShaderUtilities/include/VertexDescriptor.h
+        ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
+        ShaderUtilities/include/DefaultSceneDescriptorSets.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
@@ -53,6 +56,7 @@ target_include_directories(OsmiumGL PRIVATE
         DebugUtils
         DefaultResources
         Common/include
+        ShaderUtilities/include
 )
 target_include_directories(OsmiumGL PUBLIC
         API/include

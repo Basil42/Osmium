@@ -33,6 +33,8 @@ struct MaterialBindings {
 };
 struct PassBindings {
     std::vector<MaterialBindings> Materials;
+    //global descriptors, reference to descriptor sets used by directional light for example, leaving them explicit for now, until I need more than just directional light
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> DirectionalLightDescriptorSets;
 };
 
 
