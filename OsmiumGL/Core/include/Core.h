@@ -154,7 +154,9 @@ private:
     ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
     ResourceArray<MeshData,MAX_LOADED_MESHES>* LoadedMeshes = new ResourceArray<MeshData, MAX_LOADED_MESHES>();
 
-
+    //Light descriptor sets
+    VkDescriptorPool DirectionalLightDescriptorPool = VK_NULL_HANDLE;
+    std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> DirectionalLightDescriptorSets = {};
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;

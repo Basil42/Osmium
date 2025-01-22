@@ -15,33 +15,34 @@ struct BlinnPhongVertex {
   glm::vec2 texCoords;
   glm::vec3 normal;
 
-  static VkVertexInputBindingDescription getBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription = {
-    .binding = 0,
-    .stride = sizeof(BlinnPhongVertex),
-    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,};
-    return bindingDescription;
+  static std::array<VkVertexInputBindingDescription, 3> getBindingDescription() {
+    auto result = std::array<VkVertexInputBindingDescription, 3>();
+    result[0].binding = 0;
+    result[0].stride = sizeof(position);
+    result[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    result[2].binding = 1;
+    result[2].stride = sizeof(texCoords);
+    result[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    result[3].binding = 2;
+    result[3].stride = sizeof(normal);
+    result[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return result;
   }
-  static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions = {};
+  static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions = {};
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
     attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[0].offset = offsetof(BlinnPhongVertex, position);
 
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(BlinnPhongVertex, color);
-
-    attributeDescriptions[2].binding = 0;
-    attributeDescriptions[2].location = 2;
+    attributeDescriptions[2].binding = 1;
+    attributeDescriptions[2].location = 1;
     attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
     attributeDescriptions[2].offset = offsetof(BlinnPhongVertex, texCoords);
 
-    attributeDescriptions[3].binding = 0;
-    attributeDescriptions[3].location = 3;
+    attributeDescriptions[3].binding = 2;
+    attributeDescriptions[3].location = 2;
     attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[3].offset = offsetof(BlinnPhongVertex, normal);
 

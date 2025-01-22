@@ -858,12 +858,34 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                 matData.pipelineLayout,
                 0,
                 1,
-                &matInstanceData.descriptorSet[currentFrame],
+                &matInstanceData.descriptorSets[currentFrame],
                 0,
                 nullptr
                 );
             for (auto const &mesh: matInstanceBinding.meshes) {
-                vkCmdBindVertexBuffers(commandBuffer,mesh.firstBinding,mesh.bindingCount,mesh.vertexBuffers.data(),mesh.vertexBufferOffsets.data());
+                MeshData data = LoadedMeshes->get(mesh.MeshHandle);
+                std::vector<VkBuffer> vertexBuffers(matData.VertexAttributeCount);
+                std::vector<VkDeviceSize> vertexBuffersOffsets(matData.VertexAttributeCount);
+                auto defaultAttribute = static_cast<DefaultVertexAttributeFlags>(1);
+                while (defaultAttribute <= MAX_VERTEX_ATTRIBUTE_FLAGS) {
+                    try {
+                        if (defaultAttribute & matData.VertexInputAttributes) {
+                        vertexBuffers.push_back(data.buffers.at(defaultAttribute).first);
+                        vertexBuffersOffsets.push_back(0);//I don't think I really need offsets without interleaving
+                        }
+                        defaultAttribute = static_cast<DefaultVertexAttributeFlags>(defaultAttribute << 1);
+                    } catch (std::out_of_range &e) {
+                        std::cout << e.what() << std::endl;
+                        std::cout <<
+                                "Mesh is missing a vertex attribute to be compatible with this material,"
+                        << std::endl <<
+                                "validation on loading the rendered object was faulty or unimplemented"
+                        << std::endl;
+                        //Make it give more info, mesh name and material name
+                    }
+
+                }
+                vkCmdBindVertexBuffers(commandBuffer,0,matData.VertexAttributeCount,vertexBuffers.data(),vertexBuffersOffsets.data());
                 vkCmdBindIndexBuffer(commandBuffer,mesh.indexBuffer,mesh.indexBufferOffset,VK_INDEX_TYPE_UINT32);
 
                 for(int i = 0; i < mesh.objectCount;i++) {
@@ -1722,6 +1744,7 @@ void OsmiumGLInstance::initVulkan() {
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
     //specific, should probably not be in here
 
+    Descriptors::createDirectionalLightDescriptor(device,DirectionalLightDescriptorPool, TODO);
     createColorResources();
     createDepthResources();
     createFrameBuffer();
@@ -1731,7 +1754,7 @@ void OsmiumGLInstance::initVulkan() {
     createCommandBuffers();
     createSyncObjects();
     setupImGui();
-    DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass);
+    DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials);
 }
 
 // void OsmiumGLInstance::mainLoop() {

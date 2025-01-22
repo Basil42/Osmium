@@ -13,8 +13,8 @@ VkPipeline DefaultShaders::GetBlinnPhongPipeline() {
     return blinnPhongPipeline;
 }
 
-void DefaultShaders::InitializeDefaultPipelines(VkDevice device,VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass) {
-    CreateBlinnPhongPipeline(device, msaaFlags, renderPass);
+void DefaultShaders::InitializeDefaultPipelines(VkDevice device,VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass,const ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray) {
+    CreateBlinnPhongPipeline(device, msaaFlags, renderPass, materialResourceArray);
 }
 
 void DefaultShaders::DestoryBlinnPhongPipeline(VkDevice device) {
@@ -69,7 +69,7 @@ VkPipeline DefaultShaders::blinnPhongPipeline = VK_NULL_HANDLE;
 VkPipelineLayout DefaultShaders::blinnPhongPipelineLayout = VK_NULL_HANDLE;
 
 void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags,
-                                              VkRenderPass renderPass) {
+                                              VkRenderPass renderPass,const ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray) {
     auto vertShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongVert.spv");
     auto fragShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongFrag.spv");
 
@@ -88,15 +88,15 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageCreateInfo, fragShaderStageCreateInfo };
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
 
-    VkVertexInputBindingDescription bindingDescription = BlinnPhongVertex::getBindingDescription();
-    std::array<VkVertexInputAttributeDescription, 4> attributreDescription =
+    std::array<VkVertexInputBindingDescription,3> bindingDescription = BlinnPhongVertex::getBindingDescription();
+    std::array<VkVertexInputAttributeDescription, 3> attributreDescription =
             BlinnPhongVertex::getAttributeDescriptions();
 
     vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributreDescription.size());
     vertexInputStateCreateInfo.pVertexAttributeDescriptions = attributreDescription.data();
-    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
-    vertexInputStateCreateInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 4;
+    vertexInputStateCreateInfo.pVertexBindingDescriptions = bindingDescription.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
     inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -209,4 +209,19 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
 
     vkDestroyShaderModule(device,vertShaderModule,nullptr);
     vkDestroyShaderModule(device,fragShaderModule,nullptr);
+
+    //TODO register to loaded materials
+    MaterialData materialData;
+    materialData.pipeline = blinnPhongPipeline;
+    materialData.pipelineLayout = blinnPhongPipelineLayout;
+    materialData.descriptorSetLayout = blinnPhongDescriptorSetLayout;
+    materialData.CustomVertexInputAttributes = 0;
+    //I will need some kind of parser to automate finding these for custom shaders
+    materialData.VertexInputAttributes = POSITION | NORMAL | TEXCOORD0;
+    materialData.CustomVertexInputAttributes = 0;
+    //bind general uniform sets light directional light information to the material
+
+    //add a default instance
+    MaterialInstanceData defautlMaterialInstanceData;
+    //materialData.instances->Add()
 }

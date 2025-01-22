@@ -21,6 +21,7 @@ namespace Descriptors {
     void createDescriptorSets(VkDevice &device, VkDescriptorSetLayout &descriptorSetLayout, VkDescriptorPool &
                               descriptorPool, std::vector<VkDescriptorSet> &descriptorSets, std::vector<VkBuffer> &uniformBuffers, VkImageView
                               imageView, VkSampler sampler);
+    void createDirectionalLightDescriptor(VkDevice device, VkDescriptorPool &descriptorPool, std::array<VkDescriptorSet, 2> &descriptorSets);
 }
 
 #endif //DESCRIPTORLAYOUTS_H

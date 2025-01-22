@@ -12,7 +12,7 @@ struct MeshBindings {
     unsigned int objectCount = 1;
 
     //Remove all these from the bindings
-    std::vector<VkBuffer> vertexBuffers;//I could do one buffer per input
+    std::vector<VkBuffer> vertexBuffers;//one buffer per input
     std::vector<VkDeviceSize> vertexBufferOffsets;
     uint32_t firstBinding;
     uint32_t bindingCount;

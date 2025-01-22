@@ -6,10 +6,13 @@
 #define DEFAULTSHADERS_H
 #include <vulkan/vulkan_core.h>
 
+#include "MaterialData.h"
+
 class DefaultShaders {
   public:
   static VkPipeline GetBlinnPhongPipeline();
-  static void InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass);
+  static void InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, const ResourceArray<MaterialData, 255> *
+                                         materialResourceArray);
 
 
   static void DestroyDefaultPipelines(VkDevice device);
@@ -17,7 +20,8 @@ class DefaultShaders {
 private:
   static void DestoryBlinnPhongPipeline(VkDevice device);
   static void CreateBlinnPhongDescriptorSetLayout(VkDevice device);
-  static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass);
+  static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, const ResourceArray<MaterialData, 255> *
+                                       materialResourceArray);
 
   static VkPipeline blinnPhongPipeline;
   static VkPipelineLayout blinnPhongPipelineLayout;

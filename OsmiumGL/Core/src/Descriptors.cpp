@@ -116,4 +116,26 @@ void Descriptors::createDescriptorSets(VkDevice& device, VkDescriptorSetLayout& 
         vkUpdateDescriptorSets(device,descriptorWrites.size(), descriptorWrites.data(),0,nullptr);
     }
 
+
+
+}
+
+void Descriptors::createDirectionalLightDescriptor(VkDevice device, VkDescriptorPool& descriptorPool, std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT>& descriptorSets) {
+    std::array<VkDescriptorPoolSize, 1> poolSizes = {};
+
+    //Only one directional light
+    poolSizes[0] = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+
+    VkDescriptorPoolCreateInfo poolInfo = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    .poolSizeCount = poolSizes.size(),
+    .pPoolSizes = poolSizes.data()};
+    if(vkCreateDescriptorPool(device,&poolInfo,nullptr,&descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool for the directional light");
+    }
+
+
 }
