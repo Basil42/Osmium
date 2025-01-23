@@ -41,6 +41,7 @@
 #include <unordered_map>
 
 #include "config.h"
+#include "DefaultSceneDescriptorSets.h"
 #include "DefaultShaders.h"
 #include "Descriptors.h"
 #include "ShaderUtilities.h"
@@ -146,17 +147,7 @@ void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) c
 }
 
 
-void OsmiumGLInstance::createBuffer(uint64_t buffer_size, VkBufferUsageFlags usage_flags,
-                                    VmaMemoryUsage mem_flags, VkBuffer &vk_buffer, VmaAllocation &vma_allocation) const {
-    VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferCreateInfo.size = buffer_size;
-    bufferCreateInfo.usage = usage_flags;
-    VmaAllocationCreateInfo vma_allocation_create_info;
-    vma_allocation_create_info.usage = mem_flags;//sounds wrong I should probably fill the AllocationCreateInfoStruct
-    if (vmaCreateBuffer(allocator,&bufferCreateInfo,&vma_allocation_create_info,&vk_buffer,&vma_allocation,nullptr) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create vertex attribute buffer");
-    }
-}
+
 
 void OsmiumGLInstance::createVertexAttributeBuffer(const VertexBufferDescriptor &buffer_descriptor,unsigned int vertexCount, VkBuffer&vk_buffer,
                                                    VmaAllocation&vma_allocation) const {
@@ -179,10 +170,10 @@ void OsmiumGLInstance::createVertexAttributeBuffer(const VertexBufferDescriptor 
 
 
     createBuffer(buffer_descriptor.AttributeStride * vertexCount,
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VMA_MEMORY_USAGE_AUTO,
-                vk_buffer,
-                vma_allocation);
+                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                 VMA_MEMORY_USAGE_AUTO,
+                 vk_buffer,
+                 vma_allocation);
     copyBuffer(stagingBuffer,vk_buffer,stagingBufferCreateInfo.size);
     vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 
@@ -208,9 +199,9 @@ void OsmiumGLInstance::createIndexBuffer(const std::vector<unsigned int> &indice
     vmaUnmapMemory(allocator,stagingAllocation);
 
     createBuffer(stagingBufferCreateInfo.size,VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_AUTO,
-        vk_buffer,
-        vma_allocation);
+                 VMA_MEMORY_USAGE_AUTO,
+                 vk_buffer,
+                 vma_allocation);
     copyBuffer(stagingBuffer,vk_buffer,stagingBufferCreateInfo.size);
     vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 }
@@ -310,7 +301,7 @@ void OsmiumGLInstance::createInstance() {
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "Osmium";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -975,43 +966,36 @@ void OsmiumGLInstance::createSyncObjects() {
         }
     }
 }
-//note that in a real life scenario, allocation should be made less often and we should use offsets in the same allocated memory to store multiple
-//Defaulting to instanced rendering when possible might also  with that
-//see: https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
-void OsmiumGLInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memProperties,
-                                    VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+
+void OsmiumGLInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VmaMemoryUsage memory_usage,
+    VkBuffer&vk_buffer, VmaAllocation&vma_allocation, VmaAllocationCreateFlags allocationFlags) const {
     VkBufferCreateInfo bufferCreateInfo;
-    uint32_t QueueFamilyIndices[] = {queueFamiliesIndices.graphicsFamily.value(), queueFamiliesIndices.transferFamily.has_value()};//probably also want to use a set here
-    if(queueFamiliesIndices.graphicsFamily != queueFamiliesIndices.transferFamily)
+    uint32_t QueueFamilyIndices[] = {queueFamiliesIndices.graphicsFamily.value(), queueFamiliesIndices.transferFamily.value()};
+    if (queueFamiliesIndices.graphicsFamily != queueFamiliesIndices.transferFamily) {
         bufferCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = bufferSize,
         .usage = usageFlags,
         .sharingMode = VK_SHARING_MODE_CONCURRENT,
         .queueFamilyIndexCount = 2,
-        .pQueueFamilyIndices = QueueFamilyIndices
-        };
-    else
-            bufferCreateInfo = {
+        .pQueueFamilyIndices = QueueFamilyIndices};
+    }else {
+        bufferCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = bufferSize,
         .usage = usageFlags,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-    if(vkCreateBuffer(device, &bufferCreateInfo,nullptr,&buffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create vertex buffer");
+
+        };
     }
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device,buffer, &memRequirements);
-    VkMemoryAllocateInfo allocInfo = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = memRequirements.size,
-        .memoryTypeIndex = vkInitUtils::findMemoryType(memRequirements.memoryTypeBits,memProperties,physicalDevice),
+    VmaAllocationCreateInfo vmaAllocationCreateInfo = {
+        .flags = allocationFlags,
+        .usage = VMA_MEMORY_USAGE_AUTO,
     };
-    if(vkAllocateMemory(device,&allocInfo,nullptr,&bufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate vertex buffer memory");
-    }
-    vkBindBufferMemory(device,buffer,bufferMemory,0);
+    if (allocationFlags)vmaAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    if (vmaCreateBuffer(allocator,&bufferCreateInfo,&vmaAllocationCreateInfo,&vk_buffer,&vma_allocation,nullptr) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create buffer");
+    };
 }
 
 void OsmiumGLInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const {
@@ -1025,79 +1009,76 @@ void OsmiumGLInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDevi
     endSingleTimeCommands(commandBuffer, transferQueue);
 }
 
-
+[[deprecated]]
 void OsmiumGLInstance::createVertexBuffer() {
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
     VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VmaAllocation stagingAllocation;
     createBuffer(
         bufferSize,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        VMA_MEMORY_USAGE_AUTO,
         stagingBuffer,
-        stagingBufferMemory);
+        stagingAllocation, true);
 
 
     void* data;
-    vkMapMemory(device,stagingBufferMemory,0,bufferSize,0,&data);
+    vmaMapMemory(allocator,stagingAllocation,&data);
     memcpy(data, vertices.data(),bufferSize);
-    vkUnmapMemory(device,stagingBufferMemory);
+    vmaUnmapMemory(allocator,stagingAllocation);
 
     createBuffer(
         bufferSize,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        VMA_MEMORY_USAGE_AUTO,
         vertexBuffer,
-        vertexBufferMemory);
+        vertexBufferAllocation);
 
     copyBuffer(stagingBuffer,vertexBuffer,bufferSize);
 
-    vkDestroyBuffer(device, stagingBuffer,nullptr);
-    vkFreeMemory(device, stagingBufferMemory,nullptr);
-
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 }
 
 void OsmiumGLInstance::createIndexBuffer() {
     VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
     VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VmaAllocation stagingAllocation;
     createBuffer(bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
+                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VMA_MEMORY_USAGE_AUTO,
+                 stagingBuffer,
+                 stagingAllocation, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
     void* data;
-    vkMapMemory(device,stagingBufferMemory,0,bufferSize,0,&data);
+    vmaMapMemory(allocator,stagingAllocation,&data);
     memcpy(data,indices.data(),bufferSize);
-    vkUnmapMemory(device,stagingBufferMemory);
+    vmaUnmapMemory(allocator,stagingAllocation);
 
     createBuffer(bufferSize,
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        indexBuffer,
-        indexBufferMemory);
+                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                 VMA_MEMORY_USAGE_AUTO,
+                 indexBuffer,
+                 indexBufferAllocation);
     copyBuffer(stagingBuffer,indexBuffer,bufferSize);
 
-    vkDestroyBuffer(device,stagingBuffer,nullptr);
-    vkFreeMemory(device,stagingBufferMemory,nullptr);
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 }
 
 void OsmiumGLInstance::createUniformBuffer() {
     uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersAllocations.resize(MAX_FRAMES_IN_FLIGHT);
     uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
     for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         constexpr VkDeviceSize bufferSize = sizeof(Descriptors::UniformBufferObject);
         createBuffer(bufferSize,
                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     VMA_MEMORY_USAGE_AUTO,
                      uniformBuffers[i],
-                     uniformBuffersMemory[i]);
-        vkMapMemory(device,uniformBuffersMemory[i],0,bufferSize,0,&uniformBuffersMapped[i]);
+                     uniformBuffersAllocations[i], VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);//should just pass flags directly
+        vmaMapMemory(allocator,uniformBuffersAllocations[i],&uniformBuffersMapped[i]);//that seems very hazardous as this memory could move
     }
 }
 
@@ -1145,19 +1126,20 @@ void OsmiumGLInstance::createTextureImage(const char* path) {
         throw std::runtime_error("Failed to load image!");
 
     VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VmaAllocation stagingBufferAllocation;
 
     createBuffer(imageSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory
-        );
+                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VMA_MEMORY_USAGE_AUTO,
+                 stagingBuffer,
+                 stagingBufferAllocation,
+                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);//There probably are specific flags that would be good for this
 
     void* data;
-    vkMapMemory(device, stagingBufferMemory,0,imageSize,0,&data);
+    vmaMapMemory(allocator,stagingBufferAllocation,&data);
+    //could have a sanity check here that the mapping succeeded
     memcpy(data,pixels,imageSize);
-    vkUnmapMemory(device, stagingBufferMemory);
+    vmaUnmapMemory(allocator,stagingBufferAllocation);
     stbi_image_free(pixels);
 
     miplevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
@@ -1173,8 +1155,7 @@ void OsmiumGLInstance::createTextureImage(const char* path) {
     copyBufferToImage(stagingBuffer,textureImage,static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
     generateMipMaps(textureImage,VK_FORMAT_R8G8B8A8_SRGB,texWidth,texHeight, miplevels);//takes care of layout transition to shader read optimal
 
-    vkDestroyBuffer(device,stagingBuffer, nullptr);
-    vkFreeMemory(device,stagingBufferMemory,nullptr);
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingBufferAllocation);
 
 }
 
@@ -1653,7 +1634,7 @@ void OsmiumGLInstance::createAllocator() {
         .pHeapSizeLimit = nullptr,
         .pVulkanFunctions = nullptr,
         .instance = instance,
-        .vulkanApiVersion = VK_API_VERSION_1_1,
+        .vulkanApiVersion = VK_API_VERSION_1_3,
     };
     vmaCreateAllocator(&allocatorCreateInfo,&allocator);
 }
@@ -1754,6 +1735,7 @@ void OsmiumGLInstance::initVulkan() {
     createCommandBuffers();
     createSyncObjects();
     setupImGui();
+    defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials);
 }
 
@@ -1793,20 +1775,22 @@ void OsmiumGLInstance::cleanup() {
     vkDestroyImage(device,textureImage, nullptr);
     vkFreeMemory(device, textureImageMemory, nullptr);
     for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-        vkFreeMemory(device,uniformBuffersMemory[i], nullptr);
+        //does it need to be unmapped ?
+        vmaUnmapMemory(allocator,uniformBuffersAllocations[i]);
+        vmaDestroyBuffer(allocator,uniformBuffers[i],uniformBuffersAllocations[i]);
     }
     vkDestroyDescriptorPool(device, descriptorPool,nullptr);
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout,nullptr);
 
-    vkDestroyBuffer(device,indexBuffer,nullptr);
-    vkFreeMemory(device,indexBufferMemory,nullptr);
+    vmaDestroyBuffer(allocator,indexBuffer,indexBufferAllocation);
 
-    vkDestroyBuffer(device, vertexBuffer, nullptr);
-    vkFreeMemory(device, vertexBufferMemory, nullptr);
+    vmaDestroyBuffer(allocator,vertexBuffer,vertexBufferAllocation);
+
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
+    delete defaultSceneDescriptorSets;
+    DefaultShaders::DestroyDefaultPipelines(device);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {

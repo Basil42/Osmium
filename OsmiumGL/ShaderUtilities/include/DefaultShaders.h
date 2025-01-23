@@ -8,24 +8,24 @@
 
 #include "MaterialData.h"
 
+
 class DefaultShaders {
-  public:
-  static VkPipeline GetBlinnPhongPipeline();
-  static void InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, const ResourceArray<MaterialData, 255> *
+public:
+    static VkPipeline GetBlinnPhongPipeline();
+    static void InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, const ResourceArray<MaterialData, 255> *
                                          materialResourceArray);
+    static void DestroyDefaultPipelines(VkDevice device);
 
-
-  static void DestroyDefaultPipelines(VkDevice device);
-  static constexpr unsigned long blinnPhongMaterialHandle = 1;//might need more than one handle for different uniform sets
+    static unsigned int GetBLinnPhongMaterialHandle();
 private:
-  static void DestoryBlinnPhongPipeline(VkDevice device);
-  static void CreateBlinnPhongDescriptorSetLayout(VkDevice device);
-  static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, const ResourceArray<MaterialData, 255> *
+    static void DestoryBlinnPhongPipeline(VkDevice device);
+    static void CreateBlinnPhongDescriptorSetLayout(VkDevice device);
+    static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, const ResourceArray<MaterialData, 255> *
                                        materialResourceArray);
-
-  static VkPipeline blinnPhongPipeline;
-  static VkPipelineLayout blinnPhongPipelineLayout;
-  static VkDescriptorSetLayout blinnPhongDescriptorSetLayout;
+    static VkPipeline blinnPhongPipeline;
+    static VkPipelineLayout blinnPhongPipelineLayout;
+    static VkDescriptorSetLayout blinnPhongDescriptorSetLayout;
+    static unsigned int blinnPhongMaterialHandle;
 };
 
 

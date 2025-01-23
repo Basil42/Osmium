@@ -27,6 +27,8 @@ public:
     static void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
     static void Shutdown();
 
+    static MaterialHandle GetBlinnPhongHandle();
+
 
     //handles for mesh renderers
     typedef unsigned long PushHandle;

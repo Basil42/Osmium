@@ -6,6 +6,7 @@
 #include <mutex>
 
 #include "Core.h"
+#include "DefaultShaders.h"
 OsmiumGLInstance* OsmiumGL::instance;
 void OsmiumGL::Init() {
     instance = new OsmiumGLInstance();
@@ -22,6 +23,10 @@ void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,
 
 void OsmiumGL::Shutdown() {
     instance->Shutdown();
+}
+
+MaterialHandle OsmiumGL::GetBlinnPhongHandle() {
+    return DefaultShaders::GetBLinnPhongMaterialHandle();
 }
 
 

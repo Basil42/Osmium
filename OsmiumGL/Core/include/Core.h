@@ -23,6 +23,7 @@
 #include "ResourceArray.h"
 
 
+class DefaultSceneDescriptorSets;
 struct GLFWwindow;
 struct PassBindings;
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
@@ -36,13 +37,14 @@ public:
     void AddRenderedObject(RenderedObject rendered_object) const;
     void RemoveMaterial(MaterialHandle material) const;
     MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
-    void createBuffer(uint64_t buffer_size, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_flags, VkBuffer& vk_buffer, VmaAllocation& vma_allocation) const;
-
 
     void createVertexAttributeBuffer(const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation &
                                      vma_allocation) const;
 
     void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation);
+
+    void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VmaMemoryUsage memory_usage, VkBuffer &vk_buffer, VmaAllocation &
+                      vma_allocation, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
 
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attributeFlags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
@@ -114,11 +116,11 @@ private:
     std::vector<uint32_t> indices ;
 
     VkBuffer vertexBuffer = nullptr;
-    VkDeviceMemory vertexBufferMemory = nullptr;
+    VmaAllocation vertexBufferAllocation = nullptr;
     VkBuffer indexBuffer = nullptr;
-    VkDeviceMemory indexBufferMemory = nullptr;
+    VmaAllocation indexBufferAllocation = nullptr;
     std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<VmaAllocation> uniformBuffersAllocations;
     std::vector<void*> uniformBuffersMapped;
     uint32_t miplevels;
     VkImage textureImage = VK_NULL_HANDLE;
@@ -155,8 +157,7 @@ private:
     ResourceArray<MeshData,MAX_LOADED_MESHES>* LoadedMeshes = new ResourceArray<MeshData, MAX_LOADED_MESHES>();
 
     //Light descriptor sets
-    VkDescriptorPool DirectionalLightDescriptorPool = VK_NULL_HANDLE;
-    std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> DirectionalLightDescriptorSets = {};
+    DefaultSceneDescriptorSets* defaultSceneDescriptorSets;
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -207,7 +208,6 @@ private:
 
     void createSyncObjects();
 
-    void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memProperties, VkBuffer& vk_buffer, VkDeviceMemory& bufferMemory);
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const;
 

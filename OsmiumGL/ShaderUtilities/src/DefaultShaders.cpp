@@ -27,7 +27,12 @@ void DefaultShaders::DestroyDefaultPipelines(VkDevice device) {
     DestoryBlinnPhongPipeline(device);
 }
 
+unsigned int DefaultShaders::GetBLinnPhongMaterialHandle(){
+    return blinnPhongMaterialHandle;
+}
+
 VkDescriptorSetLayout DefaultShaders::blinnPhongDescriptorSetLayout = VK_NULL_HANDLE;
+unsigned int DefaultShaders::blinnPhongMaterialHandle = MAX_LOADED_MATERIALS +1;
 
 void DefaultShaders::CreateBlinnPhongDescriptorSetLayout(VkDevice device) {
     //push constant on vert shader isn't in the layout
@@ -43,7 +48,7 @@ void DefaultShaders::CreateBlinnPhongDescriptorSetLayout(VkDevice device) {
 
     //Directional property block on fragment
     VkDescriptorSetLayoutBinding DirectionalLightBlockBiding = {
-        .binding = 2,
+        .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,

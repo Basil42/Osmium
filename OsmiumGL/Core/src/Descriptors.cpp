@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
+#include "config.h"
+
 void Descriptors::createDescriptorSetLayout(const VkDevice& device, VkDescriptorSetLayout& descriptorSetLayout) {
     // VkDescriptorSetLayoutBinding uboLayoutBinding = {
     //     .binding = 0,

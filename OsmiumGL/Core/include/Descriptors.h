@@ -4,9 +4,9 @@
 
 #ifndef DESCRIPTORLAYOUTS_H
 #define DESCRIPTORLAYOUTS_H
-#include <Core.h>
-#include <glm/mat4x4.hpp>
+#include <vector>
 #include <vulkan/vulkan_core.h>
+#include <glm/mat4x4.hpp>
 
 namespace Descriptors {
     struct UniformBufferObject {

@@ -60,7 +60,7 @@ target_include_directories(OsmiumGL PRIVATE
 )
 target_include_directories(OsmiumGL PUBLIC
         API/include
-        ShaderUtilities)
+        ShaderUtilities/include)
 
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glfw)

@@ -5,10 +5,12 @@
 #ifndef DEFAULTSCENEDESCRIPTORSETS_H
 #define DEFAULTSCENEDESCRIPTORSETS_H
 #include <array>
+#include <vk_mem_alloc.h>
 #include <glm/vec3.hpp>
 #include <vulkan/vulkan_core.h>
 
 #include "config.h"
+#include "Core.h"
 
 enum BuiltInSceneWideDescriptors {
     BUILTIN_SCENE_WIDE_DESCRIPTOR_DIRECTIONAL_LIGHT,
@@ -21,7 +23,12 @@ struct DirLightUniform {
 
 class DefaultSceneDescriptorSets {
 public:
-    DefaultSceneDescriptorSets(VkDevice device);
+
+    DefaultSceneDescriptorSets(VkDevice device, VmaAllocator allocator, OsmiumGLInstance &GLInstance);
+
+    ~DefaultSceneDescriptorSets();
+    //Passing the instance seems harmless as this is effectively an extention of the instance
+    void UpdateDirectionalLight(const DirLightUniform &updatedValue, unsigned int currentImage);
 
 private:
     VkDevice device;
@@ -29,7 +36,12 @@ private:
     VkDescriptorSetLayout descriptorSetLayout;//descriptor set layout for all lit materials
 
     std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> directionalLightDescriptorSets;
-    VkBuffer directionalLightUniformBuffer;
+    std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> directionalLightUniformBuffers;
+    std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> directionalLightAllocations;
+
+    DirLightUniform directionalLightValue;
+    std::array<void*,MAX_FRAMES_IN_FLIGHT> directionalLightBufferMappedSources;
+    VmaAllocator Allocator;
 };
 
 
