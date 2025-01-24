@@ -28,7 +28,7 @@ struct GLFWwindow;
 struct PassBindings;
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
-
+    friend class DefaultShaders;
     void initialize();
 
     unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
@@ -49,6 +49,8 @@ public:
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attributeFlags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh) const;
+
+
     //MaterialHandle RegisterMaterial()
 
     static void startImGuiFrame();
@@ -102,10 +104,10 @@ private:
     VkCommandPool commandPool = nullptr;
     VkCommandPool transientCommandPool = VK_NULL_HANDLE;
     VkImage depthImage = VK_NULL_HANDLE;
-    VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+    VmaAllocation depthImageMemory = VK_NULL_HANDLE;
     VkImageView depthImageView = VK_NULL_HANDLE;
     VkImage colorImage = VK_NULL_HANDLE;
-    VkDeviceMemory colorImageMemory = VK_NULL_HANDLE;
+    VmaAllocation colorImageMemory = VK_NULL_HANDLE;
     VkImageView colorImageView = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -124,7 +126,7 @@ private:
     std::vector<void*> uniformBuffersMapped;
     uint32_t miplevels;
     VkImage textureImage = VK_NULL_HANDLE;
-    VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
+    VmaAllocation textureImageMemory = VK_NULL_HANDLE;
     VkImageView textureImageView = VK_NULL_HANDLE;
     VkSampler textureSampler = VK_NULL_HANDLE;
     VkDescriptorUpdateTemplate VikingPushTemplate;
@@ -155,6 +157,7 @@ private:
     PassBindings*passTree = nullptr ;
     ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
     ResourceArray<MeshData,MAX_LOADED_MESHES>* LoadedMeshes = new ResourceArray<MeshData, MAX_LOADED_MESHES>();
+    ResourceArray<MaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* LoadedMaterialInstances= new ResourceArray<MaterialInstanceData, MAX_LOADED_MATERIAL_INSTANCES>();
 
     //Light descriptor sets
     DefaultSceneDescriptorSets* defaultSceneDescriptorSets;
@@ -198,7 +201,7 @@ private:
     void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
 
     [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
-    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle,MaterialHandle material_handle) const;
+    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
     [[nodiscard]] MeshData getMeshData(MeshHandle mesh_handle) const;
 
     void DrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginIno, const PassBindings &passBindings) const;
@@ -219,9 +222,10 @@ private:
 
     void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
                      tiling, VkImageUsageFlags usage, VkImage
-                     &image, VkDeviceMemory &imageMemory);
+                     &image, VmaAllocation &imageAllocation);
 
 
+    void createEmptyTextureImage(VkImage &vk_image, VmaAllocation &imageAllocation);
     void createTextureImage(const char *path);
     void generateMipMaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) const;
     void loadModel(const char *path);
@@ -233,6 +237,8 @@ private:
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
 
+
+    void createTextureSampler(VkSampler &sampler);
     void createTextureSampler();
 
     void createDepthResources();

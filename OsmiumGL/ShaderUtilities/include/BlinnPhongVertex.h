@@ -11,7 +11,6 @@
 
 struct BlinnPhongVertex {
   glm::vec3 position;
-  glm::vec3 color;
   glm::vec2 texCoords;
   glm::vec3 normal;
 
@@ -20,12 +19,12 @@ struct BlinnPhongVertex {
     result[0].binding = 0;
     result[0].stride = sizeof(position);
     result[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    result[2].binding = 1;
-    result[2].stride = sizeof(texCoords);
+    result[1].binding = 1;
+    result[1].stride = sizeof(texCoords);
+    result[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    result[2].binding = 2;
+    result[2].stride = sizeof(normal);
     result[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    result[3].binding = 2;
-    result[3].stride = sizeof(normal);
-    result[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     return result;
   }
@@ -36,20 +35,20 @@ struct BlinnPhongVertex {
     attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[0].offset = offsetof(BlinnPhongVertex, position);
 
-    attributeDescriptions[2].binding = 1;
-    attributeDescriptions[2].location = 1;
-    attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[2].offset = offsetof(BlinnPhongVertex, texCoords);
+    attributeDescriptions[1].binding = 1;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(BlinnPhongVertex, texCoords);
 
-    attributeDescriptions[3].binding = 2;
-    attributeDescriptions[3].location = 2;
-    attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[3].offset = offsetof(BlinnPhongVertex, normal);
+    attributeDescriptions[2].binding = 2;
+    attributeDescriptions[2].location = 2;
+    attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[2].offset = offsetof(BlinnPhongVertex, normal);
 
     return attributeDescriptions;
   }
   bool operator==(const BlinnPhongVertex& other) const {
-    return position == other.position && color == other.color && texCoords == other.texCoords &&
+    return position == other.position && texCoords == other.texCoords &&
       normal == other.normal;
   }
 };

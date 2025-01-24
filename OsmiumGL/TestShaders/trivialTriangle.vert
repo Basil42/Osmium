@@ -8,6 +8,7 @@ layout(push_constant, std430) uniform UniformBufferObject {
 layout(location = 0)in vec3 inPosition;
 layout(location = 1)in vec3 inColor;
 layout(location = 2)in vec2 inTexCoordinates;
+layout(location = 3)in vec3 normal;
 
 layout(location = 0)out vec3 fragColor;
 layout(location = 1)out vec2 fragTexCoord;

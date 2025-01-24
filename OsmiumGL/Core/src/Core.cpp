@@ -828,9 +828,8 @@ MaterialData OsmiumGLInstance::getMaterialData(MaterialHandle material_handle) c
     return LoadedMaterials->get(material_handle);
 }
 
-MaterialInstanceData OsmiumGLInstance::getMaterialInstanceData(MatInstanceHandle mat_instance_handle,
-    MaterialHandle material_handle) const {
-    return getMaterialData(material_handle).instances->get(mat_instance_handle);
+MaterialInstanceData OsmiumGLInstance::getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const {
+    return LoadedMaterialInstances->get(mat_instance_handle);
 }
 
 
@@ -842,14 +841,14 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
         const MaterialData matData = LoadedMaterials->get(matBinding.materialHandle);// getMaterialData(matBinding.materialHandle);
         vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipeline);
         for (auto const & matInstanceBinding : matBinding.matInstances) {
-            MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle,matBinding.materialHandle);
+            MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle);
             //keeping some things default here
             vkCmdBindDescriptorSets(commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 matData.pipelineLayout,
                 0,
-                1,
-                &matInstanceData.descriptorSets[currentFrame],
+                matInstanceData.descriptorSets[currentFrame].size(),
+                matInstanceData.descriptorSets[currentFrame].data(),
                 0,
                 nullptr
                 );
@@ -1084,7 +1083,7 @@ void OsmiumGLInstance::createUniformBuffer() {
 
 void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,
                                    VkSampleCountFlagBits numSamples, VkFormat format,
-                                   const VkImageTiling tiling, VkImageUsageFlags usage, VkImage &image, VkDeviceMemory &imageMemory) {
+                                   const VkImageTiling tiling, VkImageUsageFlags usage, VkImage &image, VmaAllocation &imageAllocation) {
     VkImageCreateInfo imageCreateInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .flags = 0,
@@ -1102,20 +1101,40 @@ void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mip
     imageCreateInfo.extent.height = Height;
     imageCreateInfo.extent.depth = 1;
 
-    if(vkCreateImage(device, &imageCreateInfo, nullptr, &image) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create image!");
-    }
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device, image, &memRequirements);
-    VkMemoryAllocateInfo allocInfo{
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = memRequirements.size,
-        .memoryTypeIndex = vkInitUtils::findMemoryType(memRequirements.memoryTypeBits,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,physicalDevice),
+    VmaAllocationCreateInfo allocInfo = {
+    .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+    .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     };
-    if(vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to allocate texture memory!");
-    }
-    vkBindImageMemory(device,image,imageMemory,0);
+
+    vmaCreateImage(allocator,&imageCreateInfo,&allocInfo,&image,&imageAllocation,nullptr);
+}
+
+void OsmiumGLInstance::createEmptyTextureImage(VkImage& vk_image,VmaAllocation& imageAllocation) {
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+    std::byte pixel = static_cast<std::byte>(0xffffffff);
+    createBuffer(sizeof(std::byte),
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_AUTO,
+        stagingBuffer,
+        stagingAllocation,
+        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+    void* data;
+    vmaMapMemory(allocator,stagingAllocation,&data);
+    memcpy(data,&pixel,sizeof(std::byte));
+    vmaUnmapMemory(allocator,stagingAllocation);
+    //just in case
+    auto _miplevels = static_cast<uint32_t>(std::floor(std::log2(std::max(1, 1)))) + 1;
+    createImage(1,1,_miplevels,
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_FORMAT_R8G8B8A8_SRGB,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                vk_image,
+                imageAllocation
+        );
+
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 }
 
 void OsmiumGLInstance::createTextureImage(const char* path) {
@@ -1428,6 +1447,35 @@ VkImageView OsmiumGLInstance::createImageView(VkImage image, VkFormat format, Vk
     return imageView;
 }
 
+void OsmiumGLInstance::createTextureSampler(VkSampler &sampler) {
+    VkPhysicalDeviceProperties deviceProp = {};
+    vkGetPhysicalDeviceProperties(physicalDevice,&deviceProp);
+
+    VkSamplerCreateInfo samplerInfo = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = VK_FILTER_LINEAR,
+        .minFilter = VK_FILTER_LINEAR,
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .mipLodBias = 0.0f,
+        .anisotropyEnable = VK_TRUE,
+        .maxAnisotropy = deviceProp.limits.maxSamplerAnisotropy,
+        .compareEnable = VK_FALSE,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        .minLod = 0.0f,
+        .maxLod = static_cast<float>(miplevels),
+        .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+        .unnormalizedCoordinates = VK_FALSE//could be true for compute stuff when we want to access specific pixels
+        };
+    if(vkCreateSampler(device,&samplerInfo,nullptr,&sampler) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture sampler");
+    }
+}//default sampler setup
+//void OsmiumGLInstance::createTextureSampler(VkSampler &sampler, VkSamplerCreateInfo &samplerInfo) {}
+//add some commonly useful overrides likje filter modes
+
 void OsmiumGLInstance::createTextureSampler() {
 
     VkPhysicalDeviceProperties deviceProp = {};
@@ -1736,7 +1784,7 @@ void OsmiumGLInstance::initVulkan() {
     createSyncObjects();
     setupImGui();
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
-    DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials);
+    DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this);
 }
 
 // void OsmiumGLInstance::mainLoop() {
@@ -1749,11 +1797,9 @@ void OsmiumGLInstance::initVulkan() {
 
 void OsmiumGLInstance::cleanupSwapChain() {
     vkDestroyImageView(device, colorImageView,nullptr);
-    vkDestroyImage(device,colorImage,nullptr);
-    vkFreeMemory(device,colorImageMemory,nullptr);
+    vmaDestroyImage(allocator,colorImage,colorImageMemory);
     vkDestroyImageView(device,depthImageView,nullptr);
-    vkDestroyImage(device,depthImage,nullptr);
-    vkFreeMemory(device,depthImageMemory,nullptr);
+    vmaDestroyImage(allocator,depthImage,depthImageMemory);
     for (const auto &swapChainFrameBuffer: swapChainFrameBuffers) {
         vkDestroyFramebuffer(device, swapChainFrameBuffer, nullptr);
     }
@@ -1764,16 +1810,15 @@ void OsmiumGLInstance::cleanupSwapChain() {
 }
 
 void OsmiumGLInstance::cleanup() {
-    DefaultShaders::DestroyDefaultPipelines(device);
+    DefaultShaders::DestroyDefaultPipelines(device, allocator);
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     cleanupSwapChain();
     //ImGui_ImplVulkanH_DestroyWindow(instance,device,&imguiWindowsData,nullptr);
-    vkDestroySampler(device,textureSampler,nullptr);
-    vkDestroyImageView(device,textureImageView,nullptr);
-    vkDestroyImage(device,textureImage, nullptr);
-    vkFreeMemory(device, textureImageMemory, nullptr);
+    vkDestroySampler(device,textureSampler,nullptr);//vikingtest stuff
+    vkDestroyImageView(device,textureImageView,nullptr);//viking test stuff
+    vmaDestroyImage(allocator,textureImage,textureImageMemory);
     for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         //does it need to be unmapped ?
         vmaUnmapMemory(allocator,uniformBuffersAllocations[i]);
@@ -1790,7 +1835,6 @@ void OsmiumGLInstance::cleanup() {
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
     delete defaultSceneDescriptorSets;
-    DefaultShaders::DestroyDefaultPipelines(device);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {

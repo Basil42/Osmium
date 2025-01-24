@@ -22,6 +22,7 @@ class  ResourceArray {
   void Reserve(size_t newCapacity);
   unsigned int Add(T resource);
   bool Remove(unsigned int handle);
+
   T get(unsigned int handle);
 
   unsigned int GetCount() {

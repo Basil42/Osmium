@@ -85,6 +85,9 @@ add_custom_target(copy_default_shaders COMMAND ${CMAKE_COMMAND} -E copy_director
 add_custom_target(compileDefaultShader COMMAND cmd /c ${CMAKE_CURRENT_BINARY_DIR}/TestShaders/TrivialTriangleCompile.bat)
 add_dependencies(compileDefaultShader copy_default_shaders )
 add_dependencies(OsmiumGL compileDefaultShader)
+add_custom_target(compileBlinnPhongShaders COMMAND cmd /c ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources/shaders/BlinnPhongCompile.bat)
+add_dependencies(OsmiumGL compileBlinnPhongShaders)
+add_dependencies(compileBlinnPhongShaders copy_default_resources)
 
 add_executable(OsmiumGLTest OsmiumGlTest.cpp)
 target_link_libraries(OsmiumGLTest OsmiumGL)

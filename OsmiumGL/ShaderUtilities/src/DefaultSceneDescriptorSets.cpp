@@ -92,6 +92,7 @@ DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(const VkDevice device,con
 
 DefaultSceneDescriptorSets::~DefaultSceneDescriptorSets() {
     for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++ ) {
+        vmaUnmapMemory(Allocator,directionalLightAllocations[i]);
         vmaDestroyBuffer(Allocator,directionalLightUniformBuffers[i],directionalLightAllocations[i]);
     }
     vkDestroyDescriptorPool(device,descriptorPool,nullptr);

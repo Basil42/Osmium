@@ -7,24 +7,29 @@
 #include <ShaderUtilities.h>
 
 #include "BlinnPhongVertex.h"
+#include "Core.h"
 #include "Descriptors.h"
 
 VkPipeline DefaultShaders::GetBlinnPhongPipeline() {
     return blinnPhongPipeline;
 }
 
-void DefaultShaders::InitializeDefaultPipelines(VkDevice device,VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass,const ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray) {
-    CreateBlinnPhongPipeline(device, msaaFlags, renderPass, materialResourceArray);
+void DefaultShaders::InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray, OsmiumGLInstance&
+                                                GLInstance) {
+    CreateBlinnPhongPipeline(device, msaaFlags, renderPass, materialResourceArray, GLInstance);
 }
 
-void DefaultShaders::DestoryBlinnPhongPipeline(VkDevice device) {
+void DefaultShaders::DestoryBlinnPhongPipeline(VkDevice device, VmaAllocator allocator) {
     vkDestroyPipeline(device, blinnPhongPipeline, nullptr);
     vkDestroyPipelineLayout(device, blinnPhongPipelineLayout,nullptr);
     vkDestroyDescriptorSetLayout(device, blinnPhongDescriptorSetLayout, nullptr);
+
+    vkDestroySampler(device,defaultTextureSampler,nullptr);
+    vmaDestroyImage(allocator, defaultTextureImage, defaultTextureImageAllocation);
 }
 
-void DefaultShaders::DestroyDefaultPipelines(VkDevice device) {
-    DestoryBlinnPhongPipeline(device);
+void DefaultShaders::DestroyDefaultPipelines(VkDevice device, VmaAllocator allocator) {
+    DestoryBlinnPhongPipeline(device, allocator);
 }
 
 unsigned int DefaultShaders::GetBLinnPhongMaterialHandle(){
@@ -33,6 +38,9 @@ unsigned int DefaultShaders::GetBLinnPhongMaterialHandle(){
 
 VkDescriptorSetLayout DefaultShaders::blinnPhongDescriptorSetLayout = VK_NULL_HANDLE;
 unsigned int DefaultShaders::blinnPhongMaterialHandle = MAX_LOADED_MATERIALS +1;
+VkSampler DefaultShaders::defaultTextureSampler = VK_NULL_HANDLE;
+VkImage DefaultShaders::defaultTextureImage = VK_NULL_HANDLE;
+VmaAllocation DefaultShaders::defaultTextureImageAllocation = VK_NULL_HANDLE;
 
 void DefaultShaders::CreateBlinnPhongDescriptorSetLayout(VkDevice device) {
     //push constant on vert shader isn't in the layout
@@ -74,7 +82,7 @@ VkPipeline DefaultShaders::blinnPhongPipeline = VK_NULL_HANDLE;
 VkPipelineLayout DefaultShaders::blinnPhongPipelineLayout = VK_NULL_HANDLE;
 
 void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags,
-                                              VkRenderPass renderPass,const ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray) {
+                                              VkRenderPass renderPass, ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray, OsmiumGLInstance& GLInstance) {
     auto vertShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongVert.spv");
     auto fragShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongFrag.spv");
 
@@ -100,7 +108,7 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributreDescription.size());
     vertexInputStateCreateInfo.pVertexAttributeDescriptions = attributreDescription.data();
-    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 4;
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescription.size());
     vertexInputStateCreateInfo.pVertexBindingDescriptions = bindingDescription.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
@@ -224,9 +232,14 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     //I will need some kind of parser to automate finding these for custom shaders
     materialData.VertexInputAttributes = POSITION | NORMAL | TEXCOORD0;
     materialData.CustomVertexInputAttributes = 0;
-    //bind general uniform sets light directional light information to the material
-
+    //I'm going to assume the directional light is ALWAYS binding 0 for the main pass and have the data manage by a node up the tree
+    //The texture sampler should be per instance in this case
     //add a default instance
     MaterialInstanceData defautlMaterialInstanceData;
+    //default texture sampler
+    GLInstance.createTextureSampler(defaultTextureSampler);
+    GLInstance.createEmptyTextureImage(defaultTextureImage, defaultTextureImageAllocation);
+    //Clean up all the allocation on shutdown
+    //defautlMaterialInstanceData.descriptorSets
     //materialData.instances->Add()
 }
