@@ -410,7 +410,7 @@ void OsmiumGLInstance::createLogicalDevice() {
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-    for (auto available_extension: availableExtensions) {
+    for (const auto &available_extension: availableExtensions) {
         if(allocatorExtensions.contains(available_extension.extensionName))
             enabledExtensions.push_back(available_extension.extensionName);
     }
@@ -1649,7 +1649,7 @@ void OsmiumGLInstance::createAllocator() {
 
     VmaAllocatorCreateFlags allocFlags = {};
     std::set<const char *> enabledAllocatorExtensions;
-    for (auto available_extension: availableExtensions) {
+    for (const auto& available_extension: availableExtensions) {
             if(allocatorExtensions.contains(available_extension.extensionName))
                 enabledAllocatorExtensions.insert(available_extension.extensionName);
     }

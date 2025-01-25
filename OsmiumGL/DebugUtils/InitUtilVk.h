@@ -142,14 +142,13 @@ public:
         return details;
     }
 
-    static uint32_t getAllocatorExtensionScore(const VkPhysicalDevice& device, const std::set<const char *> &allocatorExtensions) {
+    static uint32_t getAllocatorExtensionScore(const VkPhysicalDevice& device, const std::set<std::string> &allocatorExtensions) {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
         std::vector<VkExtensionProperties> availableExtensions(extensionCount);
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
         uint32_t score = 0;
-
 
         for (auto available_extension: availableExtensions) {
             if(allocatorExtensions.contains(available_extension.extensionName))
@@ -160,7 +159,7 @@ public:
 
     static uint32_t RateDeviceSuitability(const VkPhysicalDevice &device,VkSurfaceKHR surface,
                                           std::vector<const char*> requiredDeviceExtensions,
-                                          std::set<const char *> const &allocatorExtensions
+                                          std::set<std::string> const &allocatorExtensions
     ) {
         VkPhysicalDeviceProperties deviceProperties;
         VkPhysicalDeviceFeatures deviceFeatures;
