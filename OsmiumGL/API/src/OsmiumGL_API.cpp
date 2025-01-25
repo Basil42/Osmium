@@ -29,6 +29,10 @@ MaterialHandle OsmiumGL::GetBlinnPhongHandle() {
     return DefaultShaders::GetBLinnPhongMaterialHandle();
 }
 
+MatInstanceHandle OsmiumGL::GetBlinnPhongDefaultInstance() {
+    return DefaultShaders::GetBLinnPhongDefaultMaterialInstanceHandle();
+}
+
 
 void OsmiumGL::RegisterRenderedObject(RenderedObject &rendered_object) {
     instance->AddRenderedObject(rendered_object);

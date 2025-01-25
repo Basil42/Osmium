@@ -10,17 +10,7 @@
 struct MeshBindings {
     unsigned long MeshHandle;
     unsigned int objectCount = 1;
-
-    //Remove all these from the bindings
-    std::vector<VkBuffer> vertexBuffers;//one buffer per input
-    std::vector<VkDeviceSize> vertexBufferOffsets;
-    uint32_t firstBinding;
-    uint32_t bindingCount;
-    VkBuffer indexBuffer;
-    uint32_t indexBufferOffset;
-    uint32_t indexCount;
-
-    void* ObjectPushConstantData;//I'd like something less dangerous than this
+    void* ObjectPushConstantData;//I'd like something less dangerous than this, it could be a vector of bytes
 };
 struct MaterialInstanceBindings {
     MatInstanceHandle matInstanceHandle;

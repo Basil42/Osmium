@@ -51,7 +51,7 @@ unsigned int ResourceArray<T, MAX_Capacity>::Add(T resource) {
   }
   resourceVector.push_back(resource);
   unsigned int checks = 0;//sanity check
-  while (backingArray[nextHandle % MAX_Capacity] > MAX_Capacity && ++checks < MAX_Capacity) {
+  while (backingArray[nextHandle % MAX_Capacity] < MAX_Capacity && ++checks < MAX_Capacity) {
     nextHandle++;
   }
   if (checks >= MAX_Capacity) [[unlikely]] {

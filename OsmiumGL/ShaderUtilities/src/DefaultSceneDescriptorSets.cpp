@@ -105,3 +105,7 @@ void DefaultSceneDescriptorSets::UpdateDirectionalLight(const DirLightUniform &u
     //I'll update all frames manually for now, but I feel like this will cause some problems if I want to use it dynamically
     memcpy(directionalLightUniformBuffers[currentImage],&directionalLightValue,sizeof(DirLightUniform));
 }
+
+VkDescriptorSetLayout DefaultSceneDescriptorSets::GetLitDescriptorSetLayout() const {
+    return descriptorSetLayout;
+}

@@ -29,6 +29,8 @@ public:
 
     static MaterialHandle GetBlinnPhongHandle();
 
+    static MatInstanceHandle GetBlinnPhongDefaultInstance();
+
 
     //handles for mesh renderers
     typedef unsigned long PushHandle;

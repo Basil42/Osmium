@@ -8,6 +8,7 @@
 
 #include "BlinnPhongVertex.h"
 #include "Core.h"
+#include "DefaultSceneDescriptorSets.h"
 #include "Descriptors.h"
 
 VkPipeline DefaultShaders::GetBlinnPhongPipeline() {
@@ -15,34 +16,42 @@ VkPipeline DefaultShaders::GetBlinnPhongPipeline() {
 }
 
 void DefaultShaders::InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray, OsmiumGLInstance&
-                                                GLInstance) {
-    CreateBlinnPhongPipeline(device, msaaFlags, renderPass, materialResourceArray, GLInstance);
+                                                GLInstance, ResourceArray<MaterialInstanceData, MAX_LOADED_MATERIAL_INSTANCES> *materialInstanceResourceArray) {
+    CreateBlinnPhongPipeline(device, msaaFlags, renderPass, materialResourceArray, materialInstanceResourceArray, GLInstance);
 }
 
 void DefaultShaders::DestoryBlinnPhongPipeline(VkDevice device, VmaAllocator allocator) {
     vkDestroyPipeline(device, blinnPhongPipeline, nullptr);
     vkDestroyPipelineLayout(device, blinnPhongPipelineLayout,nullptr);
-    vkDestroyDescriptorSetLayout(device, blinnPhongDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, blinnPhongInstanceDescriptorSetLayout, nullptr);
 
     vkDestroySampler(device,defaultTextureSampler,nullptr);
     vmaDestroyImage(allocator, defaultTextureImage, defaultTextureImageAllocation);
+
+    vkDestroyDescriptorPool(device, blinnPhongDescriptorPool,nullptr);
 }
 
 void DefaultShaders::DestroyDefaultPipelines(VkDevice device, VmaAllocator allocator) {
     DestoryBlinnPhongPipeline(device, allocator);
 }
 
-unsigned int DefaultShaders::GetBLinnPhongMaterialHandle(){
+MaterialHandle DefaultShaders::GetBLinnPhongMaterialHandle(){
     return blinnPhongMaterialHandle;
 }
 
-VkDescriptorSetLayout DefaultShaders::blinnPhongDescriptorSetLayout = VK_NULL_HANDLE;
+MatInstanceHandle DefaultShaders::GetBLinnPhongDefaultMaterialInstanceHandle() {
+    return defaultBlinnPhongInstanceHandle;
+}
+
+VkDescriptorSetLayout DefaultShaders::blinnPhongInstanceDescriptorSetLayout = VK_NULL_HANDLE;
 unsigned int DefaultShaders::blinnPhongMaterialHandle = MAX_LOADED_MATERIALS +1;
+unsigned int DefaultShaders::defaultBlinnPhongInstanceHandle = MAX_LOADED_MATERIAL_INSTANCES +1;
 VkSampler DefaultShaders::defaultTextureSampler = VK_NULL_HANDLE;
 VkImage DefaultShaders::defaultTextureImage = VK_NULL_HANDLE;
 VmaAllocation DefaultShaders::defaultTextureImageAllocation = VK_NULL_HANDLE;
+VkDescriptorPool DefaultShaders::blinnPhongDescriptorPool = VK_NULL_HANDLE;
 
-void DefaultShaders::CreateBlinnPhongDescriptorSetLayout(VkDevice device) {
+void DefaultShaders::CreateBlinnPhongDescriptorSetLayouts(VkDevice device) {
     //push constant on vert shader isn't in the layout
 
     //sampler on frag
@@ -72,7 +81,7 @@ void DefaultShaders::CreateBlinnPhongDescriptorSetLayout(VkDevice device) {
 
     //potentially ambiantlight here
     //optionnaly gamma
-    if (vkCreateDescriptorSetLayout(device,&DescriptorSetLayoutCreateInfo,nullptr,&blinnPhongDescriptorSetLayout) != VK_SUCCESS)
+    if (vkCreateDescriptorSetLayout(device,&DescriptorSetLayoutCreateInfo,nullptr,&blinnPhongInstanceDescriptorSetLayout) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create descriptor set layout for blinnphond default pipeline!");
     }
@@ -82,7 +91,10 @@ VkPipeline DefaultShaders::blinnPhongPipeline = VK_NULL_HANDLE;
 VkPipelineLayout DefaultShaders::blinnPhongPipelineLayout = VK_NULL_HANDLE;
 
 void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags,
-                                              VkRenderPass renderPass, ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray, OsmiumGLInstance& GLInstance) {
+                                              VkRenderPass renderPass,
+                                              ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray,
+                                              ResourceArray<MaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* materialInstanceArray,
+                                              OsmiumGLInstance& GLInstance) {
     auto vertShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongVert.spv");
     auto fragShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongFrag.spv");
 
@@ -185,12 +197,14 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     .offset = 0,
     .size = sizeof(Descriptors::UniformBufferObject)};
 
-    CreateBlinnPhongDescriptorSetLayout(device);
+    CreateBlinnPhongDescriptorSetLayouts(device);
+
+    std::array<VkDescriptorSetLayout,2> descriptorSetLayouts = {blinnPhongInstanceDescriptorSetLayout, GLInstance.GetLitDescriptorLayout()};
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount = 1,
-    .pSetLayouts = &blinnPhongDescriptorSetLayout,
+    .setLayoutCount = 2,
+    .pSetLayouts = descriptorSetLayouts.data(),
     .pushConstantRangeCount = 1,
     .pPushConstantRanges = &pushConstantRange};
 
@@ -227,11 +241,12 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     MaterialData materialData;
     materialData.pipeline = blinnPhongPipeline;
     materialData.pipelineLayout = blinnPhongPipelineLayout;
-    materialData.descriptorSetLayout = blinnPhongDescriptorSetLayout;
+    materialData.descriptorSetLayout = blinnPhongInstanceDescriptorSetLayout;
     materialData.CustomVertexInputAttributes = 0;
     //I will need some kind of parser to automate finding these for custom shaders
     materialData.VertexInputAttributes = POSITION | NORMAL | TEXCOORD0;
     materialData.CustomVertexInputAttributes = 0;
+
     //I'm going to assume the directional light is ALWAYS binding 0 for the main pass and have the data manage by a node up the tree
     //The texture sampler should be per instance in this case
     //add a default instance
@@ -239,6 +254,42 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     //default texture sampler
     GLInstance.createTextureSampler(defaultTextureSampler);
     GLInstance.createEmptyTextureImage(defaultTextureImage, defaultTextureImageAllocation);
+    //descriptor pools
+    {
+        std::array<VkDescriptorPoolSize,1> poolSizes{};//single pool, allocation of the directional light uniform should be upstream
+
+        poolSizes[0] = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * MAX_LOADED_MATERIAL_INSTANCES)//It seems like I could allocate a single one per frame but I'll stick to this for now
+        };
+        VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * MAX_LOADED_MATERIAL_INSTANCES),
+        .poolSizeCount = poolSizes.size(),
+        .pPoolSizes = poolSizes.data(),
+        };
+        if (vkCreateDescriptorPool(device,&descriptorPoolCreateInfo,nullptr,&blinnPhongDescriptorPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create descriptor pool for BlinnPhong");
+        }
+    }
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT,blinnPhongInstanceDescriptorSetLayout);
+    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = blinnPhongDescriptorPool,
+    .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    .pSetLayouts = layouts.data(),
+    };
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> descriptorSets;
+    if (vkAllocateDescriptorSets(device,&descriptorSetAllocateInfo,descriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets for BlinnPhong");
+    }
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        defautlMaterialInstanceData.descriptorSets[i].push_back(descriptorSets[i]);
+    }
+    defaultBlinnPhongInstanceHandle = materialInstanceArray->Add(defautlMaterialInstanceData);
+    blinnPhongMaterialHandle = materialResourceArray->Add(materialData);
+    materialData.instances.push_back(defaultBlinnPhongInstanceHandle);
+
     //Clean up all the allocation on shutdown
     //defautlMaterialInstanceData.descriptorSets
     //materialData.instances->Add()

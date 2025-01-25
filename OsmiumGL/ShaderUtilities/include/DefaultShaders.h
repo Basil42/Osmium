@@ -13,23 +13,29 @@
 class DefaultShaders {
 public:
     static VkPipeline GetBlinnPhongPipeline();
-    static void InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, ResourceArray<MaterialData, 255> *
-                                           materialResourceArray, OsmiumGLInstance &GLInstance);
+    static void InitializeDefaultPipelines(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, ResourceArray<MaterialData, MAX_LOADED_MATERIALS> *
+                                           materialResourceArray, OsmiumGLInstance &GLInstance, ResourceArray<MaterialInstanceData, 50> *
+                                           materialInstanceResourceArray);
     static void DestroyDefaultPipelines(VkDevice device, VmaAllocator allocator);
 
-    static unsigned int GetBLinnPhongMaterialHandle();
+    static MaterialHandle GetBLinnPhongMaterialHandle();
+
+    static MatInstanceHandle GetBLinnPhongDefaultMaterialInstanceHandle();
+
 private:
     static void DestoryBlinnPhongPipeline(VkDevice device, VmaAllocator allocator);
-    static void CreateBlinnPhongDescriptorSetLayout(VkDevice device);
-    static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, ResourceArray<MaterialData, 255> *
-                                         materialResourceArray, OsmiumGLInstance &GLInstance);
+    static void CreateBlinnPhongDescriptorSetLayouts(VkDevice device);
+    static void CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlagBits msaaFlags, VkRenderPass renderPass, ResourceArray<MaterialData, 10> *
+                                         materialResourceArray, ResourceArray<MaterialInstanceData, 50> *materialInstanceArray, OsmiumGLInstance &GLInstance);
     static VkPipeline blinnPhongPipeline;
     static VkPipelineLayout blinnPhongPipelineLayout;
-    static VkDescriptorSetLayout blinnPhongDescriptorSetLayout;
+    static VkDescriptorSetLayout blinnPhongInstanceDescriptorSetLayout;
     static unsigned int blinnPhongMaterialHandle;
+    static unsigned int defaultBlinnPhongInstanceHandle;
     static VkSampler defaultTextureSampler;
     static VkImage defaultTextureImage;
     static VmaAllocation defaultTextureImageAllocation;
+    static VkDescriptorPool blinnPhongDescriptorPool;
 };
 
 

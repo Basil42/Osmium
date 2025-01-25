@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "OsmiumGL_API.h"
+#include "../../OsmiumGL/Core/include/config.h"
 #include "../AssetManagement/Asset.h"
 #include "../AssetManagement/AssetType/MeshAsset.h"
 #include "../Base/GameObject.h"
@@ -19,6 +20,7 @@ void GOC_MeshRenderer::Update() {
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, MaterialHandle materialHandle): GameObjectComponent(parent) {
     mesh = meshHandle;
     material = materialHandle;
+
     transform = parent->GetComponent<GOC_Transform>();
 }
 
@@ -26,14 +28,16 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(pare
     transform = parent->GetComponent<GOC_Transform>();
     mesh = -1;//empty by default
     material = OsmiumGL::GetBlinnPhongHandle();//maybe blinn phong by default
+    materialInstance = OsmiumGL::GetBlinnPhongDefaultInstance();
 }
 
 void GOC_MeshRenderer::UpdateRenderedObject() {
     if (registered)OsmiumGL::UnregisterRenderedObject(renderedObject);
 
-    if (mesh != 0 && material != 0) {
+    if (mesh <= MAX_LOADED_MESHES && material <= MAX_LOADED_MATERIALS && materialInstance <= MAX_LOADED_MATERIAL_INSTANCES) {
         renderedObject.mesh = mesh;
         renderedObject.material = material;
+        renderedObject.matInstance = materialInstance;
         OsmiumGL::RegisterRenderedObject(renderedObject);
         registered = true;
     }

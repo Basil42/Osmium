@@ -29,6 +29,7 @@ public:
     ~DefaultSceneDescriptorSets();
     //Passing the instance seems harmless as this is effectively an extention of the instance
     void UpdateDirectionalLight(const DirLightUniform &updatedValue, unsigned int currentImage);
+    VkDescriptorSetLayout GetLitDescriptorSetLayout() const;
 
 private:
     VkDevice device;

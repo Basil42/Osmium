@@ -50,6 +50,8 @@ public:
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh) const;
 
+    VkDescriptorSetLayout GetLitDescriptorLayout() const;
+
 
     //MaterialHandle RegisterMaterial()
 

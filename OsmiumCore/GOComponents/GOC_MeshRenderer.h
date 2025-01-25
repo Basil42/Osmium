@@ -19,6 +19,7 @@ class GOC_MeshRenderer : public GameObjectComponent {
 
     void Update() override;
     MaterialHandle material;//this would include descriptorsets
+    MatInstanceHandle materialInstance;
     MeshHandle mesh;
 
     void UpdateRenderedObject();

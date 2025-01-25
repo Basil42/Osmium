@@ -10,8 +10,9 @@ struct MeshData {
   DefaultVertexAttributeFlags attributeFlags;
   unsigned int customAttributesFlags;//user defined custom attributes like color
   unsigned int numVertices;
+  unsigned int numIndices;
   //buffers data, could probably be a lot faster
-  std::map<DefaultVertexAttributeFlags, std::pair<VkBuffer,VmaAllocation>> buffers;
+  std::map<DefaultVertexAttributeFlags, std::pair<VkBuffer,VmaAllocation>> VertexAttributeBuffers;
   VkBuffer indexBuffer;
   VmaAllocation IndexBufferAlloc;
 };

@@ -216,21 +216,29 @@ MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttribute
         VkBuffer buffer_handle;
         VmaAllocation buffer_memory;
         createVertexAttributeBuffer(buffer_descriptor,vertex_count,buffer_handle, buffer_memory);
-        meshData.buffers[buffer_descriptor.attribute] = {buffer_handle,buffer_memory};
+        meshData.VertexAttributeBuffers[buffer_descriptor.attribute] = {buffer_handle,buffer_memory};
     }
+
     //indices
+
     createIndexBuffer(indices, meshData.indexBuffer,meshData.IndexBufferAlloc);
+    meshData.numIndices = indices.size();
     return LoadedMeshes->Add(meshData);
 }
 
 void OsmiumGLInstance::UnloadMesh(MeshHandle mesh) const {
     auto data =LoadedMeshes->get(mesh);
-    for (const auto buffer : data.buffers) {
+    for (const auto buffer : data.VertexAttributeBuffers) {
         vmaDestroyBuffer(allocator,buffer.second.first,buffer.second.second);
     }
     vmaDestroyBuffer(allocator,data.indexBuffer,data.IndexBufferAlloc);
     LoadedMeshes->Remove(mesh);
 }
+
+VkDescriptorSetLayout OsmiumGLInstance::GetLitDescriptorLayout() const {
+    return defaultSceneDescriptorSets->GetLitDescriptorSetLayout();
+}
+
 
 void OsmiumGLInstance::startImGuiFrame() {
     ImGui_ImplVulkan_NewFrame();
@@ -789,7 +797,7 @@ void OsmiumGLInstance::createCommandBuffers() {
         throw std::runtime_error("failed to allocate command buffers");
     }
 }
-
+[[deprecated]]
 void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
@@ -860,7 +868,7 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                 while (defaultAttribute <= MAX_VERTEX_ATTRIBUTE_FLAGS) {
                     try {
                         if (defaultAttribute & matData.VertexInputAttributes) {
-                        vertexBuffers.push_back(data.buffers.at(defaultAttribute).first);
+                        vertexBuffers.push_back(data.VertexAttributeBuffers.at(defaultAttribute).first);
                         vertexBuffersOffsets.push_back(0);//I don't think I really need offsets without interleaving
                         }
                         defaultAttribute = static_cast<DefaultVertexAttributeFlags>(defaultAttribute << 1);
@@ -876,7 +884,7 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
 
                 }
                 vkCmdBindVertexBuffers(commandBuffer,0,matData.VertexAttributeCount,vertexBuffers.data(),vertexBuffersOffsets.data());
-                vkCmdBindIndexBuffer(commandBuffer,mesh.indexBuffer,mesh.indexBufferOffset,VK_INDEX_TYPE_UINT32);
+                vkCmdBindIndexBuffer(commandBuffer,data.indexBuffer,0,VK_INDEX_TYPE_UINT32);
 
                 for(int i = 0; i < mesh.objectCount;i++) {
                     vkCmdPushConstants(commandBuffer,
@@ -885,7 +893,10 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                         i*matData.PushConstantStride,
                         matData.PushConstantStride,
                         mesh.ObjectPushConstantData);
-                    vkCmdDrawIndexed(commandBuffer,mesh.indexCount,1,mesh.indexBufferOffset,0,0);
+                    vkCmdDrawIndexed(commandBuffer,data.numIndices,1,0,0,0);
+                    //Here it is possible to replace the push constant with some kind of buffer and do instanced rendering with a single draw call
+                    //can apparently be done with a buffer binding in the shader of input rate instance (the buffer steps per instance instead of per vertex)
+                    //Should probably just be a boolean toggle in the material options on the
 
                 }
             }
@@ -934,7 +945,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     };
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     if(passTree != nullptr)DrawCommands(commandBuffer,renderPassBeginInfo, *passTree);
-    VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
+    else VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
     std::unique_lock<std::mutex> ImGuiLock{imGuiMutex};
     imGuiUpdateCV.wait(ImGuiLock,[&isImGuiFrameComplete]{return isImGuiFrameComplete;});
     isImGuiFrameComplete = false;//imgui has to wait for a new frame now
@@ -1768,23 +1779,24 @@ void OsmiumGLInstance::initVulkan() {
     createSwapChain();
     createSwapChainImageViews();
     //more game specific, but arcane enough that it should not be exposed for now
+    //main pass and main resources
     createRenderPass();
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
-    //specific, should probably not be in here
-
-
     createColorResources();
     createDepthResources();
     createFrameBuffer();
-    createTextureSampler();
-
-    VikingTest();
+    //general command buffers, might need a different setup later to multithread all this
     createCommandBuffers();
     createSyncObjects();
+    //specific, should probably not be in here
+    createTextureSampler();//this is the viking thing tex sampler
+    VikingTest();
+
     setupImGui();
+    passTree = new PassBindings();
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
-    DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this);
+    DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
 }
 
 // void OsmiumGLInstance::mainLoop() {
@@ -1811,6 +1823,7 @@ void OsmiumGLInstance::cleanupSwapChain() {
 
 void OsmiumGLInstance::cleanup() {
     DefaultShaders::DestroyDefaultPipelines(device, allocator);
+    delete passTree;//should be a check that everything was unloaded correctly
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
