@@ -7,6 +7,12 @@
 #include "GameObjectComponent.h"
 
 
+void GameObject::UpdateComponents() {
+    for (auto GOComponent: components) {
+        GOComponent.second->Update();
+    }
+}
+
 void GameObject::Destroy() {
     for (auto component: components) {
         delete component.second;

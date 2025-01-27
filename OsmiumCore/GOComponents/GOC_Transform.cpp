@@ -70,7 +70,7 @@ void GOC_Transform::SetTransformMatrix(glm::mat4 mat) {
 }
 
 GOC_Transform::GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform = nullptr): GameObjectComponent(parent) {
-    SetTransformMatrix(glm::mat4());
+    SetTransformMatrix(glm::mat4(1.0f));
     if (NewParentTransform) {
         parentTransform = NewParentTransform->GetHandle();
     } else {
@@ -79,6 +79,6 @@ GOC_Transform::GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTr
 }
 
 GOC_Transform::GOC_Transform(GameObject *parent) : GameObjectComponent(parent) {
-    SetTransformMatrix(glm::mat4());
+    SetTransformMatrix(glm::mat4(1.0f));
     parentTransform = 0;
 }

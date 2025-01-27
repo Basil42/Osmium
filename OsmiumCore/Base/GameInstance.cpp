@@ -29,6 +29,10 @@ void GameInstance::GameLoop() {
 
 
         //Do simulation things
+        for (auto& game_object : gameObjects) {
+            game_object.UpdateComponents();
+        }
+
         isSimOver = true;
         SimulationLock.unlock();
         ImGuiLock.unlock();

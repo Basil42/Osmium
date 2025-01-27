@@ -17,7 +17,7 @@ protected:
     ~GOC_Transform() override;
 
 private:
-    glm::mat4 model{};
+    glm::mat4 model = glm::mat4(1.0f);
     GOC_Handle parentTransform;
     std::vector<GOC_Handle> childrenTransforms;
     glm::vec3 cachedScale = glm::vec3(1.0f);
