@@ -5,6 +5,9 @@
 #ifndef GOC_MESHRENDERER_H
 #define GOC_MESHRENDERER_H
 
+
+#include <glm/mat4x4.hpp>
+
 #include "RenderedObject.h"
 #include "../Base/GameObjectComponent.h"
 #include "../AssetManagement/AssetManager.h"
@@ -16,8 +19,11 @@ class GOC_MeshRenderer : public GameObjectComponent {
     GOC_Transform* transform;//outside of ECS a reference to the transform seems acceptable
     RenderedObject renderedObject;
     bool registered;
+    std::array<std::byte, sizeof(glm::mat4) + sizeof(glm::mat4)> pushData;
 
     void Update() override;
+    void RenderUpdate(uint32_t currentFrame) override;
+
     MaterialHandle material;//this would include descriptorsets
     MatInstanceHandle materialInstance;
     MeshHandle mesh;

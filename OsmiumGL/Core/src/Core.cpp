@@ -239,6 +239,10 @@ VkDescriptorSetLayout OsmiumGLInstance::GetLitDescriptorLayout() const {
     return defaultSceneDescriptorSets->GetLitDescriptorSetLayout();
 }
 
+VkDescriptorSetLayout OsmiumGLInstance::GetCameraDescriptorLayout() const {
+    return defaultSceneDescriptorSets->GetCameraDescriptorSetLayout();
+}
+
 
 void OsmiumGLInstance::startImGuiFrame() {
     ImGui_ImplVulkan_NewFrame();
@@ -892,7 +896,7 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                         VK_SHADER_STAGE_VERTEX_BIT,
                         i*matData.PushConstantStride,
                         matData.PushConstantStride,
-                        mesh.ObjectPushConstantData);
+                        mesh.ObjectPushConstantData[currentFrame].data());
                     vkCmdDrawIndexed(commandBuffer,data.numIndices,1,0,0,0);
                     //Here it is possible to replace the push constant with some kind of buffer and do instanced rendering with a single draw call
                     //can apparently be done with a buffer binding in the shader of input rate instance (the buffer steps per instance instead of per vertex)
@@ -1790,13 +1794,14 @@ void OsmiumGLInstance::initVulkan() {
     createCommandBuffers();
     createSyncObjects();
     //specific, should probably not be in here
-    createTextureSampler();//this is the viking thing tex sampler
-    VikingTest();
+    //createTextureSampler();//this is the viking thing tex sampler
+    //VikingTest();
 
     setupImGui();
     passTree = new PassBindings();
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
+    passTree->DirectionalLightDescriptorSets = defaultSceneDescriptorSets->GetLitDescriptorSets();
 }
 
 // void OsmiumGLInstance::mainLoop() {
@@ -1829,23 +1834,21 @@ void OsmiumGLInstance::cleanup() {
     ImGui::DestroyContext();
     cleanupSwapChain();
     //ImGui_ImplVulkanH_DestroyWindow(instance,device,&imguiWindowsData,nullptr);
-    vkDestroySampler(device,textureSampler,nullptr);//vikingtest stuff
-    vkDestroyImageView(device,textureImageView,nullptr);//viking test stuff
-    vmaDestroyImage(allocator,textureImage,textureImageMemory);
-    for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        //does it need to be unmapped ?
-        vmaUnmapMemory(allocator,uniformBuffersAllocations[i]);
-        vmaDestroyBuffer(allocator,uniformBuffers[i],uniformBuffersAllocations[i]);
-    }
-    vkDestroyDescriptorPool(device, descriptorPool,nullptr);
-    vkDestroyDescriptorSetLayout(device, descriptorSetLayout,nullptr);
-
-    vmaDestroyBuffer(allocator,indexBuffer,indexBufferAllocation);
-
-    vmaDestroyBuffer(allocator,vertexBuffer,vertexBufferAllocation);
-
-    vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    //vkDestroySampler(device,textureSampler,nullptr);//vikingtest stuff
+    //vkDestroyImageView(device,textureImageView,nullptr);//viking test stuff
+    //vmaDestroyImage(allocator,textureImage,textureImageMemory);
+    //viking stuff
+    // for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    //     //does it need to be unmapped ?
+    //     vmaUnmapMemory(allocator,uniformBuffersAllocations[i]);
+    //     vmaDestroyBuffer(allocator,uniformBuffers[i],uniformBuffersAllocations[i]);
+    // }
+    //vkDestroyDescriptorPool(device, descriptorPool,nullptr);
+    //vkDestroyDescriptorSetLayout(device, descriptorSetLayout,nullptr);
+    //vmaDestroyBuffer(allocator,indexBuffer,indexBufferAllocation);
+    //vmaDestroyBuffer(allocator,vertexBuffer,vertexBufferAllocation);
+    //vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    //vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
     delete defaultSceneDescriptorSets;
     vkDestroyRenderPass(device, renderPass, nullptr);

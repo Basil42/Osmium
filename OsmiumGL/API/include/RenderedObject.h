@@ -4,6 +4,13 @@
 
 #ifndef RENDEREDOBJECT_H
 #define RENDEREDOBJECT_H
+#include <vector>
+
+
+
+namespace std {
+    enum class byte : unsigned char;
+}
 
 typedef unsigned long MaterialHandle;
 typedef unsigned long MatInstanceHandle;
@@ -13,7 +20,6 @@ struct RenderedObject {//Struct entries are ordered like they are in the render 
     MaterialHandle material;//this is mostly the pipeline
     MatInstanceHandle matInstance;//uniform set
     MeshHandle mesh;
-    ConstantsHandle constants;
 };
 
 // struct RenderedEntity {

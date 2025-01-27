@@ -1,12 +1,12 @@
 #version 450
 
-layout(binding = 0)uniform DirLightBlock//3 locations
+layout(set = 1,binding = 0)uniform DirLightBlock//3 locations
 {
     vec3 VLightDirection;
     vec3 DirLightColor;
     float DirLightIntensity;
 };
-layout(binding = 1)uniform sampler2D texSampler;
+layout(set = 2,binding = 0)uniform sampler2D texSampler;
 const vec3 AmbLightColor = vec3(0.1,0.1,0.1);
 //should be handled by the sampler
 //layout(binding = 4)uniform screenGamma

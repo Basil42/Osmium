@@ -10,7 +10,7 @@
 struct MeshBindings {
     unsigned long MeshHandle;
     unsigned int objectCount = 1;
-    void* ObjectPushConstantData;//I'd like something less dangerous than this, it could be a vector of bytes
+    std::array<std::vector<std::byte>, MAX_FRAMES_IN_FLIGHT> ObjectPushConstantData;//rendered object need a pointer to this, this vector also needs to be cleared every frame
 };
 struct MaterialInstanceBindings {
     MatInstanceHandle matInstanceHandle;
@@ -25,6 +25,7 @@ struct PassBindings {
     std::vector<MaterialBindings> Materials;
     //global descriptors, reference to descriptor sets used by directional light for example, leaving them explicit for now, until I need more than just directional light
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> DirectionalLightDescriptorSets;
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> CameraDescriptorSets;
 };
 
 

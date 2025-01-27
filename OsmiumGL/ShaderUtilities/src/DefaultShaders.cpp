@@ -56,7 +56,7 @@ void DefaultShaders::CreateBlinnPhongDescriptorSetLayouts(VkDevice device) {
 
     //sampler on frag
     VkDescriptorSetLayoutBinding samplerLayoutBinding = {
-        .binding = 1,
+        .binding = 2,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -65,19 +65,27 @@ void DefaultShaders::CreateBlinnPhongDescriptorSetLayouts(VkDevice device) {
 
     //Directional property block on fragment
     VkDescriptorSetLayoutBinding DirectionalLightBlockBiding = {
-        .binding = 0,
+        .binding = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
         .pImmutableSamplers = nullptr};
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
-        samplerLayoutBinding, DirectionalLightBlockBiding
+    VkDescriptorSetLayoutBinding CameraInfoBinding = {
+    .binding = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .pImmutableSamplers = nullptr};
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
+        samplerLayoutBinding, DirectionalLightBlockBiding,CameraInfoBinding
     };
     VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = bindings.size(),
-    .pBindings = bindings.data(),};
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PER_STAGE_BIT_NV,
+        .bindingCount = bindings.size(),
+        .pBindings = bindings.data(),};
 
     //potentially ambiantlight here
     //optionnaly gamma
@@ -199,11 +207,11 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
 
     CreateBlinnPhongDescriptorSetLayouts(device);
 
-    std::array<VkDescriptorSetLayout,2> descriptorSetLayouts = {blinnPhongInstanceDescriptorSetLayout, GLInstance.GetLitDescriptorLayout()};
+    std::array<VkDescriptorSetLayout,3> descriptorSetLayouts = {GLInstance.GetCameraDescriptorLayout(),GLInstance.GetLitDescriptorLayout(),blinnPhongInstanceDescriptorSetLayout};
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount = 2,
+    .setLayoutCount = descriptorSetLayouts.size(),
     .pSetLayouts = descriptorSetLayouts.data(),
     .pushConstantRangeCount = 1,
     .pPushConstantRanges = &pushConstantRange};

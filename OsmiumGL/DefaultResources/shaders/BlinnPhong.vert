@@ -2,10 +2,12 @@
 
 layout(push_constant, std430)uniform UniformBufferObject {
     mat4 model;
-    mat4 view;
-    mat4 proj;
     mat4 normal;
 } ubo;
+layout(set = 0,binding = 0)uniform CameraMatricesObject {
+    mat4 view;//view and proj should be setup in their own buyffer light light dir
+    mat4 proj;
+}VP;
 
 layout(location = 0)in vec3 inPosition;
 layout(location = 1)in vec2 inTexCoordinates;
@@ -22,10 +24,10 @@ layout(location = 1)out BlingPhongFragInput{
 };
 
 void main() {
-    vec4 vertPos4 = ubo.view * ubo.model * vec4(inPosition,1.0);
+    vec4 vertPos4 = VP.proj * VP.view * ubo.model * vec4(inPosition,1.0);
     VPosition = vec3(vertPos4) / vertPos4.w;
     TexCoord0 = inTexCoordinates;
-    vec4 VNormalHomogeneous = ubo.view * ubo.normal * vec4(inNormal,1.0);
+    vec4 VNormalHomogeneous = VP.view * ubo.normal * vec4(inNormal,1.0);
     VNormal = vec3(VNormalHomogeneous)/VNormalHomogeneous.w;
     VertexColor = vec4(vec3(1.0,1.0,1.0),1.0f);
     DiffuseColor = vec3(1.0,1.0,1.0);;

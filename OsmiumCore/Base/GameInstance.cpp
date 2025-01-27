@@ -49,7 +49,7 @@ void GameInstance::run() {
     //load the initial assets, probably in its own thread
     AssetManager::LoadAssetDatabase();
     //LoadInitialScene()
-
+    //editor camera
 
 
     auto SimulationThread = std::thread(GameLoop,this);

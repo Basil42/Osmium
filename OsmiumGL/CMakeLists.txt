@@ -22,6 +22,7 @@ set(OSMIUMGL_SOURCES
         ShaderUtilities/src/DefaultShaders.cpp
         API/src/RenderedObject.cpp
         Core/src/MaterialData.cpp
+        ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
 
 )
 #this is here for the IDE
@@ -40,7 +41,6 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/MeshData.h
         Common/include/ResourceArray.h
         ShaderUtilities/include/VertexDescriptor.h
-        ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
         ShaderUtilities/include/DefaultSceneDescriptorSets.h
 )
 add_library(OsmiumGL STATIC

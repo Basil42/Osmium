@@ -109,7 +109,7 @@ void Descriptors::createDescriptorSets(VkDevice& device, VkDescriptorSetLayout& 
         descriptorWrites[0] = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstSet = descriptorSets[i],
-            .dstBinding = 1,
+            .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,

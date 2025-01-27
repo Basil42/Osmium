@@ -40,6 +40,8 @@ set(OSMIUMCORE_HEADERS
         Base/GameObjectComponent.cpp
         AssetManagement/AssetType/DefaultAsset.cpp
         AssetManagement/AssetType/DefaultAsset.h
+        GOComponents/GOC_Camera.cpp
+        GOComponents/GOC_Camera.h
 )
 
 add_library(OsmiumCore STATIC

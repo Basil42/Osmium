@@ -52,6 +52,8 @@ public:
 
     VkDescriptorSetLayout GetLitDescriptorLayout() const;
 
+    VkDescriptorSetLayout GetCameraDescriptorLayout() const;
+
 
     //MaterialHandle RegisterMaterial()
 

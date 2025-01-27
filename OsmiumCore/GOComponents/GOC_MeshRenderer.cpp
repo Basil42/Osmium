@@ -12,15 +12,26 @@
 #include "../AssetManagement/AssetType/MeshAsset.h"
 #include "../Base/GameObject.h"
 #include "../GOComponents/GOC_Transform.h"
+#include <glm/gtc/type_ptr.hpp>
 
 void GOC_MeshRenderer::Update() {
+    if (!registered) return;
+    //build transform data
+    //std::array<std::byte, sizeof(glm::mat4) + sizeof(glm::mat4)> pushData;
+    glm::mat4 modelMatrix = transform->getTransformMatrix();
+    auto Modelptr = glm::value_ptr(modelMatrix);
+    memcpy(&pushData[0], &Modelptr, sizeof(modelMatrix));
+    glm::mat4 viewMatrix;//Missing a camera object, doing a single one later I canm loop through them and copy to different psuh constant buffers
+    glm::mat4 normalMatrix = glm::transpose(glm::inverse(viewMatrix*modelMatrix));
+    memcpy(&pushData[sizeof(modelMatrix)], &normalMatrix, sizeof(normalMatrix));
 }
-
+void GOC_MeshRenderer::RenderUpdate(uint32_t currentFrame) {
+    //memcopy the puish constant to the appropiate storage for this frame
+}
 
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, MaterialHandle materialHandle): GameObjectComponent(parent) {
     mesh = meshHandle;
     material = materialHandle;
-
     transform = parent->GetComponent<GOC_Transform>();
 }
 

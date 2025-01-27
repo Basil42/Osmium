@@ -50,11 +50,17 @@ void AssetManager::LoadAsset(AssetId assetId, const std::function<void(Asset*)> 
         loadingAssets.try_emplace(assetId, std::vector<std::function<void(Asset*)>>());
         loadingAssets.at(assetId).push_back(callback);
         loadingListLock.unlock();
+        //notify loading thread here
 
+
+        //all this should happen on the loading thread
         std::unique_lock databaseLock(assetDatabaseMutex);
         Asset* asset = AssetDatabase.at(assetId);//this ref is valid as long as the asset itself is not reloaded,
         databaseLock.unlock();
+
         asset->Load();//the asset type takes care of loading the data correctly and send it to the correct systems (eg ECS and graphics data)
+
+        //should happen on the sim thread ? Or should a parallel queue be passed here ? Could also lock a thrird mutex for this to happen between sim steps
 
         std::scoped_lock bookKeepingAndNotificationLock(loadingCollectionMutex,loadedCollectionMutex,asset->GetRessourceMutex());
         for(const auto callback : loadingAssets.at(assetId)) {
