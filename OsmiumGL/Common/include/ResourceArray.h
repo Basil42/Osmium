@@ -23,11 +23,13 @@ class  ResourceArray {
   unsigned int Add(T resource);
   bool Remove(unsigned int handle);
 
+  bool contains(unsigned int handle);
   T get(unsigned int handle);
 
   unsigned int GetCount() {
     return resourceVector.size();
   }
+
 };
 
 template<typename T, size_t MAX_Capacity>
@@ -77,6 +79,12 @@ bool ResourceArray<T, MAX_Capacity>::Remove(unsigned int handle) {
     if (index > vectorIndex && index < MAX_Capacity +1) --index;
   }
   return true;
+}
+
+template<typename T, size_t MAX_Capacity>
+bool ResourceArray<T, MAX_Capacity>::contains(unsigned int handle) {
+  if (handle >= MAX_Capacity) [[unlikely]] return false;
+  return backingArray[handle] < MAX_Capacity;
 }
 
 template<typename T, size_t MAX_Capacity>

@@ -28,7 +28,7 @@ namespace Resources {
  * Provides mutexes to lockj various resources for synchronisation purposes
  */
 class ResourceManager {
-    static std::map<unsigned short,std::pair<std::string,std::mutex>> resourcesMutexes;
+    static std::map<ResourceType,std::mutex> resourcesMutexes;
     /**
      * for users and to have human readable
      */

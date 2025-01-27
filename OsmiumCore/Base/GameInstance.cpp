@@ -7,13 +7,14 @@
 #include <condition_variable>
 #include <imgui.h>
 #include <thread>
-#include <GLFW/glfw3.h>
+
 
 #include "OsmiumGL_API.h"
 #include "../AssetManagement/AssetManager.h"
 #include "../AssetManagement/AssetType/MeshAsset.h"
 #include "../GOComponents/GOC_MeshRenderer.h"
 #include "../GOComponents/GOC_Transform.h"
+#include "../GOComponents/GOC_Camera.h"
 
 
 void GameInstance::GameLoop() {
@@ -41,6 +42,9 @@ void GameInstance::GameLoop() {
 }
 
 void GameInstance::RenderDataUpdate() {
+    if (mainCamera == nullptr) return;
+    mainCamera->RenderUpdate();
+    GOC_MeshRenderer::GORenderUpdate();
 }
 
 void GameInstance::run() {
@@ -50,6 +54,10 @@ void GameInstance::run() {
     AssetManager::LoadAssetDatabase();
     //LoadInitialScene()
     //editor camera
+    auto CameraGO = CreateNewGameObject();
+    auto mainCamTransform = CameraGO->Addcomponent<GOC_Transform>();
+    mainCamera = CameraGO->Addcomponent<GOC_Camera>();
+    mainCamTransform->SetTransformMatrix(glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)));
 
 
     auto SimulationThread = std::thread(GameLoop,this);
@@ -84,6 +92,7 @@ void GameInstance::run() {
     ImGuiShouldShutoff = true;
     SimulationThread.join();
     ImGuiThread.join();
+    AssetManager::UnloadAll();
     OsmiumGL::Shutdown();
     // io = ImGui::GetIO();
     // while (!OsmiumGL::ShouldClose()) {
@@ -151,8 +160,9 @@ void GameInstance::RenderImGuiFrameTask() {
                     GameObject* defaultObject = CreateNewGameObject();
                     defaultObject->Addcomponent<GOC_Transform>();
                     const auto defaultGOMeshRenderer = defaultObject->Addcomponent<GOC_MeshRenderer>();
-                    defaultGOMeshRenderer->SetMaterial(OsmiumGL::GetBlinnPhongHandle());//assuming this will be the handle for the default Blinn Phong Mat
-                    defaultGOMeshRenderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/monkey.obj"));//should finish the setup on its own;
+                    defaultGOMeshRenderer->SetMaterial(OsmiumGL::GetBlinnPhongHandle(), false);
+                    defaultGOMeshRenderer->SetMaterialInstance(OsmiumGL::GetBlinnPhongDefaultInstance());//assuming this will be the handle for the default Blinn Phong Mat
+                    defaultGOMeshRenderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/models/monkey.obj"));//should finish the setup on its own;
 
             }
             ImGui::End();

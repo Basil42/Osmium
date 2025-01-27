@@ -11,18 +11,18 @@
 #include "RenderedObject.h"
 #include "../Base/GameObjectComponent.h"
 #include "../AssetManagement/AssetManager.h"
+#define PushDataSize sizeof(glm::mat4) + sizeof(glm::mat4)
 class GOC_Transform;
 typedef unsigned long MeshHandle;
 typedef unsigned long MaterialHandle;
 
 class GOC_MeshRenderer : public GameObjectComponent {
+    static std::vector<GOC_MeshRenderer*> renderers;//used to fullfill the roll the system would during render update
     GOC_Transform* transform;//outside of ECS a reference to the transform seems acceptable
     RenderedObject renderedObject;
     bool registered;
-    std::array<std::byte, sizeof(glm::mat4) + sizeof(glm::mat4)> pushData;
+    std::array<std::byte, PushDataSize> pushData;
 
-    void Update() override;
-    void RenderUpdate(uint32_t currentFrame) override;
 
     MaterialHandle material;//this would include descriptorsets
     MatInstanceHandle materialInstance;
@@ -34,10 +34,14 @@ class GOC_MeshRenderer : public GameObjectComponent {
     void OnMaterialLoaded(Asset* asset);
 
 public:
+    void Update() override;
+    static void GORenderUpdate();
+    void RenderUpdate() override;
     void SetMeshAsset(AssetId asset_id);//assign a mesh asset to the mesh renderer
     void SetMaterialAsset(AssetId asset_id);
     void SetMesh(MeshHandle Mesh);//assign a mesh already managed by the graphics library through a handle
-    void SetMaterial(MaterialHandle Material);//assign a material already managed by the graphics library
+    void SetMaterial(MaterialHandle Material, bool defaultInstance = false);//assign a material already managed by the graphics library
+    void SetMaterialInstance(MatInstanceHandle matInstance);//needs to check if the instance is of the set material, should be done through loading callbacks most of the time
 
     // GOC_MeshRenderer(GameObject* parent,
     //     MeshAsset* meshAsset,

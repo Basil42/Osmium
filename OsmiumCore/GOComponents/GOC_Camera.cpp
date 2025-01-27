@@ -5,6 +5,7 @@
 #include "GOC_Camera.h"
 
 #include "GOC_Transform.h"
+#include "OsmiumGL_API.h"
 #include "../Base/GameObject.h"
 
 void GOC_Camera::Update() {
@@ -25,4 +26,9 @@ GOC_Camera::GOC_Camera(GameObject *parent) : GameObjectComponent(parent){
     rotationMode = ROTATION_MODE_TRANSFORM;
     viewMatrix = glm::inverse(transform->getTransformMatrix());
 
+}
+
+void GOC_Camera::RenderUpdate() {
+    GameObjectComponent::RenderUpdate();
+    OsmiumGL::UpdateMainCameraData(viewMatrix, glm::radians(verticalFoV));
 }

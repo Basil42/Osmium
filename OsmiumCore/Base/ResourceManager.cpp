@@ -7,8 +7,14 @@
 #include <iostream>
 
 namespace Resources {
-    std::map<unsigned short,std::pair<std::string,std::mutex>> ResourceManager::resourcesMutexes;
+    std::map<ResourceType,std::mutex> ResourceManager::resourcesMutexes;
     std::map<std::string, ResourceType> ResourceManager::resourceTable;
+
+    void ResourceManager::Init() {
+        resourcesMutexes.clear();
+        resourceTable.clear();
+    }
+
     /**
      * Get a mutex that can be used to safely interact with a resource type, Components and GameObject components should be able to provide it directly
      * @param resourceType the identifer of the resource type, can be obtained using ResourceManager::getResourceType, or the DefaultResourceType enum for built-in types
@@ -17,9 +23,9 @@ namespace Resources {
     std::mutex & ResourceManager::getResourceMutex(unsigned short resourceType) {
         if(!resourcesMutexes.contains(resourceType)) {
             std::cout << "trying to get mutex for an unknownResourceType, returning default resource mutex" << std::endl;
-            return resourcesMutexes.at(0).second;
+            return resourcesMutexes[0];
         }
-        return resourcesMutexes.at(resourceType).second;
+        return resourcesMutexes[resourceType];
     }
 
     /**
@@ -42,6 +48,6 @@ namespace Resources {
      * @return the mutex opf the resource type
      */
     std::mutex & ResourceManager::getResourceMutex(DefaultResourceType type) {
-        return resourcesMutexes.at(type).second;//not doing safety check as this should be garanteed to work
+        return resourcesMutexes[type];//if the mutex doesn't exist it should be made by the map
     }
 } // Resources

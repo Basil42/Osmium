@@ -6,15 +6,8 @@
 #define DESCRIPTORLAYOUTS_H
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include <glm/mat4x4.hpp>
 
 namespace Descriptors {
-    struct UniformBufferObject {
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 proj;
-        glm::mat4 normal;
-    };
     void createDescriptorSetLayout(const VkDevice &device, VkDescriptorSetLayout &descriptorSetLayout);
     void createDescriptorPool(const VkDevice &device, VkDescriptorPool &descriptorPool);
 

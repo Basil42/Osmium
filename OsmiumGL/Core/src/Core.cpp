@@ -43,10 +43,10 @@
 #include "config.h"
 #include "DefaultSceneDescriptorSets.h"
 #include "DefaultShaders.h"
-#include "Descriptors.h"
 #include "ShaderUtilities.h"
 #include "DefaultVertex.h"
 #include "PassBindings.h"
+#include "UniformBufferObject.h"
 #include "../include/MaterialData.h"
 #include "SwapChains/SwapChainUtilities.h"
 
@@ -106,7 +106,7 @@ void OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) cons
     }
 }
 
-void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) const {
+bool OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) const {
     //materials
     MaterialBindings* material_binding = nullptr;
     bool found = false;
@@ -118,6 +118,9 @@ void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) c
         }
     }
     if (!found) {
+        if (!LoadedMaterials->contains(rendered_object.material)) {
+            std::cout << "attempted to register a rendered object with an unloaded material";
+        }
         passTree->Materials.push_back(MaterialBindings(rendered_object.material));
         material_binding = &passTree->Materials.back();
     }
@@ -132,17 +135,25 @@ void OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) c
         }
     }
     if (!found) {
+        if (!LoadedMaterialInstances->contains(rendered_object.matInstance)) {
+            std::cout << "attempted to register a rendered object with an unloaded material instance";
+            return false;
+        }
         material_binding->matInstances.push_back(MaterialInstanceBindings(rendered_object.material));
         mat_instance_binding = &material_binding->matInstances.back();
     }
     for (auto& mesh : mat_instance_binding->meshes) {
         if (mesh.MeshHandle == rendered_object.mesh) {
             mesh.objectCount++;
-            return;
+            return true;
         }
     }
+    if (!LoadedMeshes->contains(rendered_object.mesh)) {
+        std::cout << "attempted to register a rendered object with an unloaded mesh";
+        return false;
+    }
     mat_instance_binding->meshes.push_back(MeshBindings(rendered_object.mesh));
-
+    return true;
 
 }
 
@@ -227,7 +238,10 @@ MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttribute
 }
 
 void OsmiumGLInstance::UnloadMesh(MeshHandle mesh) const {
+
     auto data =LoadedMeshes->get(mesh);
+    //change to something mor elegant later, I could just wait a frame
+    vkDeviceWaitIdle(device);
     for (const auto buffer : data.VertexAttributeBuffers) {
         vmaDestroyBuffer(allocator,buffer.second.first,buffer.second.second);
     }
@@ -241,6 +255,48 @@ VkDescriptorSetLayout OsmiumGLInstance::GetLitDescriptorLayout() const {
 
 VkDescriptorSetLayout OsmiumGLInstance::GetCameraDescriptorLayout() const {
     return defaultSceneDescriptorSets->GetCameraDescriptorSetLayout();
+}
+
+void OsmiumGLInstance::UpdatePushConstantData(RenderedObject rendered_object, void *data, uint32_t uint32) {
+
+}
+
+void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) {
+    //these are fairly slow structures but should not be accessed too many times
+    for (auto& buffer: pushMap) {
+        MaterialBindings* matBinding = nullptr;
+        for (auto& binding: passTree->Materials) {
+            if (binding.materialHandle == buffer.first.material) {
+                matBinding = &binding;
+                break;
+            }
+        }
+        assert(matBinding != nullptr);
+        MaterialInstanceBindings* matInstanceBinding = nullptr;
+        for (auto& binding: matBinding->matInstances) {
+            if (binding.matInstanceHandle == buffer.first.matInstance) {
+                matInstanceBinding = &binding;
+                break;
+            }
+        }
+        assert(matInstanceBinding != nullptr);
+        for (auto& binding : matInstanceBinding->meshes) {
+            if (binding.MeshHandle == buffer.first.mesh) {
+                std::vector<std::byte>& destBuffer = binding.ObjectPushConstantData[currentFrame];
+                auto totalDataSize = binding.objectCount * getMaterialData(buffer.first.material).PushConstantStride;
+                assert(buffer.second.size() == totalDataSize);//checking the data is sized properly
+                binding.ObjectPushConstantData[currentFrame].clear();
+                binding.ObjectPushConstantData[currentFrame].insert(destBuffer.begin(),buffer.second.begin(),buffer.second.end());
+
+            }
+        }
+    }
+}
+
+void OsmiumGLInstance::UpdateCameraData(glm::mat4 viewMat, float radianVFOV) {
+    //projection is relativelyu stable and could be cached but this is relatively cheap
+    const CameraUniform cameraUniform {.view = viewMat, .projection = glm::perspective(radianVFOV,static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f)};
+    defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
 }
 
 
@@ -500,6 +556,7 @@ void OsmiumGLInstance::createSwapChain() {
     vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
+
 }
 
 void OsmiumGLInstance::createSwapChainImageViews() {
@@ -800,36 +857,36 @@ void OsmiumGLInstance::createCommandBuffers() {
     if (vkAllocateCommandBuffers(device, &commandBufferAllocateInfo, commandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers");
     }
-}
-[[deprecated]]
-void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const {
-    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-    VkBuffer vertexBuffers[] = {vertexBuffer};
-    VkDeviceSize offsets[] ={0};
-    vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
-    vkCmdBindIndexBuffer(commandBuffer,indexBuffer,0,VK_INDEX_TYPE_UINT32);
-
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-    Descriptors::UniformBufferObject ubo = {
-        .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
-        .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
-        .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f),
-        };
-    ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
-
-    vkCmdPushConstants(commandBuffer,pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ubo),&ubo);
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-                            &descriptorSets[currentFrame], 0, nullptr);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
-
-
-}
+ }
+// [[deprecated]]
+// void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const {
+//     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+//     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+//     VkBuffer vertexBuffers[] = {vertexBuffer};
+//     VkDeviceSize offsets[] ={0};
+//     vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
+//     vkCmdBindIndexBuffer(commandBuffer,indexBuffer,0,VK_INDEX_TYPE_UINT32);
+//
+//     static auto startTime = std::chrono::high_resolution_clock::now();
+//
+//     auto currentTime = std::chrono::high_resolution_clock::now();
+//     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+//
+//     Descriptors::UniformBufferObject ubo = {
+//         .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
+//         .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
+//         .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f),
+//         };
+//     ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
+//
+//     vkCmdPushConstants(commandBuffer,pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ubo),&ubo);
+//
+//     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+//                             &descriptorSets[currentFrame], 0, nullptr);
+//     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
+//
+//
+// }
 
 void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const {
     //
@@ -849,16 +906,23 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                                     const VkRenderPassBeginInfo &renderPassBeginIno,
                                     const PassBindings &passBindings) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
+    //camera descriptor
+        //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, defaultSceneDescriptorSets->GetCameraPipelineLayout(), 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
+    //lit pass (I'll add other later and get them throus the pass binding object)
+        //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,defaultSceneDescriptorSets->GetLitPipelineLayout(),1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
     for (auto const &matBinding: passBindings.Materials) {
         const MaterialData matData = LoadedMaterials->get(matBinding.materialHandle);// getMaterialData(matBinding.materialHandle);
         vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipeline);
         for (auto const & matInstanceBinding : matBinding.matInstances) {
             MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipelineLayout, 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipelineLayout,1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
+
             //keeping some things default here
             vkCmdBindDescriptorSets(commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 matData.pipelineLayout,
-                0,
+                2,
                 matInstanceData.descriptorSets[currentFrame].size(),
                 matInstanceData.descriptorSets[currentFrame].data(),
                 0,
@@ -866,13 +930,13 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                 );
             for (auto const &mesh: matInstanceBinding.meshes) {
                 MeshData data = LoadedMeshes->get(mesh.MeshHandle);
-                std::vector<VkBuffer> vertexBuffers(matData.VertexAttributeCount);
-                std::vector<VkDeviceSize> vertexBuffersOffsets(matData.VertexAttributeCount);
+                std::vector<VkBuffer> vertexBuffers;
+                std::vector<VkDeviceSize> vertexBuffersOffsets;
                 auto defaultAttribute = static_cast<DefaultVertexAttributeFlags>(1);
                 while (defaultAttribute <= MAX_VERTEX_ATTRIBUTE_FLAGS) {
                     try {
                         if (defaultAttribute & matData.VertexInputAttributes) {
-                        vertexBuffers.push_back(data.VertexAttributeBuffers.at(defaultAttribute).first);
+                        vertexBuffers.push_back(data.VertexAttributeBuffers.at(defaultAttribute).first);//This is not a good spot for a vector, acceptable for now
                         vertexBuffersOffsets.push_back(0);//I don't think I really need offsets without interleaving
                         }
                         defaultAttribute = static_cast<DefaultVertexAttributeFlags>(defaultAttribute << 1);
@@ -948,8 +1012,8 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
         .extent = swapChainExtent
     };
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-    if(passTree != nullptr)DrawCommands(commandBuffer,renderPassBeginInfo, *passTree);
-    else VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
+    DrawCommands(commandBuffer,renderPassBeginInfo, *passTree);
+    //else VikingTestDrawCommands(commandBuffer, renderPassBeginInfo);
     std::unique_lock<std::mutex> ImGuiLock{imGuiMutex};
     imGuiUpdateCV.wait(ImGuiLock,[&isImGuiFrameComplete]{return isImGuiFrameComplete;});
     isImGuiFrameComplete = false;//imgui has to wait for a new frame now
@@ -1640,19 +1704,19 @@ void OsmiumGLInstance::setupImGui() {
 // }
 
 
-void OsmiumGLInstance::VikingTest() {
-    Descriptors::createDescriptorSetLayout(device,descriptorSetLayout);
-    createGraphicsPipeline();
-    loadModel(MODEL_PATH.c_str());
-    createTextureImage(TEXTURE_PATH.c_str());
-    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, miplevels);
-    //Replace with buffer creation using the allocator
-    createVertexBuffer();
-    createIndexBuffer();
-    createUniformBuffer();
-    Descriptors::createDescriptorPool(device,descriptorPool);
-    Descriptors::createDescriptorSets(device,descriptorSetLayout,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
-}
+// void OsmiumGLInstance::VikingTest() {
+//     Descriptors::createDescriptorSetLayout(device,descriptorSetLayout);
+//     createGraphicsPipeline();
+//     loadModel(MODEL_PATH.c_str());
+//     createTextureImage(TEXTURE_PATH.c_str());
+//     textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, miplevels);
+//     //Replace with buffer creation using the allocator
+//     createVertexBuffer();
+//     createIndexBuffer();
+//     createUniformBuffer();
+//     Descriptors::createDescriptorPool(device,descriptorPool);
+//     Descriptors::createDescriptorSets(device,descriptorSetLayout,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
+// }
 
 void OsmiumGLInstance::createAllocator() {
 
@@ -1801,7 +1865,6 @@ void OsmiumGLInstance::initVulkan() {
     passTree = new PassBindings();
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
-    passTree->DirectionalLightDescriptorSets = defaultSceneDescriptorSets->GetLitDescriptorSets();
 }
 
 // void OsmiumGLInstance::mainLoop() {
@@ -1827,7 +1890,15 @@ void OsmiumGLInstance::cleanupSwapChain() {
 }
 
 void OsmiumGLInstance::cleanup() {
+    LoadedMaterialInstances->Remove(DefaultShaders::GetBLinnPhongDefaultMaterialInstanceHandle());
+    LoadedMaterials->Remove(DefaultShaders::GetBLinnPhongMaterialHandle());
     DefaultShaders::DestroyDefaultPipelines(device, allocator);
+    if (LoadedMaterials->GetCount() != 0)
+        std::cout << "Some material are still loaded at shutdown" << std::endl;
+    if (LoadedMaterialInstances->GetCount() != 0)
+        std::cout << "Some Material Instance are still loaded at shutdown" << std::endl;
+    if (LoadedMeshes->GetCount() != 0)
+        std::cout << "Some Mesh are still loaded at shutdown" << std::endl;
     delete passTree;//should be a check that everything was unloaded correctly
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -1886,22 +1957,22 @@ void OsmiumGLInstance::initWindow() {
     glfwSetFramebufferSizeCallback(window, frameBufferResizeCallback);
     glfwSetErrorCallback(glfw_error_callback);
 }
-
-void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) const {//example rotation function
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-    Descriptors::UniformBufferObject ubo = {
-        .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
-        .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
-        .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width)/ static_cast<float>(swapChainExtent.height),0.1f,10.0f),
-        };
-    ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
-
-    memcpy(uniformBuffersMapped[currentImage],&ubo,sizeof(ubo));//Note this sort of operation shoudl be done using push constant
-}
+//viking stuff
+// void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) const {//example rotation function
+//     static auto startTime = std::chrono::high_resolution_clock::now();
+//
+//     auto currentTime = std::chrono::high_resolution_clock::now();
+//     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+//
+//     Descriptors::UniformBufferObject ubo = {
+//         .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
+//         .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
+//         .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width)/ static_cast<float>(swapChainExtent.height),0.1f,10.0f),
+//         };
+//     ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
+//
+//     memcpy(uniformBuffersMapped[currentImage],&ubo,sizeof(ubo));//Note this sort of operation shoudl be done using push constant
+// }
 
 
 

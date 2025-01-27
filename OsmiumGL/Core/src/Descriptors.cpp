@@ -9,6 +9,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "config.h"
+#include "UniformBufferObject.h"
 
 void Descriptors::createDescriptorSetLayout(const VkDevice& device, VkDescriptorSetLayout& descriptorSetLayout) {
     // VkDescriptorSetLayoutBinding uboLayoutBinding = {

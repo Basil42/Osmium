@@ -17,8 +17,10 @@ private:
     GOC_Handle handle;
     GameObject* parent;
     virtual void Update() {};//used for a more classical loop based update
-    virtual void RenderUpdate(uint32_t currentFrame) {}
+
+
 public:
+    virtual void RenderUpdate() {}
     [[nodiscard]] GameObject* GetGameObject() const {return parent;}
     [[nodiscard]] GOC_Handle GetHandle() const {return handle;}
     GameObjectComponent() = delete;

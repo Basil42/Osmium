@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 #include <imgui_impl_vulkan.h>
 #include <vector>
+#define VMA_LEAK_LOG_FORMAT
 #include <vk_mem_alloc.h>
 #include "DefaultVertex.h"
 
@@ -34,7 +35,8 @@ public:
     unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
 
     void RemoveRenderedObject(RenderedObject rendered_object) const;
-    void AddRenderedObject(RenderedObject rendered_object) const;
+
+    bool AddRenderedObject(RenderedObject rendered_object) const;
     void RemoveMaterial(MaterialHandle material) const;
     MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
 
@@ -53,6 +55,13 @@ public:
     VkDescriptorSetLayout GetLitDescriptorLayout() const;
 
     VkDescriptorSetLayout GetCameraDescriptorLayout() const;
+
+    void UpdatePushConstantData(RenderedObject rendered_object, void * data, uint32_t uint32);
+
+    void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map);
+
+
+    void UpdateCameraData(glm::mat4 viewMat, float radianVFOV);
 
 
     //MaterialHandle RegisterMaterial()

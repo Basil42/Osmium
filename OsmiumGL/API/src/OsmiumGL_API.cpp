@@ -5,6 +5,8 @@
 
 #include <mutex>
 
+#include "BlinnPhongVertex.h"
+#include "BlinnPhongVertex.h"
 #include "Core.h"
 #include "DefaultShaders.h"
 OsmiumGLInstance* OsmiumGL::instance;
@@ -14,15 +16,23 @@ void OsmiumGL::Init() {
 }
 
 void OsmiumGL::StartFrame() {
+
     instance->StartFrame();
 }
 
+void OsmiumGL::SubmitPushConstantBuffers() {
+    instance->SubmitPushDataBuffers(pushConstantStagingVectors);
+}
+
 void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,bool& isImgGuiFrameRendered) {
+    SubmitPushConstantBuffers();
     instance->EndFrame(ImGuiMutex,imGuiCV,isImgGuiFrameRendered);
+    ClearGOPushConstantBuffers();
 }
 
 void OsmiumGL::Shutdown() {
     instance->Shutdown();
+
 }
 
 MaterialHandle OsmiumGL::GetBlinnPhongHandle() {
@@ -33,9 +43,32 @@ MatInstanceHandle OsmiumGL::GetBlinnPhongDefaultInstance() {
     return DefaultShaders::GetBLinnPhongDefaultMaterialInstanceHandle();
 }
 
+std::map<RenderedObject,std::vector<std::byte>> OsmiumGL::pushConstantStagingVectors = std::map<RenderedObject,std::vector<std::byte>>();
 
-void OsmiumGL::RegisterRenderedObject(RenderedObject &rendered_object) {
-    instance->AddRenderedObject(rendered_object);
+void OsmiumGL::ClearGOPushConstantBuffers() {
+
+    //I do this to not reallocate vectors every frame
+    std::vector<RenderedObject> StaleRenderedObjects;//I'd prefer a faster structure
+    for (auto& [fst, snd] : pushConstantStagingVectors) {
+        if (snd.empty())StaleRenderedObjects.push_back(fst);//no object of that kind has submitted this frame
+        else snd.clear();
+    }
+    for (auto& staleObject: StaleRenderedObjects) {
+        pushConstantStagingVectors.erase(staleObject);
+    }
+}
+
+void OsmiumGL::UpdateMainCameraData(glm::mat4 mat, float radianVFoV) {
+    instance->UpdateCameraData(mat,radianVFoV);
+}
+
+MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
+    throw std::runtime_error("accessing default material instance is not implemented yet");
+}
+
+
+bool OsmiumGL::RegisterRenderedObject(RenderedObject &rendered_object) {
+    return instance->AddRenderedObject(rendered_object);
 }
 
 void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {

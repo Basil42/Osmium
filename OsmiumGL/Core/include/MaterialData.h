@@ -16,7 +16,7 @@ struct MaterialInstanceData {
 };
 
 struct MaterialData {
-  VkPipeline pipeline;
+  VkPipeline pipeline = VK_NULL_HANDLE;
   VkPipelineLayout pipelineLayout;
   VkDescriptorSetLayout descriptorSetLayout;
   uint32_t PushConstantStride;

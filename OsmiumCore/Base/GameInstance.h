@@ -12,6 +12,8 @@
 #include "GameObject.h"
 
 
+class GOC_Camera;
+
 class GameInstance {
     //syncing stuff
     std::mutex SimulationCompletionMutex;
@@ -29,6 +31,7 @@ class GameInstance {
     bool simShouldShutoff;
 
     std::vector<GameObject> gameObjects;
+    GOC_Camera* mainCamera;
 
     GameObject * CreateNewGameObject();
 

@@ -35,13 +35,22 @@ public:
     //Passing the instance seems harmless as this is effectively an extention of the instance
     void UpdateDirectionalLight(const DirLightUniform &updatedValue, unsigned int currentImage);
     [[nodiscard]] VkDescriptorSetLayout GetLitDescriptorSetLayout() const;
-    [[nodiscard]] VkDescriptorSet GetLitDescriptorSet(uint32_t currentFrame) const;
+    [[nodiscard]] const VkDescriptorSet *GetLitDescriptorSet(uint32_t currentFrame) const;
     [[nodiscard]] std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> GetLitDescriptorSets() const;
 
     void UpdateCamera(const CameraUniform &updatedValue, unsigned int currentFrame);
     [[nodiscard]] VkDescriptorSetLayout GetCameraDescriptorSetLayout() const;
-    [[nodiscard]] VkDescriptorSet GetCameraDescriptorSet(uint32_t currentFrame) const;
+    [[nodiscard]] const VkDescriptorSet *GetCameraDescriptorSet(uint32_t currentFrame) const;
     [[nodiscard]] std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> GetCameraDescriptorSets() const;
+
+    //layouts used to bind defautl descriptor on top of a pass
+    void CreateGlobalPipelineLayout(VkDevice device);
+    void CreateLitPipelineLayout(VkDevice device);
+    VkPipelineLayout GlobalMainPipelineLayout;
+    VkPipelineLayout LitPipelineLayout;
+
+    [[nodiscard]] VkPipelineLayout GetCameraPipelineLayout() const;
+    [[nodiscard]] VkPipelineLayout GetLitPipelineLayout() const;
 
 private:
     void CreateDefaultDescriptorPool(VkDevice device);
@@ -50,7 +59,7 @@ private:
 
     void CreateDescriptorSets(VkDevice device, VmaAllocator Allocator, const OsmiumGLInstance &GLInstance, const VkDescriptorSetLayout &
                               descriptor_set_layout, std::array<VkDescriptorSet, 2> &descriptor_sets, std::array<VkBuffer, 2> &uniformBuffers, std::
-                              array<VmaAllocation, 2> &allocations, std::array<void *, 2> mappedSource, size_t uniformSize);
+                              array<VmaAllocation, 2> &allocations, std::array<void *, 2> &mappedSource, size_t uniformSize);
     VkDevice device;
     VmaAllocator Allocator;
     VkDescriptorPool descriptorPool;//probably a single pool with a pool size entry for each sceneWide
@@ -62,7 +71,7 @@ private:
 
     DirLightUniform directionalLightValue;
     std::array<void*,MAX_FRAMES_IN_FLIGHT> directionalLightBufferMappedSources;
-    VkDescriptorSetLayout mainCameraViewMatricDescriptorSetLayout;
+    VkDescriptorSetLayout mainCameraDescriptorSetLayout;
     std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> mainCameraViewMatrixDescriptorSets;
     std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> mainCameraViewMatrixUniformBuffers;
     std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> mainCameraViewMatrixAllocations;

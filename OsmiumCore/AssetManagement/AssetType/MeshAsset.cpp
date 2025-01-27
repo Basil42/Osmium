@@ -110,7 +110,7 @@ void MeshAsset::Load() {
         texcoords[i] = vertices[i].texCoordinates;
         normals[i] = vertices[i].normal;
     }
-    std::byte *buffer = allocator.allocate(allocationSize);
+    std::byte *buffer = allocator.allocate(allocationSize * vertexCount);
     unsigned int offset = 0;
     //I can probably turn that into a loop, everything is allignment 4
     if (POSITION & vertexAttributeFlags) {

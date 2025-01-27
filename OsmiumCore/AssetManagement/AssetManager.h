@@ -33,6 +33,8 @@ class AssetManager {
     static void ImportAssetDatabase();
     static void LoadAssetDatabase();
 
+    static void UnloadAll();
+
     AssetManager() = delete;//this is purely a static class
 };
 

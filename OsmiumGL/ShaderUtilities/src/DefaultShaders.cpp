@@ -10,6 +10,7 @@
 #include "Core.h"
 #include "DefaultSceneDescriptorSets.h"
 #include "Descriptors.h"
+#include "UniformBufferObject.h"
 
 VkPipeline DefaultShaders::GetBlinnPhongPipeline() {
     return blinnPhongPipeline;
@@ -246,7 +247,14 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     vkDestroyShaderModule(device,fragShaderModule,nullptr);
 
     //TODO register to loaded materials
-    MaterialData materialData;
+    MaterialData materialData {
+    .pipeline = blinnPhongPipeline,
+    .pipelineLayout = blinnPhongPipelineLayout,
+    .descriptorSetLayout = blinnPhongInstanceDescriptorSetLayout,
+    .PushConstantStride = sizeof(Descriptors::UniformBufferObject),
+    .VertexAttributeCount = 3,
+    .VertexInputAttributes = POSITION | NORMAL|TEXCOORD0,
+    .CustomVertexInputAttributes = 0};
     materialData.pipeline = blinnPhongPipeline;
     materialData.pipelineLayout = blinnPhongPipelineLayout;
     materialData.descriptorSetLayout = blinnPhongInstanceDescriptorSetLayout;

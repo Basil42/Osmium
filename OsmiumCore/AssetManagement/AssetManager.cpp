@@ -110,3 +110,12 @@ void AssetManager::LoadAssetDatabase() {
     //might deserialize from file later
         ImportAssetDatabase();
 }
+
+void AssetManager::UnloadAll() {
+    //check that no asset are loading, if so, wait ?
+    //Jobify this
+    while (!loadedAssets.empty()) {
+        UnloadAsset(*loadedAssets.begin());
+        loadedAssets.erase(loadedAssets.begin());
+    }
+}

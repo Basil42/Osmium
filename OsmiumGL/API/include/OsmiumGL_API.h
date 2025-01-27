@@ -6,7 +6,7 @@
 #define OSMIUMGL_API_H
 #include <condition_variable>
 #include <imgui.h>
-#include <iosfwd>
+#include <map>
 #include <vector>
 #include <bits/std_mutex.h>
 
@@ -22,7 +22,12 @@ class  OsmiumGL {
 public:
 
     static void Init();
+
+
     static void StartFrame();
+
+    static void SubmitPushConstantBuffers();
+
     //run imgui in between;
     static void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
     static void Shutdown();
@@ -31,12 +36,19 @@ public:
 
     static MatInstanceHandle GetBlinnPhongDefaultInstance();
 
+    template<typename Container>
+    static void SubmitPushConstantDataGO(RenderedObject rendered_object,Container& data);
 
-    //handles for mesh renderers
-    typedef unsigned long PushHandle;
+    //Mesh renderer gameobject constant buffer updates
+    static void ClearGOPushConstantBuffers();
 
+    static void UpdateMainCameraData(glm::mat4 mat, float radianVFoV);
 
-    static void RegisterRenderedObject(RenderedObject &rendered_object);
+    static MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
+
+    static std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors;
+
+    static bool RegisterRenderedObject(RenderedObject &rendered_object);
 
     static void UnregisterRenderedObject(RenderedObject rendered_object);
 
@@ -52,6 +64,14 @@ public:
 
     static bool ShouldClose();
 };
+
+template<typename Container>
+void OsmiumGL::SubmitPushConstantDataGO(RenderedObject rendered_object, Container& data) {//container should be a vector or std::array, or any container with .begin and .end
+    if (!pushConstantStagingVectors.contains(rendered_object)) {
+        pushConstantStagingVectors[rendered_object] = std::vector<std::byte>();
+    }
+    pushConstantStagingVectors[rendered_object].insert(pushConstantStagingVectors[rendered_object].end(), data.begin(), data.end());
+}
 
 
 #endif //OSMIUMGL_API_H

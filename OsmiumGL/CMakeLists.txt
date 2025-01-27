@@ -42,6 +42,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Common/include/ResourceArray.h
         ShaderUtilities/include/VertexDescriptor.h
         ShaderUtilities/include/DefaultSceneDescriptorSets.h
+        Common/include/UniformBufferObject.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}

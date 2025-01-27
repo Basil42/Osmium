@@ -8,6 +8,14 @@
 
 #include "Core.h"
 
+VkPipelineLayout DefaultSceneDescriptorSets::GetCameraPipelineLayout() const {
+    return GlobalMainPipelineLayout;
+}
+
+VkPipelineLayout DefaultSceneDescriptorSets::GetLitPipelineLayout() const {
+    return LitPipelineLayout;
+}
+
 void DefaultSceneDescriptorSets::CreateDefaultDescriptorPool(const VkDevice device) {
     std::array<VkDescriptorPoolSize, BUILT_IN_DESCRIPTOR_POOL_SIZE_COUNT> sizes{};
 
@@ -59,7 +67,7 @@ void DefaultSceneDescriptorSets::CreateDefaultDescriptorLayouts(const VkDevice d
     .bindingCount = 1,
     .pBindings = &viewMatrixLayoutBinding,};
 
-    if (vkCreateDescriptorSetLayout(device,&viewMatrixDescriptorLayoutCreateInfo,nullptr,&mainCameraViewMatricDescriptorSetLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(device,&viewMatrixDescriptorLayoutCreateInfo,nullptr,&mainCameraDescriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create view matrix built in descriptor set layout!");
     }
 }
@@ -72,7 +80,7 @@ void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice device,
                                                                       std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> &descriptor_sets,
                                                                       std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> &uniformBuffers,
                                                                       std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> &allocations,
-                                                                      std::array<void*,MAX_FRAMES_IN_FLIGHT> mappedSource,
+                                                                      std::array<void*,MAX_FRAMES_IN_FLIGHT> &mappedSource,
                                                                       const size_t uniformSize
                                                                       ) {
     std::array<VkDescriptorSetLayout, MAX_FRAMES_IN_FLIGHT> descriptorSetLayouts = {descriptor_set_layout, descriptor_set_layout};
@@ -96,7 +104,8 @@ void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice device,
                                 allocations[i], VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
         //not very happy that I'd need it
-        vmaMapMemory(Allocator,allocations[i],&mappedSource[i]);//I'm uncomfortable with the fact that I do not allocate memory to these void pointers, but mapping might make it safe
+        auto result = vmaMapMemory(Allocator,allocations[i],&mappedSource[i]);//I'm uncomfortable with the fact that I do not allocate memory to these void pointers, but mapping might make it safe
+        assert(result == VK_SUCCESS);
 
     }
     //writes, maybe object should do their own ?
@@ -138,13 +147,15 @@ DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(const VkDevice device,con
 
     //camera
     CreateDescriptorSets(device, allocator, GLInstance,
-                         mainCameraViewMatricDescriptorSetLayout,
+                         mainCameraDescriptorSetLayout,
                          mainCameraViewMatrixDescriptorSets,
                          mainCameraViewMatrixUniformBuffers,
                          mainCameraViewMatrixAllocations,
                          mainCameraViewMatrixMappedSource,
                          sizeof(CameraUniform));
 
+    CreateGlobalPipelineLayout(device);
+    CreateLitPipelineLayout(device);
 }
 
 DefaultSceneDescriptorSets::~DefaultSceneDescriptorSets() {
@@ -156,8 +167,10 @@ DefaultSceneDescriptorSets::~DefaultSceneDescriptorSets() {
     }
     vkDestroyDescriptorPool(device,descriptorPool,nullptr);
     vkDestroyDescriptorSetLayout(device,litDescriptorSetLayout,nullptr);
-    vkDestroyDescriptorSetLayout(device,mainCameraViewMatricDescriptorSetLayout,nullptr);
+    vkDestroyDescriptorSetLayout(device,mainCameraDescriptorSetLayout,nullptr);
 
+    vkDestroyPipelineLayout(device,GlobalMainPipelineLayout,nullptr);
+    vkDestroyPipelineLayout(device,LitPipelineLayout,nullptr);
 
 }
 
@@ -171,8 +184,8 @@ VkDescriptorSetLayout DefaultSceneDescriptorSets::GetLitDescriptorSetLayout() co
     return litDescriptorSetLayout;
 }
 
-VkDescriptorSet DefaultSceneDescriptorSets::GetLitDescriptorSet(const uint32_t currentFrame) const {
-    return mainCameraViewMatrixDescriptorSets[currentFrame];
+const VkDescriptorSet *DefaultSceneDescriptorSets::GetLitDescriptorSet(const uint32_t currentFrame) const{
+    return &directionalLightDescriptorSets[currentFrame];
 }
 
 std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> DefaultSceneDescriptorSets::GetLitDescriptorSets() const {
@@ -181,17 +194,41 @@ std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> DefaultSceneDescriptorSets::Ge
 
 void DefaultSceneDescriptorSets::UpdateCamera(const CameraUniform &updatedValue, unsigned int currentFrame) {
     mainCameraUniformValue = updatedValue;
-    memcpy(mainCameraViewMatrixMappedSource[currentFrame],&updatedValue,sizeof(CameraUniform));
+    memcpy(mainCameraViewMatrixMappedSource[currentFrame],&mainCameraUniformValue,sizeof(CameraUniform));
 }
 
 VkDescriptorSetLayout DefaultSceneDescriptorSets::GetCameraDescriptorSetLayout() const {
-    return mainCameraViewMatricDescriptorSetLayout;
+    return mainCameraDescriptorSetLayout;
 }
 
-VkDescriptorSet DefaultSceneDescriptorSets::GetCameraDescriptorSet(uint32_t currentFrame) const {
-    return mainCameraViewMatrixDescriptorSets[currentFrame];
+const VkDescriptorSet *DefaultSceneDescriptorSets::GetCameraDescriptorSet(uint32_t currentFrame) const {
+    return &mainCameraViewMatrixDescriptorSets[currentFrame];
 }
 
 std::array<VkDescriptorSet, 2> DefaultSceneDescriptorSets::GetCameraDescriptorSets() const {
     return mainCameraViewMatrixDescriptorSets;
+}
+
+void DefaultSceneDescriptorSets::CreateGlobalPipelineLayout(VkDevice device) {
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo
+    {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 1,
+    .pSetLayouts = &mainCameraDescriptorSetLayout,};
+
+    //I could put the model push constant definition here, it would make sense
+    if (vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr, &GlobalMainPipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create global pipeline layout");
+    }
+}
+
+void DefaultSceneDescriptorSets::CreateLitPipelineLayout(VkDevice device) {
+    std::array<VkDescriptorSetLayout,2> LitSetLayouts = {mainCameraDescriptorSetLayout,litDescriptorSetLayout};
+    const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = LitSetLayouts.size(),
+    .pSetLayouts = LitSetLayouts.data(),};
+    if (vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr,&LitPipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create lit pipeline layout");
+    }
 }
