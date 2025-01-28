@@ -32,7 +32,7 @@ public:
     [[nodiscard]] AssetType getType() const;
     virtual void Load() = 0;
 
-    virtual void Unload() = 0;
+    virtual void Unload(bool immediate) = 0;
 
     explicit Asset(std::filesystem::path const &assetPath);
     virtual std::mutex& GetRessourceMutex() = 0;

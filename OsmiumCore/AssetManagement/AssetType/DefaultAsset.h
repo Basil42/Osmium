@@ -11,7 +11,7 @@ class DefaultAsset : public Asset {
 public:
     void Load() override;
 
-    void Unload() override;
+    void Unload(bool immediate) override;
 
     std::mutex & GetRessourceMutex() override;
 

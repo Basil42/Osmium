@@ -40,8 +40,8 @@ public:
     void RemoveMaterial(MaterialHandle material) const;
     MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
 
-    void createVertexAttributeBuffer(const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation &
-                                     vma_allocation) const;
+    void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation
+                                     &vma_allocation) const;
 
     void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation);
 
@@ -50,13 +50,12 @@ public:
 
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attributeFlags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
-    void UnloadMesh(MeshHandle mesh) const;
+    void UnloadMesh(MeshHandle mesh, bool immediate);
 
     VkDescriptorSetLayout GetLitDescriptorLayout() const;
 
     VkDescriptorSetLayout GetCameraDescriptorLayout() const;
 
-    void UpdatePushConstantData(RenderedObject rendered_object, void * data, uint32_t uint32);
 
     void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map);
 
@@ -168,8 +167,11 @@ private:
     bool showAnotherWindow = true;
 
     PassBindings*passTree = nullptr ;
+    std::mutex MaterialDataMutex;
     ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
+    std::mutex meshDataMutex;
     ResourceArray<MeshData,MAX_LOADED_MESHES>* LoadedMeshes = new ResourceArray<MeshData, MAX_LOADED_MESHES>();
+    std::mutex MatInstanceMutex;
     ResourceArray<MaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* LoadedMaterialInstances= new ResourceArray<MaterialInstanceData, MAX_LOADED_MATERIAL_INSTANCES>();
 
     //Light descriptor sets

@@ -37,6 +37,7 @@ void GOC_MeshRenderer::GORenderUpdate() {
 }
 
 void GOC_MeshRenderer::RenderUpdate() {
+    if (shouldUpdateRenderObject)UpdateRenderedObject();
     if (!registered)return;
     OsmiumGL::SubmitPushConstantDataGO(renderedObject,pushData);
 }
@@ -57,6 +58,7 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(pare
 }
 
 void GOC_MeshRenderer::UpdateRenderedObject() {
+    shouldUpdateRenderObject = false;
     if (registered) {
         OsmiumGL::UnregisterRenderedObject(renderedObject);
         registered = false;
@@ -76,9 +78,11 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
         std::cout << "tried to assign a non mesh asset as mesh to a GOC_MeshRenderer" << std::endl;
         return;
     }
+    std::cout << "callback test" << std::endl;
     auto meshAsset = dynamic_cast<MeshAsset*>(asset);//should be garanteed to be valid here
     mesh = meshAsset->GetMeshHandle();
-    UpdateRenderedObject();
+    shouldUpdateRenderObject = true;
+    //UpdateRenderedObject();
 
 }
 
@@ -103,17 +107,20 @@ void GOC_MeshRenderer::SetMaterialAsset(AssetId asset_id) {
 
 void GOC_MeshRenderer::SetMesh(MeshHandle Mesh) {
     mesh = Mesh;
-    UpdateRenderedObject();
+    shouldUpdateRenderObject = true;
+    //UpdateRenderedObject();
 }
 
 void GOC_MeshRenderer::SetMaterial(MaterialHandle Material, bool defaultInstance) {
     material = Material;
     if (defaultInstance)materialInstance = OsmiumGL::GetLoadedMaterialDefaultInstance(material);
-    UpdateRenderedObject();
+    shouldUpdateRenderObject = true;
+    //UpdateRenderedObject();
 }
 
 void GOC_MeshRenderer::SetMaterialInstance(MatInstanceHandle matInstance) {
     materialInstance = matInstance;
-    UpdateRenderedObject();
+    shouldUpdateRenderObject = true;
+    //UpdateRenderedObject();
 }
 

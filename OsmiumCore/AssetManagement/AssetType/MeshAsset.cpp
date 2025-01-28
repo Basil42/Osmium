@@ -35,6 +35,10 @@ void MeshAsset::LoadFromObj(std::vector<DefaultVertex>& vertices,std::vector<uin
                 .texCoordinates = {
                     useTextCoord ? attrib.texcoords[2 * index.texcoord_index +0]: 0.0f,
                      useTextCoord ? 1.0f - attrib.texcoords[2 * index.texcoord_index + 1] : 0.0f},
+                .normal = {
+                attrib.normals[3 * index.normal_index + 0],
+                attrib.normals[3 * index.normal_index + 1],
+                attrib.normals[3 * index.normal_index + 2]},
                 };
 
             if(!uniqueVertices.contains(vertex)) {
@@ -94,11 +98,10 @@ void MeshAsset::Load() {
     unsigned int vertexCount = vertices.size();
     std::allocator<std::byte> allocator;
     unsigned int allocationSize = 0;
-    if (POSITION & vertexAttributeFlags) {
-        allocationSize += sizeof(DefaultVertex::position);
-    }
+    if (POSITION & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::position);
     if (TEXCOORD0 & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::texCoordinates);
     if (NORMAL & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::normal);
+    allocationSize*= vertexCount;
 
     //there are probably nicer de interleaving algorithm somewhere
     std::vector<glm::vec3> positions(vertexCount);
@@ -110,7 +113,7 @@ void MeshAsset::Load() {
         texcoords[i] = vertices[i].texCoordinates;
         normals[i] = vertices[i].normal;
     }
-    std::byte *buffer = allocator.allocate(allocationSize * vertexCount);
+    std::byte *buffer = allocator.allocate(allocationSize);
     unsigned int offset = 0;
     //I can probably turn that into a loop, everything is allignment 4
     if (POSITION & vertexAttributeFlags) {
@@ -134,7 +137,16 @@ void MeshAsset::Load() {
         buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::normal), .data = buffer + offset,.attribute = NORMAL});
         offset += totalSize;
     }
+    //integrity of the data confirmed
+    // std::array<std::byte, 32*2012 +4 > testArray{};
+    // std::byte testValuePreCopy = testArray.back();
+    // memcpy(testArray.data(), buffer, allocationSize);
+    // std::byte testValuePostCopy = testArray.back();
+    std::scoped_lock resourceLock(Resources::ResourceManager::getResourceMutex(type));
+    std::cout << "attempting to load " << path.filename() << std::endl;
     OsmiumGL::LoadMesh(MeshHandle,buffer,vertexCount,buffersDescriptors,vertexAttributeFlags, customAttributeFlags, indices);
+    allocator.deallocate(buffer, allocationSize);
+    std::cout << "loaded " << path.filename() << std::endl;
 }
 
 std::mutex& MeshAsset::GetRessourceMutex() {
@@ -146,8 +158,8 @@ unsigned long MeshAsset::GetMeshHandle() const {
 }
 
 
-void MeshAsset::Unload() {
-    OsmiumGL::UnloadMesh(MeshHandle);
+void MeshAsset::Unload(bool immediate = false) {
+    OsmiumGL::UnloadMesh(MeshHandle, immediate);
 }
 
 MeshAsset::MeshAsset(const std::filesystem::path &path) : Asset(path){

@@ -26,7 +26,7 @@ void GameInstance::GameLoop() {
 
         isSimOver = false;
         std::unique_lock<std::mutex> SimulationLock(SimulationCompletionMutex);
-
+        AssetManager::ProcessCallbacks();
 
         //Do simulation things
         for (auto& game_object : gameObjects) {
@@ -61,11 +61,12 @@ void GameInstance::run() {
     auto CameraGO = CreateNewGameObject();
     auto mainCamTransform = CameraGO->Addcomponent<GOC_Transform>();
     mainCamera = CameraGO->Addcomponent<GOC_Camera>();
-    mainCamTransform->SetTransformMatrix(glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)));
+    //mainCamTransform->SetTransformMatrix(glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)));
 
 
     auto SimulationThread = std::thread(GameLoop,this);
     auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
+    auto LoadingThread = std::thread(LoadingRoutine,this);//maybe I need some kind of staging method here
 
     std::unique_lock<std::mutex> ImGuiLock(ImguiMutex,std::defer_lock);
     std::unique_lock<std::mutex> RenderDataLock(renderDataMutex, std::defer_lock);
@@ -83,19 +84,21 @@ void GameInstance::run() {
 
         RenderDataUpdate();
         isRenderUpdateOver = true;
-        renderDataUpdateConditionVariable.notify_one();
         RenderDataLock.unlock();
+        renderDataUpdateConditionVariable.notify_one();
 
     }
 
     OsmiumGL::StartFrame();//misnamed method, this is called to flush the Imgui thread and force it to exit
     isImguiNewFrameReady = true;
     ImguiNewFrameConditionVariable.notify_one();
-    //message the sim and imgui to shut off
+    //message the sim and imgui to shut off, these are technically nor thread safe but it might not matter here
     simShouldShutoff = true;
     ImGuiShouldShutoff = true;
+    AssetManager::Shutdown();
     SimulationThread.join();
     ImGuiThread.join();
+    LoadingThread.join();
     AssetManager::UnloadAll();
     OsmiumGL::Shutdown();
     // io = ImGui::GetIO();
@@ -108,7 +111,7 @@ void GameInstance::run() {
 }
 
 GameObject * GameInstance::CreateNewGameObject() {
-    gameObjects.emplace_back(GameObject());
+    gameObjects.emplace_back();
     return &gameObjects.back();
 }
 
@@ -161,6 +164,8 @@ void GameInstance::RenderImGuiFrameTask() {
             ImGui::Text("Frame Number: %u", frameNumber++);
             if(ImGui::Button("Create Default Entity")) {
                 //set the transform to something convenient here
+                //this should happen on the sim thread
+
                     GameObject* defaultObject = CreateNewGameObject();
                     defaultObject->Addcomponent<GOC_Transform>();
                     const auto defaultGOMeshRenderer = defaultObject->Addcomponent<GOC_MeshRenderer>();
@@ -188,4 +193,8 @@ void GameInstance::RenderImGuiFrameTask() {
         startFrameLock.unlock();
         ImguiUpdateConditionVariable.notify_all();
     }
+}
+
+void GameInstance::LoadingRoutine() {
+    AssetManager::LoadingRoutine();
 }

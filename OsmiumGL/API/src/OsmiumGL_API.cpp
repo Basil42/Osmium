@@ -75,8 +75,8 @@ void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {
     instance->RemoveRenderedObject(rendered_object);
 }
 
-void OsmiumGL::UnloadMesh(unsigned long mesh_handle) {
-    instance->UnloadMesh(mesh_handle);
+void OsmiumGL::UnloadMesh(unsigned long mesh_handle,bool immediate = false) {
+    instance->UnloadMesh(mesh_handle, immediate);
 }
 
 void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>& vertices,

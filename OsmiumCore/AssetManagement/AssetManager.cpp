@@ -21,11 +21,56 @@ std::mutex AssetManager::assetDatabaseMutex;
 std::set<AssetId> AssetManager::loadedAssets;//this needs some sort of reference counting
 std::map<AssetId,std::vector<std::function<void(Asset*)>>> AssetManager::loadingAssets;
 std::map<AssetId,Asset*> AssetManager::AssetDatabase;
+std::mutex AssetManager::PendingLoadsMutex;
+std::condition_variable AssetManager::LoadingPending;
+bool AssetManager::shutdownRequested = false;
+std::mutex AssetManager::CallbackListMutex;
+std::vector<std::pair<Asset*,std::vector<std::function<void(Asset*)>>>> AssetManager::CallbackList;
+
+
+void AssetManager::Shutdown() {
+    //I can do some syncing here if need be
+    shutdownRequested = true;
+    LoadingPending.notify_one();
+}
+
+void AssetManager::LoadingRoutine() {
+    shutdownRequested = false;
+    while (!shutdownRequested) {
+        //wait condition here
+        std::unique_lock LoadingMapLock(loadingCollectionMutex);
+        LoadingPending.wait(LoadingMapLock, [](){return !loadingAssets.empty() || shutdownRequested;});
+        if (loadingAssets.empty()) continue;//that might be redundant with the wait
+        std::pair<const unsigned long, std::vector<std::function<void(Asset *)> > > entry = *loadingAssets.begin();
+        LoadingMapLock.unlock();
+        std::unique_lock assetDBLock(assetDatabaseMutex);//could gain to be a "read lock"
+        Asset *asset = AssetDatabase[entry.first];
+        assetDBLock.unlock();
+        asset->Load();//this might have other synchro stuff, it should use a separate thread pool later
+
+        //finish
+        std::scoped_lock bookKeepingAndNotificationLock(loadingCollectionMutex,loadedCollectionMutex);
+        loadingAssets.erase(entry.first);
+        loadedAssets.emplace(entry.first);
+        CallbackList.emplace_back(asset,entry.second);
+    }
+    //might want to unload everything here to be safe
+}
 
 bool AssetManager::isAssetLoaded(AssetId assetId) {
-    std::lock_guard<std::mutex> loadedListLock(loadedCollectionMutex);//this could be replaced by a read lock on  a shared mutex
+    std::lock_guard loadedListLock(loadedCollectionMutex);//this could be replaced by a read lock on  a shared mutex
     return loadedAssets.contains(assetId);
 }
+
+void AssetManager::ProcessCallbacks() {
+    for (const auto& pair: CallbackList) {
+        for (const auto& entry: pair.second) {
+            entry(pair.first);
+        }
+    }
+    CallbackList.clear();
+}
+
 
 void AssetManager::LoadAsset(AssetId assetId, const std::function<void(Asset*)> &callback) {
     if(const auto AssetIt = AssetDatabase.find(assetId); AssetIt != AssetDatabase.end()) {
@@ -40,7 +85,7 @@ void AssetManager::LoadAsset(AssetId assetId, const std::function<void(Asset*)> 
         }
         loadedListLock.unlock();
 
-        std::unique_lock<std::mutex> loadingListLock(loadingCollectionMutex);
+        std::unique_lock loadingListLock(loadingCollectionMutex);
         //asset is currently loading, we pass the callback along
         if(loadingAssets.contains(assetId)) {
             loadingAssets.at(assetId).push_back(callback);
@@ -51,30 +96,13 @@ void AssetManager::LoadAsset(AssetId assetId, const std::function<void(Asset*)> 
         loadingAssets.at(assetId).push_back(callback);
         loadingListLock.unlock();
         //notify loading thread here
-
-
-        //all this should happen on the loading thread
-        std::unique_lock databaseLock(assetDatabaseMutex);
-        Asset* asset = AssetDatabase.at(assetId);//this ref is valid as long as the asset itself is not reloaded,
-        databaseLock.unlock();
-
-        asset->Load();//the asset type takes care of loading the data correctly and send it to the correct systems (eg ECS and graphics data)
-
-        //should happen on the sim thread ? Or should a parallel queue be passed here ? Could also lock a thrird mutex for this to happen between sim steps
-
-        std::scoped_lock bookKeepingAndNotificationLock(loadingCollectionMutex,loadedCollectionMutex,asset->GetRessourceMutex());
-        for(const auto callback : loadingAssets.at(assetId)) {
-            callback(asset);
-        }
-        //not 100% sure about doing this here, as the callbacks might see the assets as not yet fully loaded if they check
-        loadingAssets.erase(assetId);
-        loadedAssets.emplace(assetId);
+        LoadingPending.notify_one();
 
     }
 }
 
-void AssetManager::UnloadAsset(AssetId assetId) {
-    AssetDatabase.at(assetId)->Unload();
+void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {//unsafe, tuck it in the loading thread, or maybe an unloading thread
+    AssetDatabase.at(assetId)->Unload(immediate);
 }
 
 void AssetManager::ImportAsset(const std::filesystem::path &path) {
@@ -89,7 +117,7 @@ void AssetManager::ImportAsset(const std::filesystem::path &path) {
 }
 
 void AssetManager::ImportAssetDatabase() {
-    std::unique_lock<std::mutex> assetDatabaseLock(assetDatabaseMutex);
+    std::unique_lock assetDatabaseLock(assetDatabaseMutex);
     AssetDatabase.clear();
     std::filesystem::create_directory("../Assets");
     for (const auto &dirEntry: std::filesystem::recursive_directory_iterator("../Assets")) {
@@ -115,7 +143,7 @@ void AssetManager::UnloadAll() {
     //check that no asset are loading, if so, wait ?
     //Jobify this
     while (!loadedAssets.empty()) {
-        UnloadAsset(*loadedAssets.begin());
+        UnloadAsset(*loadedAssets.begin(), true);
         loadedAssets.erase(loadedAssets.begin());
     }
 }

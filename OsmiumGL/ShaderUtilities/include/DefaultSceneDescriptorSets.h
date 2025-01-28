@@ -16,14 +16,14 @@ enum BuiltInSceneWideDescriptors {
     BUILTIN_SCENE_WIDE_DESCRIPTOR_DIRECTIONAL_LIGHT,
 };
 struct DirLightUniform {
-    glm::vec3 VLightDirection;
-    glm::vec3 DirLightColor;
+    alignas(16) glm::vec3 VLightDirection;
+    alignas(16) glm::vec3 DirLightColor;
     float DirLightIntensity;
 };
 
 struct CameraUniform {
-    glm::mat4 view;
-    glm::mat4 projection;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 projection;
 };
 
 class DefaultSceneDescriptorSets {
@@ -69,7 +69,7 @@ private:
     std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> directionalLightUniformBuffers;
     std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> directionalLightAllocations;
 
-    DirLightUniform directionalLightValue;
+    DirLightUniform directionalLightValue{.VLightDirection = {glm::vec3(1.0f)}, .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 1.0f};
     std::array<void*,MAX_FRAMES_IN_FLIGHT> directionalLightBufferMappedSources;
     VkDescriptorSetLayout mainCameraDescriptorSetLayout;
     std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> mainCameraViewMatrixDescriptorSets;

@@ -13,6 +13,8 @@ namespace Resources {
     void ResourceManager::Init() {
         resourcesMutexes.clear();
         resourceTable.clear();
+        resourcesMutexes[ResourceType_Mesh];
+        resourceTable["Mesh"] = ResourceType_Mesh;
     }
 
     /**

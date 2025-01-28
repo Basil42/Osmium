@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include "Core.h"
+#include "UniformBufferObject.h"
 
 VkPipelineLayout DefaultSceneDescriptorSets::GetCameraPipelineLayout() const {
     return GlobalMainPipelineLayout;
@@ -44,6 +45,8 @@ void DefaultSceneDescriptorSets::CreateDefaultDescriptorLayouts(const VkDevice d
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
         .pImmutableSamplers = nullptr};
+
+
 
     VkDescriptorSetLayoutCreateInfo  dirLightDescriptorLayoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -210,11 +213,18 @@ std::array<VkDescriptorSet, 2> DefaultSceneDescriptorSets::GetCameraDescriptorSe
 }
 
 void DefaultSceneDescriptorSets::CreateGlobalPipelineLayout(VkDevice device) {
+    //mandatory for compatibility
+    VkPushConstantRange pushConstantRange = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(Descriptors::UniformBufferObject)};
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo
     {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
     .setLayoutCount = 1,
-    .pSetLayouts = &mainCameraDescriptorSetLayout,};
+    .pSetLayouts = &mainCameraDescriptorSetLayout,
+    .pushConstantRangeCount = 1,
+    .pPushConstantRanges = &pushConstantRange,};
 
     //I could put the model push constant definition here, it would make sense
     if (vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr, &GlobalMainPipelineLayout) != VK_SUCCESS) {
@@ -224,10 +234,17 @@ void DefaultSceneDescriptorSets::CreateGlobalPipelineLayout(VkDevice device) {
 
 void DefaultSceneDescriptorSets::CreateLitPipelineLayout(VkDevice device) {
     std::array<VkDescriptorSetLayout,2> LitSetLayouts = {mainCameraDescriptorSetLayout,litDescriptorSetLayout};
+    //mandatory for compatibility
+    VkPushConstantRange pushConstantRange = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(Descriptors::UniformBufferObject)};
     const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
     .setLayoutCount = LitSetLayouts.size(),
-    .pSetLayouts = LitSetLayouts.data(),};
+    .pSetLayouts = LitSetLayouts.data(),
+    .pushConstantRangeCount = 1,
+    .pPushConstantRanges = &pushConstantRange,};
     if (vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr,&LitPipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create lit pipeline layout");
     }

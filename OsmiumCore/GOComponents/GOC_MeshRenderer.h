@@ -20,13 +20,14 @@ class GOC_MeshRenderer : public GameObjectComponent {
     static std::vector<GOC_MeshRenderer*> renderers;//used to fullfill the roll the system would during render update
     GOC_Transform* transform;//outside of ECS a reference to the transform seems acceptable
     RenderedObject renderedObject;
-    bool registered;
+    bool registered = false;
     std::array<std::byte, PushDataSize> pushData;
 
 
     MaterialHandle material;//this would include descriptorsets
     MatInstanceHandle materialInstance;
     MeshHandle mesh;
+    bool shouldUpdateRenderObject = false;
 
     void UpdateRenderedObject();
 

@@ -36,6 +36,7 @@ class GameInstance {
     GameObject * CreateNewGameObject();
 
     void RenderImGuiFrameTask();
+    void LoadingRoutine();
     //temp
     bool showDemoWindow;
     bool showAnotherWindow;

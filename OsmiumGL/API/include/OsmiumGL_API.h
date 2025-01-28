@@ -52,7 +52,7 @@ public:
 
     static void UnregisterRenderedObject(RenderedObject rendered_object);
 
-    static void UnloadMesh(unsigned long mesh_handle);
+    static void UnloadMesh(unsigned long mesh_handle, bool immediate);
 
     static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>  &vertices, std::vector<unsigned>  &indices);
 

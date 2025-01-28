@@ -64,28 +64,27 @@ void DefaultShaders::CreateBlinnPhongDescriptorSetLayouts(VkDevice device) {
         .pImmutableSamplers = nullptr
     };
 
-    //Directional property block on fragment
-    VkDescriptorSetLayoutBinding DirectionalLightBlockBiding = {
-        .binding = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .pImmutableSamplers = nullptr};
+    // //Directional property block on fragment
+    // VkDescriptorSetLayoutBinding DirectionalLightBlockBiding = {
+    //     .binding = 1,
+    //     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    //     .descriptorCount = 1,
+    //     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    //     .pImmutableSamplers = nullptr};
+    //
+    // VkDescriptorSetLayoutBinding CameraInfoBinding = {
+    // .binding = 0,
+    // .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    // .descriptorCount = 1,
+    // .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    // .pImmutableSamplers = nullptr};
 
-    VkDescriptorSetLayoutBinding CameraInfoBinding = {
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-    .pImmutableSamplers = nullptr};
-
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
-        samplerLayoutBinding, DirectionalLightBlockBiding,CameraInfoBinding
+    std::array<VkDescriptorSetLayoutBinding, 1> bindings = {
+        samplerLayoutBinding
     };
     VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PER_STAGE_BIT_NV,
-        .bindingCount = bindings.size(),
+        .bindingCount = 1,
         .pBindings = bindings.data(),};
 
     //potentially ambiantlight here
@@ -217,6 +216,7 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
     .pushConstantRangeCount = 1,
     .pPushConstantRanges = &pushConstantRange};
 
+
     if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo,nullptr,&blinnPhongPipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout for BlinnPhong");
     }
@@ -275,7 +275,7 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
         std::array<VkDescriptorPoolSize,1> poolSizes{};//single pool, allocation of the directional light uniform should be upstream
 
         poolSizes[0] = {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .type = VK_DESCRIPTOR_TYPE_SAMPLER,
         .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * MAX_LOADED_MATERIAL_INSTANCES)//It seems like I could allocate a single one per frame but I'll stick to this for now
         };
         VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {

@@ -160,7 +160,7 @@ bool OsmiumGLInstance::AddRenderedObject(const RenderedObject rendered_object) c
 
 
 
-void OsmiumGLInstance::createVertexAttributeBuffer(const VertexBufferDescriptor &buffer_descriptor,unsigned int vertexCount, VkBuffer&vk_buffer,
+void OsmiumGLInstance::createVertexAttributeBuffer(const void* vertexData,const VertexBufferDescriptor& buffer_descriptor,unsigned int vertexCount, VkBuffer&vk_buffer,
                                                    VmaAllocation&vma_allocation) const {
     VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     stagingBufferCreateInfo.size = buffer_descriptor.AttributeStride * vertexCount;
@@ -174,10 +174,12 @@ void OsmiumGLInstance::createVertexAttributeBuffer(const VertexBufferDescriptor 
     VmaAllocation stagingAllocation;
     vmaCreateBuffer(allocator,&stagingBufferCreateInfo,&vma_staging_allocation_create_info,&stagingBuffer,&stagingAllocation,nullptr);
 
-    void* data;
-    vmaMapMemory(allocator,stagingAllocation,&data);
-    memcpy(data,&buffer_descriptor.data,stagingBufferCreateInfo.size);
-    vmaUnmapMemory(allocator,stagingAllocation);
+    //void* data;
+    vmaCopyMemoryToAllocation(allocator,buffer_descriptor.data,stagingAllocation,0,stagingBufferCreateInfo.size);
+    // auto result = vmaMapMemory(allocator,stagingAllocation,&data);
+    // if (result != VK_SUCCESS) throw std::runtime_error("failed to map staging buffer");
+    // memcpy(data,&buffer_descriptor.data,stagingBufferCreateInfo.size);
+    // vmaUnmapMemory(allocator,stagingAllocation);
 
 
     createBuffer(buffer_descriptor.AttributeStride * vertexCount,
@@ -223,10 +225,11 @@ MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttribute
     meshData.attributeFlags = attribute_flags;
     meshData.customAttributesFlags = custom_attributeFlags;
     meshData.numVertices = vertex_count;
-    for (auto buffer_descriptor: bufferDescriptors) {
+    std::lock_guard<std::mutex> meshDataLock(meshDataMutex);
+    for (const auto& buffer_descriptor: bufferDescriptors) {
         VkBuffer buffer_handle;
         VmaAllocation buffer_memory;
-        createVertexAttributeBuffer(buffer_descriptor,vertex_count,buffer_handle, buffer_memory);
+        createVertexAttributeBuffer(vertices_data,buffer_descriptor,vertex_count,buffer_handle, buffer_memory);
         meshData.VertexAttributeBuffers[buffer_descriptor.attribute] = {buffer_handle,buffer_memory};
     }
 
@@ -234,19 +237,29 @@ MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttribute
 
     createIndexBuffer(indices, meshData.indexBuffer,meshData.IndexBufferAlloc);
     meshData.numIndices = indices.size();
+
+    //
     return LoadedMeshes->Add(meshData);
 }
 
-void OsmiumGLInstance::UnloadMesh(MeshHandle mesh) const {
+void OsmiumGLInstance::UnloadMesh(MeshHandle mesh,bool immediate = false) {
 
+    std::unique_lock<std::mutex> meshDataLock(meshDataMutex);
     auto data =LoadedMeshes->get(mesh);
+    LoadedMeshes->Remove(mesh);
     //change to something mor elegant later, I could just wait a frame
-    vkDeviceWaitIdle(device);
+    if (!immediate) {
+        vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
+        vkWaitForFences(device, 1, &inflightFences[currentFrame+1],VK_TRUE,UINT64_MAX);//wait max frames in flight
+    }else {
+        vkDeviceWaitIdle(device);
+    }
+    meshDataMutex.unlock();
     for (const auto buffer : data.VertexAttributeBuffers) {
+
         vmaDestroyBuffer(allocator,buffer.second.first,buffer.second.second);
     }
     vmaDestroyBuffer(allocator,data.indexBuffer,data.IndexBufferAlloc);
-    LoadedMeshes->Remove(mesh);
 }
 
 VkDescriptorSetLayout OsmiumGLInstance::GetLitDescriptorLayout() const {
@@ -257,9 +270,6 @@ VkDescriptorSetLayout OsmiumGLInstance::GetCameraDescriptorLayout() const {
     return defaultSceneDescriptorSets->GetCameraDescriptorSetLayout();
 }
 
-void OsmiumGLInstance::UpdatePushConstantData(RenderedObject rendered_object, void *data, uint32_t uint32) {
-
-}
 
 void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) {
     //these are fairly slow structures but should not be accessed too many times
@@ -295,7 +305,9 @@ void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std:
 
 void OsmiumGLInstance::UpdateCameraData(glm::mat4 viewMat, float radianVFOV) {
     //projection is relativelyu stable and could be cached but this is relatively cheap
-    const CameraUniform cameraUniform {.view = viewMat, .projection = glm::perspective(radianVFOV,static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f)};
+    auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f);
+    proj[1][1] = -1.0f;//correction for orientation convention
+    const CameraUniform cameraUniform {.view = viewMat, .projection = proj};
     defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
 }
 
@@ -637,7 +649,7 @@ void OsmiumGLInstance::createGraphicsPipeline() {
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .cullMode = VK_CULL_MODE_NONE,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
         .depthBiasConstantFactor = 0.0f,
@@ -907,16 +919,16 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                                     const PassBindings &passBindings) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
     //camera descriptor
-        //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, defaultSceneDescriptorSets->GetCameraPipelineLayout(), 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, defaultSceneDescriptorSets->GetCameraPipelineLayout(), 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
     //lit pass (I'll add other later and get them throus the pass binding object)
-        //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,defaultSceneDescriptorSets->GetLitPipelineLayout(),1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,defaultSceneDescriptorSets->GetLitPipelineLayout(),1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
     for (auto const &matBinding: passBindings.Materials) {
         const MaterialData matData = LoadedMaterials->get(matBinding.materialHandle);// getMaterialData(matBinding.materialHandle);
         vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipeline);
         for (auto const & matInstanceBinding : matBinding.matInstances) {
             MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle);
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipelineLayout, 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipelineLayout,1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
+            //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipelineLayout, 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
+            //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipelineLayout,1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
 
             //keeping some things default here
             vkCmdBindDescriptorSets(commandBuffer,
@@ -958,9 +970,9 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                     vkCmdPushConstants(commandBuffer,
                         matData.pipelineLayout,
                         VK_SHADER_STAGE_VERTEX_BIT,
-                        i*matData.PushConstantStride,
+                        0,
                         matData.PushConstantStride,
-                        mesh.ObjectPushConstantData[currentFrame].data());
+                        mesh.ObjectPushConstantData[currentFrame].data()+(i*matData.PushConstantStride));
                     vkCmdDrawIndexed(commandBuffer,data.numIndices,1,0,0,0);
                     //Here it is possible to replace the push constant with some kind of buffer and do instanced rendering with a single draw call
                     //can apparently be done with a buffer binding in the shader of input rate instance (the buffer steps per instance instead of per vertex)
@@ -993,7 +1005,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     renderPassBeginInfo.renderArea.extent = swapChainExtent;
 
     std::array<VkClearValue,2> clearValues = {};
-    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[0].color = {{1.0f, 0.0f, 0.0f, 1.0f}};
     clearValues[1].depthStencil = {1.0f, 0};
     renderPassBeginInfo.clearValueCount = clearValues.size();
     renderPassBeginInfo.pClearValues = clearValues.data();
@@ -1864,6 +1876,9 @@ void OsmiumGLInstance::initVulkan() {
     setupImGui();
     passTree = new PassBindings();
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
+    DirLightUniform defaultLight = {.VLightDirection = glm::vec3(0.0f,1.0f,0.0f), .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 1.0f};
+    defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame);
+    defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame+1);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
 }
 
@@ -1924,6 +1939,8 @@ void OsmiumGLInstance::cleanup() {
     delete defaultSceneDescriptorSets;
     vkDestroyRenderPass(device, renderPass, nullptr);
 
+
+
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
         vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -1976,7 +1993,8 @@ void OsmiumGLInstance::initWindow() {
 
 
 
-void OsmiumGLInstance::drawFrame(std::mutex& imGuiMutex,std::condition_variable& imGuiCV,bool& isImGuiFrameComplete) {//used for test, deprecated
+void OsmiumGLInstance::drawFrame(std::mutex& imGuiMutex,std::condition_variable& imGuiCV,bool& isImGuiFrameComplete) {
+    //used for test, deprecated
 
     vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
 
@@ -1993,6 +2011,7 @@ void OsmiumGLInstance::drawFrame(std::mutex& imGuiMutex,std::condition_variable&
 
     vkResetFences(device, 1, &inflightFences[currentFrame]);
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);//have to reset only the command buffer here as the pool itself is used by other frames in flight
+    std::scoped_lock resourceLock(meshDataMutex,MaterialDataMutex,MatInstanceMutex);
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex, imGuiMutex, imGuiCV, isImGuiFrameComplete);
 
     //updateUniformBuffer(currentFrame);

@@ -29,7 +29,7 @@ public:
 
     std::mutex& GetRessourceMutex() override;
     unsigned long GetMeshHandle() const;
-    void Unload() override;
+    void Unload(bool immediate) override;
 
     explicit MeshAsset(const std::filesystem::path &path);
 private:

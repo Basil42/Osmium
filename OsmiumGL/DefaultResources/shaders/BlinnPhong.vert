@@ -24,7 +24,8 @@ layout(location = 1)out BlingPhongFragInput{
 };
 
 void main() {
-    vec4 vertPos4 = VP.proj * VP.view * ubo.model * vec4(inPosition,1.0);
+    vec4 vertPos4 = VP.view * ubo.model * vec4(inPosition,1.0);
+    gl_Position = VP.proj * vertPos4;
     VPosition = vec3(vertPos4) / vertPos4.w;
     TexCoord0 = inTexCoordinates;
     vec4 VNormalHomogeneous = VP.view * ubo.normal * vec4(inNormal,1.0);

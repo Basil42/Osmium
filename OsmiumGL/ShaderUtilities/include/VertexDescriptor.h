@@ -7,8 +7,8 @@
 
 enum DefaultVertexAttributeFlags : unsigned int {
     POSITION = 1 << 0,
-    NORMAL = 1 << 1,
-    TEXCOORD0 = 1<<2,
+    TEXCOORD0 = 1<<1,
+    NORMAL = 1 << 2,
     //not explicitely supported by the obj file format
     TANGENT = 1<<3,
     BITANGENT0 = 1<<4,
@@ -27,7 +27,7 @@ inline DefaultVertexAttributeFlags& operator|=(DefaultVertexAttributeFlags& a, D
 
 struct VertexBufferDescriptor {
     unsigned int AttributeStride;
-    void* data;//pre offset pointer to source data
+    void* data;//starting index in the data buffer
     DefaultVertexAttributeFlags attribute;//should be a single flag
     unsigned int customAttribute;//should only be set if attribute is 0
     //vertex count is the same for every buffer allocated in a single mesh load, I'll ignore it for now

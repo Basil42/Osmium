@@ -7,7 +7,7 @@ layout(set = 1,binding = 0)uniform DirLightBlock//3 locations
     float DirLightIntensity;
 };
 layout(set = 2,binding = 0)uniform sampler2D texSampler;
-const vec3 AmbLightColor = vec3(0.1,0.1,0.1);
+const vec3 AmbLightColor = vec3(0.1,0.1,0.5);
 //should be handled by the sampler
 //layout(binding = 4)uniform screenGamma
 
@@ -24,6 +24,7 @@ layout(location = 1)in BlingPhongFragInput{//3locations
 layout(location = 0)out vec4 outColor;
 
 void main() {
+
     vec3 normal = normalize(VNormal);
     //here you'd compute distance for a non infinitely distance light source
 

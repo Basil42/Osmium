@@ -10,7 +10,7 @@ void DefaultAsset::Load() {
     std::cout << "trying to load an unsuported asset" << std::endl;
 }
 
-void DefaultAsset::Unload() {
+void DefaultAsset::Unload(bool immediate) {
     std::cout << "trying to unload an unsuported asset" << std::endl;
 }
 
