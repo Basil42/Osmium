@@ -174,13 +174,8 @@ void OsmiumGLInstance::createVertexAttributeBuffer(const void* vertexData,const 
     VmaAllocation stagingAllocation;
     vmaCreateBuffer(allocator,&stagingBufferCreateInfo,&vma_staging_allocation_create_info,&stagingBuffer,&stagingAllocation,nullptr);
 
-    //void* data;
-    vmaCopyMemoryToAllocation(allocator,buffer_descriptor.data,stagingAllocation,0,stagingBufferCreateInfo.size);
-    // auto result = vmaMapMemory(allocator,stagingAllocation,&data);
-    // if (result != VK_SUCCESS) throw std::runtime_error("failed to map staging buffer");
-    // memcpy(data,&buffer_descriptor.data,stagingBufferCreateInfo.size);
-    // vmaUnmapMemory(allocator,stagingAllocation);
 
+    vmaCopyMemoryToAllocation(allocator,buffer_descriptor.data,stagingAllocation,0,stagingBufferCreateInfo.size);
 
     createBuffer(buffer_descriptor.AttributeStride * vertexCount,
                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -327,6 +322,9 @@ void OsmiumGLInstance::StartFrame() {
 void OsmiumGLInstance::endImgGuiFrame() {
     ImGui::Render();
     imgGuiDrawData = ImGui::GetDrawData();
+    if (imgGuiDrawData == nullptr) {
+        throw std::runtime_error("imgGuiDrawData is null");
+    }
 }
 
 void OsmiumGLInstance::EndFrame(std::mutex& imGUiMutex,std::condition_variable& imGuiCV, bool& isImguiFrameReady) {
@@ -1029,7 +1027,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     std::unique_lock<std::mutex> ImGuiLock{imGuiMutex};
     imGuiUpdateCV.wait(ImGuiLock,[&isImGuiFrameComplete]{return isImGuiFrameComplete;});
     isImGuiFrameComplete = false;//imgui has to wait for a new frame now
-    RecordImGuiDrawCommand(commandBuffer, imgGuiDrawData);
+    if (imgGuiDrawData != nullptr)RecordImGuiDrawCommand(commandBuffer, imgGuiDrawData);
     ImGuiLock.unlock();
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -1876,7 +1874,7 @@ void OsmiumGLInstance::initVulkan() {
     setupImGui();
     passTree = new PassBindings();
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
-    DirLightUniform defaultLight = {.VLightDirection = glm::vec3(0.0f,1.0f,0.0f), .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 1.0f};
+    DirLightUniform defaultLight = {.VLightDirection = glm::vec3(1.0f,-1.0f,1.0f), .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 0.2f};
     defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame);
     defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame+1);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);

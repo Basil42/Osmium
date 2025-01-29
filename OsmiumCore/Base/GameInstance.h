@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <mutex>
 #include <vector>
+#include <glm/fwd.hpp>
 
 #include "GameObject.h"
 
@@ -32,6 +33,7 @@ class GameInstance {
 
     std::vector<GameObject> gameObjects;
     GOC_Camera* mainCamera;
+    static GameInstance * instance;
 
     GameObject * CreateNewGameObject();
 
@@ -53,6 +55,7 @@ public:
 
     void run();
 
+    static glm::mat4 getMainCameraViewMatrix();
 };
 
 struct gameConfig {

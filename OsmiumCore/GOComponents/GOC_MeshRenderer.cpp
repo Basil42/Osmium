@@ -14,6 +14,8 @@
 #include "../GOComponents/GOC_Transform.h"
 #include <glm/gtc/type_ptr.hpp>
 
+#include "../Base/GameInstance.h"
+
 std::vector<GOC_MeshRenderer*> GOC_MeshRenderer::renderers = std::vector<GOC_MeshRenderer*>();
 void GOC_MeshRenderer::Update() {
     if (!registered) return;
@@ -22,15 +24,16 @@ void GOC_MeshRenderer::Update() {
     glm::mat4 modelMatrix = transform->getTransformMatrix();
     const auto Modelptr = glm::value_ptr(modelMatrix);
     memcpy(&pushData[0], Modelptr, sizeof(modelMatrix));
-    glm::mat4 viewMatrix;//Missing a camera object, doing a single one later I canm loop through them and copy to different psuh constant buffers
+
     glm::mat4 normalMatrix = glm::transpose(glm::inverse(viewMatrix*modelMatrix));
     const auto normalPtr = glm::value_ptr(normalMatrix);
     memcpy(&pushData[sizeof(modelMatrix)], normalPtr, sizeof(normalMatrix));
 
     //add more for specialized materials with more constants
 }
-
+glm::mat4 GOC_MeshRenderer::viewMatrix = glm::mat4(1.0f);
 void GOC_MeshRenderer::GORenderUpdate() {
+    viewMatrix = GameInstance::getMainCameraViewMatrix();
     for (const auto entry: renderers) {
         entry->RenderUpdate();
     }

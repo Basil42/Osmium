@@ -28,6 +28,7 @@ class GOC_MeshRenderer : public GameObjectComponent {
     MatInstanceHandle materialInstance;
     MeshHandle mesh;
     bool shouldUpdateRenderObject = false;
+    static glm::mat4 viewMatrix;
 
     void UpdateRenderedObject();
 

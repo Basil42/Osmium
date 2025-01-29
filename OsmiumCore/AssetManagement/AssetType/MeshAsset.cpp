@@ -115,7 +115,7 @@ void MeshAsset::Load() {
     }
     std::byte *buffer = allocator.allocate(allocationSize);
     unsigned int offset = 0;
-    //I can probably turn that into a loop, everything is allignment 4
+    //I can probably turn that into a loop
     if (POSITION & vertexAttributeFlags) {
         unsigned int totalSize
         = sizeof(DefaultVertex::position) * vertexCount;
@@ -137,11 +137,6 @@ void MeshAsset::Load() {
         buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::normal), .data = buffer + offset,.attribute = NORMAL});
         offset += totalSize;
     }
-    //integrity of the data confirmed
-    // std::array<std::byte, 32*2012 +4 > testArray{};
-    // std::byte testValuePreCopy = testArray.back();
-    // memcpy(testArray.data(), buffer, allocationSize);
-    // std::byte testValuePostCopy = testArray.back();
     std::scoped_lock resourceLock(Resources::ResourceManager::getResourceMutex(type));
     std::cout << "attempting to load " << path.filename() << std::endl;
     OsmiumGL::LoadMesh(MeshHandle,buffer,vertexCount,buffersDescriptors,vertexAttributeFlags, customAttributeFlags, indices);

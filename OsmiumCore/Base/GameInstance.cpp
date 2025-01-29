@@ -9,6 +9,10 @@
 #include <thread>
 
 
+#include "BlinnPhongVertex.h"
+#include "BlinnPhongVertex.h"
+#include "BlinnPhongVertex.h"
+#include "BlinnPhongVertex.h"
 #include "OsmiumGL_API.h"
 #include "../AssetManagement/AssetManager.h"
 #include "../AssetManagement/AssetType/MeshAsset.h"
@@ -16,7 +20,7 @@
 #include "../GOComponents/GOC_Transform.h"
 #include "../GOComponents/GOC_Camera.h"
 
-
+GameInstance* GameInstance::instance = nullptr;
 void GameInstance::GameLoop() {
     //double lastFrameTime = glfwGetTime();
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
@@ -53,6 +57,7 @@ void GameInstance::RenderDataUpdate() {
 
 void GameInstance::run() {
 
+    instance = this;
     OsmiumGL::Init();
     //load the initial assets, probably in its own thread
     AssetManager::LoadAssetDatabase();
@@ -61,7 +66,7 @@ void GameInstance::run() {
     auto CameraGO = CreateNewGameObject();
     auto mainCamTransform = CameraGO->Addcomponent<GOC_Transform>();
     mainCamera = CameraGO->Addcomponent<GOC_Camera>();
-    //mainCamTransform->SetTransformMatrix(glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)));
+    //mainCamTransform->SetTransformMatrix(glm::lookAt(glm::vec3(2.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)));
 
 
     auto SimulationThread = std::thread(GameLoop,this);
@@ -85,7 +90,7 @@ void GameInstance::run() {
         RenderDataUpdate();
         isRenderUpdateOver = true;
         RenderDataLock.unlock();
-        renderDataUpdateConditionVariable.notify_one();
+        renderDataUpdateConditionVariable.notify_one();//probably notify all
 
     }
 
@@ -108,6 +113,10 @@ void GameInstance::run() {
     //     OsmiumGL::EndFrame();
     // }
     // OsmiumGL::Shutdown();
+}
+
+glm::mat4 GameInstance::getMainCameraViewMatrix() {
+    return instance->mainCamera->GetViewMatrix();
 }
 
 GameObject * GameInstance::CreateNewGameObject() {

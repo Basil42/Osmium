@@ -12,7 +12,10 @@ void GOC_Camera::Update() {
         glm::mat4 model = transform->getTransformMatrix();
     if (rotationMode == ROTATION_MODE_TRANSFORM) {
         //glm::mat4 model = transform->getModelMatrix();
-        viewMatrix = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f));//glm::inverse(model);
+        static auto startTime = std::chrono::high_resolution_clock::now();
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        viewMatrix = glm::lookAt(glm::vec3(4.0f * glm::cos(time),0.0f,4.0f * glm::sin(time)),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,1.0f,0.0f));//glm::inverse(model);
     }
     if (rotationMode == ROTATION_MODE_TARGET) {
         const glm::vec3 Pos = transform->getPosition();
@@ -31,4 +34,8 @@ GOC_Camera::GOC_Camera(GameObject *parent) : GameObjectComponent(parent){
 void GOC_Camera::RenderUpdate() {
     GameObjectComponent::RenderUpdate();
     OsmiumGL::UpdateMainCameraData(viewMatrix, glm::radians(verticalFoV));
+}
+
+glm::mat4 GOC_Camera::GetViewMatrix() {
+    return viewMatrix;
 }

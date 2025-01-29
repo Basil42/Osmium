@@ -28,7 +28,7 @@ void main() {
     gl_Position = VP.proj * vertPos4;
     VPosition = vec3(vertPos4) / vertPos4.w;
     TexCoord0 = inTexCoordinates;
-    vec4 VNormalHomogeneous = VP.view * ubo.normal * vec4(inNormal,1.0);
+    vec4 VNormalHomogeneous = ubo.normal * vec4(inNormal,1.0);
     VNormal = vec3(VNormalHomogeneous)/VNormalHomogeneous.w;
     VertexColor = vec4(vec3(1.0,1.0,1.0),1.0f);
     DiffuseColor = vec3(1.0,1.0,1.0);;
