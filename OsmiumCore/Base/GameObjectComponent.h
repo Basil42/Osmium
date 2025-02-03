@@ -22,7 +22,7 @@ public:
     virtual void Update() {};//used for a more classical loop based update
     virtual void RenderUpdate() {}
     [[nodiscard]] GameObject* GetGameObject() const {return parent;}
-    [[nodiscard]] GOC_Handle GetHandle() const {return handle;}
+    [[nodiscard]] GOC_Handle GetObjectHandle() const {return handle;}
     GameObjectComponent() = delete;
     virtual ~GameObjectComponent() = default;
 };

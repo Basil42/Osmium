@@ -62,6 +62,8 @@ public:
 
     void UpdateCameraData(glm::mat4 viewMat, float radianVFOV);
 
+    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
+
 
     //MaterialHandle RegisterMaterial()
 

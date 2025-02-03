@@ -8,13 +8,16 @@
 #include <glm/glm.hpp>
 #include <glm/detail/type_quat.hpp>
 
+#include "../Base/GameObject.h"
 #include "../Base/GameObjectComponent.h"
+#include "../Base/GameObjectCreation.h"
 #include "../Helpers/Properties.h"
+struct GOC_TransformCreateData : GameObjectComponentCreateInfo{//afraid this solution will quickly slow down compilation
+    GameObjectHandle parent;
 
+};
 
 class GOC_Transform : public GameObjectComponent {
-protected:
-    ~GOC_Transform() override;
 
 private:
     glm::mat4 model = glm::mat4(1.0f);
@@ -42,6 +45,7 @@ public:
 
     explicit GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform);
     explicit GOC_Transform(GameObject* parent);//That should be essentially automated
+    ~GOC_Transform() override;
 };
 
 

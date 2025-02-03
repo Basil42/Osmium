@@ -42,6 +42,8 @@ set(OSMIUMCORE_HEADERS
         AssetManagement/AssetType/DefaultAsset.h
         GOComponents/GOC_Camera.cpp
         GOComponents/GOC_Camera.h
+        Base/GameObjectCreation.h
+        Base/config.h
 )
 
 add_library(OsmiumCore STATIC
@@ -53,6 +55,7 @@ add_library(OsmiumCore STATIC
 target_link_libraries(OsmiumCore PUBLIC OsmiumGL)
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumCore PUBLIC glm::glm)
+target_link_libraries(OsmiumCore PUBLIC OsmiumCommon)
 
 add_executable(CoreTest main.cpp)
 target_link_libraries(CoreTest PRIVATE OsmiumCore)

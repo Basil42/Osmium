@@ -26,10 +26,35 @@ class  ResourceArray {
   bool contains(unsigned int handle);
   T get(unsigned int handle);
 
+  T* getRef(unsigned int handle);
+
+  T& operator[](unsigned int handle);
+
   unsigned int GetCount() {
     return resourceVector.size();
   }
+  //enabling range loop on this struct
+  auto begin() {
+    return resourceVector.begin();
+  }
+  auto end() {
+    return resourceVector.end();
+  }
+  auto cbegin() {
+    return resourceVector.cbegin();
+  }
+  auto cend() {
+    return resourceVector.cend();
+  }
+  auto begin() const {
+    return resourceVector.begin();
+  }
+  auto end() const {
+    return resourceVector.end();
+  }
 
+
+  unsigned int emplace_new(T*& newEntryPtr);
 };
 
 template<typename T, size_t MAX_Capacity>
@@ -94,5 +119,33 @@ T ResourceArray<T, MAX_Capacity>::get(unsigned int handle) {
     return T();
   }
   return resourceVector[backingArray[handle]];
+}
+
+template<typename T, size_t MAX_Capacity>
+T* ResourceArray<T, MAX_Capacity>::getRef(unsigned int handle) {
+  if (backingArray[handle] >= MAX_Capacity) [[unlikely]] {
+    throw std::runtime_error("Attempted to get a non valid resource,it might have been unloaded or the handle might be invalid");
+  }
+  return &resourceVector[backingArray[handle]];
+}
+
+template<typename T, size_t MAX_Capacity>
+unsigned int ResourceArray<T, MAX_Capacity>::emplace_new(T *&newEntryPtr) {//to add to the array without copy
+  if (resourceVector.size() == MAX_Capacity) [[unlikely]] {
+    throw std::out_of_range("Resource array resource capacity exceeded");
+  }
+  resourceVector.emplace_back();
+  unsigned int checks = 0;//sanity check
+  while (backingArray[nextHandle % MAX_Capacity] < MAX_Capacity && ++checks < MAX_Capacity) {
+    nextHandle++;
+  }
+  if (checks >= MAX_Capacity) [[unlikely]] {
+    throw std::runtime_error("No available handle.");//This is an implementation error, as it should not happen
+  }
+  unsigned int newHandle = nextHandle;
+  nextHandle = (nextHandle +1) % MAX_Capacity;
+  backingArray[newHandle] = resourceVector.size() -1;
+  newEntryPtr = &resourceVector[backingArray[newHandle]];
+  return newHandle;
 }
 #endif //RESOURCEARRAY_H

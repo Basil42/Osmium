@@ -303,6 +303,7 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
         defautlMaterialInstanceData.descriptorSets[i].push_back(descriptorSets[i]);
     }
     defaultBlinnPhongInstanceHandle = materialInstanceArray->Add(defautlMaterialInstanceData);
+    materialData.instances.push_back(defaultBlinnPhongInstanceHandle);
     blinnPhongMaterialHandle = materialResourceArray->Add(materialData);
     materialData.instances.push_back(defaultBlinnPhongInstanceHandle);
 

@@ -63,7 +63,7 @@ void OsmiumGL::UpdateMainCameraData(glm::mat4 mat, float radianVFoV) {
 }
 
 MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
-    throw std::runtime_error("accessing default material instance is not implemented yet");
+    return instance->GetLoadedMaterialDefaultInstance(material);
 }
 
 

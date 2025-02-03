@@ -72,7 +72,7 @@ void GOC_Transform::SetTransformMatrix(glm::mat4 mat) {
 GOC_Transform::GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform = nullptr): GameObjectComponent(parent) {
     SetTransformMatrix(glm::mat4(1.0f));
     if (NewParentTransform) {
-        parentTransform = NewParentTransform->GetHandle();
+        parentTransform = NewParentTransform->GetObjectHandle();
     } else {
         parentTransform = 0; //0 shoudl be the root transform
     }

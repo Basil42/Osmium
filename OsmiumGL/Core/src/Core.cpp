@@ -306,6 +306,10 @@ void OsmiumGLInstance::UpdateCameraData(glm::mat4 viewMat, float radianVFOV) {
     defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
 }
 
+MatInstanceHandle OsmiumGLInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
+    return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
+}
+
 
 void OsmiumGLInstance::startImGuiFrame() {
     ImGui_ImplVulkan_NewFrame();
