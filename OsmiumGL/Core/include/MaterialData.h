@@ -7,8 +7,9 @@
 #include <vulkan/vulkan_core.h>
 
 #include "config.h"
-#include "ResourceArray.h"
 #include "VertexDescriptor.h"
+#include <array>
+#include <vector>
 
 struct MaterialInstanceData {
   std::array<std::vector<VkDescriptorSet>,MAX_FRAMES_IN_FLIGHT> descriptorSets;

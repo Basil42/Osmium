@@ -66,6 +66,10 @@ MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle mate
     return instance->GetLoadedMaterialDefaultInstance(material);
 }
 
+MeshHandle OsmiumGL::LoadMesh(const std::filesystem::path &path) {
+    return instance->loadMesh(path, POSITION | NORMAL | TEXCOORD0);
+}
+
 
 bool OsmiumGL::RegisterRenderedObject(RenderedObject &rendered_object) {
     return instance->AddRenderedObject(rendered_object);
@@ -85,8 +89,8 @@ void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector
 }
 
 void OsmiumGL::LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count,
-    const std::vector<VertexBufferDescriptor> &bufferDescriptors,DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attribute_flags, const std::vector<unsigned int> &indices) {
-    mesh_handle = instance->LoadMesh(verticesData,attribute_flags,custom_attribute_flags,vertex_count, bufferDescriptors, indices);
+    const std::vector<VertexBufferDescriptor> &bufferDescriptors,DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices) {
+    mesh_handle = instance->LoadMesh(verticesData,attribute_flags,vertex_count,bufferDescriptors, indices);
 }
 
 void OsmiumGL::ImguiEndImGuiFrame() {

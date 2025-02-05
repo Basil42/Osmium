@@ -42,6 +42,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/VertexDescriptor.h
         ShaderUtilities/include/DefaultSceneDescriptorSets.h
         Common/include/UniformBufferObject.h
+        API/include/MeshInfo.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
@@ -75,6 +76,7 @@ target_link_libraries(OsmiumGL PRIVATE tinyobjloader::tinyobjloader)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
+target_compile_features(OsmiumGL PRIVATE cxx_std_20)
 
 
 set(CMAKE_EXE_LINKER_FLAGS " -static")

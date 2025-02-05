@@ -6,14 +6,11 @@
 #define GAMEOBJECT_H
 #include <functional>
 #include <map>
-#include <stdexcept>
 #include <string>
 #include <typeindex>
 #include <vector>
 
-#include "config.h"
 #include "GameObjectComponent.h"
-#include "ResourceArray.h"
 
 typedef unsigned int GameObjectHandle;
 /**

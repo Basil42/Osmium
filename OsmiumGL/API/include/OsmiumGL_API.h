@@ -13,6 +13,7 @@
 #include "DefaultVertex.h"
 #include "RenderedObject.h"
 #include "VertexDescriptor.h"
+#include <filesystem>
 
 
 class OsmiumGLInstance;
@@ -46,6 +47,8 @@ public:
 
     static MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
 
+    static MeshHandle LoadMesh(const std::filesystem::path &path);
+
     static std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors;
 
     static bool RegisterRenderedObject(RenderedObject &rendered_object);
@@ -55,10 +58,8 @@ public:
     static void UnloadMesh(unsigned long mesh_handle, bool immediate);
 
     static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>  &vertices, std::vector<unsigned>  &indices);
-
     static void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
-                         bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attribute_flags, const std::vector<
-                         unsigned int> &indices);
+                         bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices);
 
     static void ImguiEndImGuiFrame();
 

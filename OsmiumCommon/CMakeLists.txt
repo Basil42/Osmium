@@ -3,7 +3,8 @@ project(OsmiumCommon)
 
 set(CMAKE_CXX_STANDARD 20)
 set(OSMIUMCOMMONHEADERS
-        include/ResourceArray.h)
+        include/ResourceArray.h
+        include/MeshFileLoading.h)
 
 add_library(OsmiumCommon STATIC
     ${OSMIUMCOMMONHEADERS})

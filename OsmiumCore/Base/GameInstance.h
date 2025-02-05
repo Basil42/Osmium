@@ -15,10 +15,8 @@
 #include "config.h"
 #include "GameObject.h"
 #include "GameObjectCreation.h"
-#include "ResourceArray.h"
-
+template <typename T,size_t Max_Capacity>class ResourceArray;
 class GOC_Camera;
-
 class GameInstance {
     //syncing stuff
     std::mutex SimulationCompletionMutex;
@@ -35,7 +33,7 @@ class GameInstance {
     bool ImGuiShouldShutoff;
     bool simShouldShutoff;
 
-    ResourceArray<GameObject,MAX_GAMEOBJECTS> GameObjects;
+    ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;
     std::vector<GameObject> gameObjects;//Problem -> I need handles for these, as passing pointers around is dangerous
     std::queue<std::pair<GameObjectCreateInfo,std::function<void(GameObject*)>>> gameObjectsCreationQueue;
     std::queue<GameObjectHandle> gameObjectsDestructionQueue;

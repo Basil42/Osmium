@@ -8,17 +8,13 @@
 #include <imgui.h>
 #include <thread>
 
-
-#include "BlinnPhongVertex.h"
-#include "BlinnPhongVertex.h"
-#include "BlinnPhongVertex.h"
-#include "BlinnPhongVertex.h"
 #include "OsmiumGL_API.h"
 #include "../AssetManagement/AssetManager.h"
 #include "../AssetManagement/AssetType/MeshAsset.h"
 #include "../GOComponents/GOC_MeshRenderer.h"
 #include "../GOComponents/GOC_Transform.h"
 #include "../GOComponents/GOC_Camera.h"
+#include "ResourceArray.h"
 
 GameInstance* GameInstance::instance = nullptr;
 void GameInstance::GameLoop() {
@@ -36,21 +32,21 @@ void GameInstance::GameLoop() {
             auto entry = gameObjectsCreationQueue.front();
             gameObjectsCreationQueue.pop();
             GameObject* newObj;
-            auto handle = GameObjects.emplace_new(newObj);
+            auto handle = GameObjects->emplace_new(newObj);
             newObj->Name = entry.first.name;
             newObj->Handle = handle;
             entry.second(newObj);
         }
 
         //Do simulation things
-        for (auto& game_object : GameObjects) {
+        for (auto& game_object : *GameObjects) {
             game_object.UpdateComponents();
         }
 
         while (!gameObjectsDestructionQueue.empty()) {
             const GameObjectHandle obj = gameObjectsDestructionQueue.front();
             gameObjectsDestructionQueue.pop();
-            GameObjects.Remove(obj);//This should be the only call to remove on this container
+            GameObjects->Remove(obj);//This should be the only call to remove on this container
         }
         isSimOver = true;
         SimulationLock.unlock();
@@ -73,6 +69,7 @@ void GameInstance::RenderDataUpdate() {
 void GameInstance::run() {
 
     instance = this;
+    GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
     OsmiumGL::Init();
     //load the initial assets, probably in its own thread
     AssetManager::LoadAssetDatabase();
@@ -128,6 +125,7 @@ void GameInstance::run() {
     LoadingThread.join();
     AssetManager::UnloadAll();
     OsmiumGL::Shutdown();
+    delete GameObjects;
     // io = ImGui::GetIO();
     // while (!OsmiumGL::ShouldClose()) {
     //     OsmiumGL::StartFrame();

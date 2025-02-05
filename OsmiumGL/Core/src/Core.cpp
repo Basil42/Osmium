@@ -37,7 +37,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <tiny_obj_loader.h>
 #include <unordered_map>
 
 #include "config.h"
@@ -45,6 +44,7 @@
 #include "DefaultShaders.h"
 #include "ShaderUtilities.h"
 #include "DefaultVertex.h"
+#include "MeshFileLoading.h"
 #include "PassBindings.h"
 #include "UniformBufferObject.h"
 #include "../include/MaterialData.h"
@@ -214,13 +214,13 @@ void OsmiumGLInstance::createIndexBuffer(const std::vector<unsigned int> &indice
     vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 }
 
-MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttributeFlags attribute_flags,unsigned int custom_attributeFlags, unsigned int vertex_count,
+MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttributeFlags attribute_flags, unsigned int vertex_count,
                                       const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices) {
     MeshData meshData;
+    //attribute flags and custom attribute flages should be built from the vertex buffer descriptor instead of being trusted as correct
     meshData.attributeFlags = attribute_flags;
-    meshData.customAttributesFlags = custom_attributeFlags;
     meshData.numVertices = vertex_count;
-    std::lock_guard<std::mutex> meshDataLock(meshDataMutex);
+    std::lock_guard meshDataLock(meshDataMutex);
     for (const auto& buffer_descriptor: bufferDescriptors) {
         VkBuffer buffer_handle;
         VmaAllocation buffer_memory;
@@ -308,6 +308,70 @@ void OsmiumGLInstance::UpdateCameraData(glm::mat4 viewMat, float radianVFOV) {
 
 MatInstanceHandle OsmiumGLInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
+}
+
+MeshHandle OsmiumGLInstance::loadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags) {
+    std::vector<DefaultVertex> vertices;
+    std::vector<uint32_t> indices;
+    //check that the file extension is supported
+    auto fileExtension = path.extension();
+    if(fileExtension == ".obj") {
+        //obj loading here, might encapsulate later for more formats
+        MeshFileLoading::LoadFromObj(vertices, indices, path);
+
+    }else {
+        throw std::runtime_error("File extension " + fileExtension.string() + "  is not supported");
+    }
+
+    std::vector<VertexBufferDescriptor> buffersDescriptors;
+    unsigned int vertexCount = vertices.size();
+    std::allocator<std::byte> allocator;
+    unsigned int allocationSize = 0;
+    if (POSITION & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::position);
+    if (TEXCOORD0 & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::texCoordinates);
+    if (NORMAL & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::normal);
+    //add more inbuilt attribute here and in the default vertex struct
+    allocationSize*= vertexCount;
+
+    //there are probably nicer de interleaving algorithm somewhere
+    std::vector<glm::vec3> positions(vertexCount);
+    std::vector<glm::vec2> texcoords(vertexCount);
+    std::vector<glm::vec3> normals(vertexCount);
+    //doing everything in one loop is likely better cache wise
+    for(unsigned int i = 0; i < vertices.size(); i++) {
+        positions[i] = vertices[i].position;
+        texcoords[i] = vertices[i].texCoordinates;
+        normals[i] = vertices[i].normal;
+    }
+    std::byte *buffer = allocator.allocate(allocationSize);
+    unsigned int offset = 0;
+    //I can probably turn that into a loop
+    if (POSITION & vertexAttributeFlags) {
+        unsigned int totalSize
+                = sizeof(DefaultVertex::position) * vertexCount;
+        memcpy(buffer + offset, positions.data(), totalSize);
+        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::position), .data = buffer + offset,.attribute = POSITION});
+        offset += totalSize;
+    }
+    if (TEXCOORD0 & vertexAttributeFlags) {
+        unsigned int totalSize
+                = sizeof(DefaultVertex::texCoordinates) * vertexCount;
+        memcpy(buffer + offset, texcoords.data(), totalSize);
+        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::texCoordinates), .data = buffer + offset,.attribute = TEXCOORD0});
+        offset += totalSize;
+    }
+    if (NORMAL & vertexAttributeFlags) {
+        unsigned int totalSize
+                = sizeof(DefaultVertex::normal) * vertexCount;
+        memcpy(buffer + offset, normals.data(), totalSize);
+        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::normal), .data = buffer + offset,.attribute = NORMAL});
+        offset += totalSize;
+    }
+    std::cout << "attempting to load " << path.filename() << std::endl;
+    const MeshHandle result = LoadMesh(buffer,vertexAttributeFlags,vertexCount,buffersDescriptors,indices);
+    allocator.deallocate(buffer, allocationSize);
+    std::cout << "loaded " << path.filename() << std::endl;
+    return result;
 }
 
 
@@ -947,7 +1011,7 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                 std::vector<VkBuffer> vertexBuffers;
                 std::vector<VkDeviceSize> vertexBuffersOffsets;
                 auto defaultAttribute = static_cast<DefaultVertexAttributeFlags>(1);
-                while (defaultAttribute <= MAX_VERTEX_ATTRIBUTE_FLAGS) {
+                while (defaultAttribute <= MAX_BUILTIN_VERTEX_ATTRIBUTE_FLAGS) {
                     try {
                         if (defaultAttribute & matData.VertexInputAttributes) {
                         vertexBuffers.push_back(data.VertexAttributeBuffers.at(defaultAttribute).first);//This is not a good spot for a vector, acceptable for now

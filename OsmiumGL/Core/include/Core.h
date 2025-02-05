@@ -16,6 +16,7 @@
 
 
 #include <InitUtilVk.h>
+#include <filesystem>
 #include <bits/std_mutex.h>
 
 #include "RenderedObject.h"
@@ -48,7 +49,7 @@ public:
     void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VmaMemoryUsage memory_usage, VkBuffer &vk_buffer, VmaAllocation &
                       vma_allocation, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
 
-    MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int custom_attributeFlags, unsigned int
+    MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh, bool immediate);
 
@@ -64,6 +65,7 @@ public:
 
     MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
 
+    MeshHandle loadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags);
 
     //MaterialHandle RegisterMaterial()
 

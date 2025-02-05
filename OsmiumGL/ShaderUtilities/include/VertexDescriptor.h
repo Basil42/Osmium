@@ -13,7 +13,7 @@ enum DefaultVertexAttributeFlags : unsigned int {
     TANGENT = 1<<3,
     BITANGENT0 = 1<<4,
     JOINTID = 1<<5,
-    MAX_VERTEX_ATTRIBUTE_FLAGS = JOINTID
+    MAX_BUILTIN_VERTEX_ATTRIBUTE_FLAGS = JOINTID
 };
 
 constexpr DefaultVertexAttributeFlags operator|(DefaultVertexAttributeFlags a, DefaultVertexAttributeFlags b) {
