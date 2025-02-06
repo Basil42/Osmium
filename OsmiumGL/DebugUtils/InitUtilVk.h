@@ -18,7 +18,7 @@ inline PFN_vkCmdPushDescriptorSetWithTemplateKHR pushSetWithTemplateFuncPtr = nu
 //
 class vkInitUtils {
 public:
-    static std::vector<const char*> getRequiredExtensions() {//TODO:Move to utility folder
+    static std::vector<const char*> getRequiredExtensions() {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);

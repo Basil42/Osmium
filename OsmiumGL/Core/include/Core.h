@@ -203,8 +203,6 @@ private:
 
     void createSwapChainImageViews();
 
-    void createGraphicsPipeline();
-
     void createRenderPass();
 
     void createFrameBuffer();
