@@ -67,7 +67,7 @@ MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle mate
 }
 
 MeshHandle OsmiumGL::LoadMesh(const std::filesystem::path &path) {
-    return instance->loadMesh(path, POSITION | NORMAL | TEXCOORD0);
+    return instance->LoadMesh(path, POSITION | NORMAL | TEXCOORD0);
 }
 
 

@@ -31,51 +31,47 @@ struct PassBindings;
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
     friend class DefaultShaders;
+
     void initialize();
 
+    //Mesh loading
     unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
-
-    void RemoveRenderedObject(RenderedObject rendered_object) const;
-
-    bool AddRenderedObject(RenderedObject rendered_object) const;
-    void RemoveMaterial(MaterialHandle material) const;
-    MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
-
+    void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation);
     void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation
                                      &vma_allocation) const;
+    MeshHandle LoadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags);
+    MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
+                        vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
+    void UnloadMesh(MeshHandle mesh, bool immediate);
+    [[nodiscard]] MeshData getMeshData(MeshHandle mesh_handle) const;
 
-    void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation);
+    bool AddRenderedObject(RenderedObject rendered_object) const;
+    void RemoveRenderedObject(RenderedObject rendered_object) const;
+
+    //Material loading
+    MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
+    void RemoveMaterial(MaterialHandle material) const;
+    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
+    [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
+    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
+
+
 
     void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VmaMemoryUsage memory_usage, VkBuffer &vk_buffer, VmaAllocation &
                       vma_allocation, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
 
-    MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
-                        vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
-    void UnloadMesh(MeshHandle mesh, bool immediate);
+    //Scene descriptors, not exposed to the api
+    [[nodiscard]] VkDescriptorSetLayout GetLitDescriptorLayout() const;
+    [[nodiscard]] VkDescriptorSetLayout GetCameraDescriptorLayout() const;
 
-    VkDescriptorSetLayout GetLitDescriptorLayout() const;
-
-    VkDescriptorSetLayout GetCameraDescriptorLayout() const;
-
-
-    void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map);
-
-
-    void UpdateCameraData(glm::mat4 viewMat, float radianVFOV);
-
-    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
-
-    MeshHandle loadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags);
-
-    //MaterialHandle RegisterMaterial()
-
-    static void startImGuiFrame();
-
+    //per frame updates
     static void StartFrame();
-
+    void UpdateCameraData(glm::mat4 viewMat, float radianVFOV);
+    void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map);
+    static void startImGuiFrame();
     void endImgGuiFrame();
-
     void EndFrame(std::mutex &imGUiMutex, std::condition_variable &imGuiCV, bool &isImguiFrameReady);
+
 
     void Shutdown();
 
@@ -180,6 +176,7 @@ private:
 
     //Light descriptor sets
     DefaultSceneDescriptorSets* defaultSceneDescriptorSets;
+    uint32_t currentFrame = 0;
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -191,6 +188,7 @@ private:
 #endif
 
 
+    //resource creation
     void setupDebugMessenger();;
 
     void pickPhysicalDevice();
@@ -199,6 +197,7 @@ private:
 
     void createLogicalSurface();
 
+    void createAllocator();
 
     void createSwapChain();
 
@@ -215,23 +214,15 @@ private:
 
     void createCommandBuffers();
 
-    void VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const;
+    void createSyncObjects();
 
     void RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const;
 
-    [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
-    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
-    [[nodiscard]] MeshData getMeshData(MeshHandle mesh_handle) const;
 
     void DrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginIno, const PassBindings &passBindings) const;
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, std::mutex &imGuiMutex, std::condition_variable &imGuiUpdateCV, bool
                              &isImGuiFrameComplete) const;
-
-    void createSyncObjects();
-
-
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const;
 
     void createVertexBuffer();
 
@@ -246,58 +237,46 @@ private:
 
     void createEmptyTextureImage(VkImage &vk_image, VmaAllocation &imageAllocation);
     void createTextureImage(const char *path);
-    void generateMipMaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) const;
-    void loadModel(const char *path);
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) const;
-
-    VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
-    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue) const;
-
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
-
 
     void createTextureSampler(VkSampler &sampler);
     void createTextureSampler();
-
     void createDepthResources();
+    void createColorResources();
 
+    //resource creation utility, could move some of these into utilitty classes
+    [[nodiscard]] VkSampleCountFlagBits getMaxSampleCount() const;
     [[nodiscard]] VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,
                                  VkFormatFeatureFlags features) const;
 
     [[nodiscard]] VkFormat findDepthFormat() const;
-    VkSampleCountFlagBits getMaxSampleCount() const;
-
     static bool hasStencilComponent(VkFormat format);
 
-    void createColorResources();
+    //operation on resources
+    void generateMipMaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) const;
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) const;
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const;
 
+    //single time command
+    VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue) const;
+
+
+
+
+    //internal initialization
+    void initWindow();
+    void initVulkan();
     void setupImGui();
 
-    void VikingTest();
-
-    void createAllocator();
-
-    void createDefaultMeshBuffers(const std::vector<DefaultVertex> &vertexVector, const std::vector<uint32_t> &indicesVector, VkBuffer& vertexBuffer, VmaAllocation&
-                                  vertexAllocation, VkBuffer& indexBuffer, VmaAllocation& indexAllocation);
-    void initVulkan();
-
+    //internal cleanup
     void cleanupSwapChain();
-    // ReSharper disable once CppMemberFunctionMayBeConst
     void cleanup();
 
+    //internal per frame update
     static void frameBufferResizeCallback(GLFWwindow *window, int width, int height);
-
-    void initWindow();
-
-    uint32_t currentFrame = 0;
-
-    void updateUniformBuffer(uint32_t currentImage) const;
-
-
-    void drawFrame(std::mutex &imGuiMutex, std::condition_variable &imGuiCV, bool &isImGuiFrameComplete);
     void recreateSwapChain();
+    void drawFrame(std::mutex &imGuiMutex, std::condition_variable &imGuiCV, bool &isImGuiFrameComplete);
 };
-
-
 #endif //CORE_H

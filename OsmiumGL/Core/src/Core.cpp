@@ -310,7 +310,7 @@ MatInstanceHandle OsmiumGLInstance::GetLoadedMaterialDefaultInstance(MaterialHan
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
 }
 
-MeshHandle OsmiumGLInstance::loadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags) {
+MeshHandle OsmiumGLInstance::LoadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags) {
     std::vector<DefaultVertex> vertices;
     std::vector<uint32_t> indices;
     //check that the file extension is supported
@@ -1419,42 +1419,6 @@ void OsmiumGLInstance::generateMipMaps(VkImage image,VkFormat imageFormat, int32
     endSingleTimeCommands(command_buffer, graphicsQueue);
 }
 
-void OsmiumGLInstance::loadModel(const char *path) {
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn,err;
-
-    if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path)) {
-        throw std::runtime_error(warn +err);
-    }
-
-    std::unordered_map<DefaultVertex, uint32_t> uniqueVertices {};
-    bool useTextCoord = !attrib.texcoords.empty();
-    for(const auto& shape : shapes) {
-        for(const auto& index : shape.mesh.indices) {
-            DefaultVertex vertex{
-            .position = {
-                attrib.vertices[3* index.vertex_index + 0],
-                attrib.vertices[3* index.vertex_index + 1],
-                attrib.vertices[3* index.vertex_index + 2]},
-            .color = {1.0f,1.0f,1.0f},
-            .texCoordinates = {
-                useTextCoord ? attrib.texcoords[2 * index.texcoord_index +0]: 0.0f,
-                 useTextCoord ? 1.0f - attrib.texcoords[2 * index.texcoord_index + 1] : 0.0f},
-            };
-
-            if(!uniqueVertices.contains(vertex)) {
-                uniqueVertices[vertex] = static_cast<uint32_t>(uniqueVertices.size());
-                vertices.push_back(vertex);
-            }
-            indices.push_back(uniqueVertices[vertex]);
-        }
-    }
-    if(vertices.size() < 128)
-        vertices.reserve(vertices.size());
-}
-
 void OsmiumGLInstance::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const {
     VkCommandBuffer cmdBuffer = beginSingleTimeCommands(graphicsQueue);
 
@@ -1844,71 +1808,72 @@ void OsmiumGLInstance::createAllocator() {
     vmaCreateAllocator(&allocatorCreateInfo,&allocator);
 }
 
-void OsmiumGLInstance::createDefaultMeshBuffers(const std::vector<DefaultVertex> &vertexVector, const std::vector<uint32_t> &indicesVector,VkBuffer &vertexBuffer,VmaAllocation &vertexAllocation, VkBuffer &indexBuffer,VmaAllocation & indexAllocation)
-{
-    {
-        VkBufferCreateInfo vertexStagingBufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        vertexStagingBufferInfo.size = sizeof(DefaultVertex) * vertexVector.size();
-        vertexStagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-        VmaAllocationCreateInfo vertexStagingAllocationCreateInfo = {
-            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            .usage = VMA_MEMORY_USAGE_AUTO,};
-
-        VkBuffer vertexStagingBuffer;
-        VmaAllocation vertexStagingAlloc;
-        //VmaAllocationInfo vertexStagingAllocationInfo;
-        vmaCreateBuffer(allocator,&vertexStagingBufferInfo,&vertexStagingAllocationCreateInfo,&vertexStagingBuffer,&vertexStagingAlloc,nullptr);
-
-        void* data;
-        vmaMapMemory(allocator,vertexStagingAlloc,&data);
-        memcpy(data,vertexVector.data(),vertexStagingBufferInfo.size);
-        vmaUnmapMemory(allocator,vertexStagingAlloc);
-
-        VkBufferCreateInfo vertexBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        vertexBufferCreateInfo.size = sizeof(DefaultVertex) * vertexVector.size();
-        vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        VmaAllocationCreateInfo vertexBufferAllocationCreateInfo;
-        vertexBufferCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        vmaCreateBuffer(allocator,&vertexBufferCreateInfo,&vertexBufferAllocationCreateInfo,&vertexBuffer,&vertexAllocation,nullptr);
-        copyBuffer(vertexStagingBuffer,vertexBuffer,vertexBufferCreateInfo.size);
-
-        vmaDestroyBuffer(allocator,vertexStagingBuffer,vertexStagingAlloc);
-    }
-
-    {
-        //index buffer
-        VkBufferCreateInfo indexStagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        indexStagingBufferCreateInfo.size = sizeof(uint32_t) * indicesVector.size();
-        indexStagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        VmaAllocationCreateInfo indexStagingAllocationCreateInfo{
-            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            .usage = VMA_MEMORY_USAGE_AUTO,};
-
-        VkBuffer indexStagingBuffer;
-        VmaAllocation indexStagingAlloc;
-        vmaCreateBuffer(allocator, &indexStagingBufferCreateInfo, &indexStagingAllocationCreateInfo,
-                        &indexStagingBuffer, &indexStagingAlloc, nullptr);
-
-        void* data;
-        vmaMapMemory(allocator,indexStagingAlloc,&data);
-        memcpy(data,indicesVector.data(),sizeof(uint32_t) * indicesVector.size());
-        vmaUnmapMemory(allocator,indexStagingAlloc);
-        VkBufferCreateInfo indexBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        indexBufferCreateInfo.size = sizeof(uint32_t) * indicesVector.size();
-        indexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        VmaAllocationCreateInfo indexBufferAllocationCreateInfo;
-        indexBufferCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        vmaCreateBuffer(allocator, &indexBufferCreateInfo, &indexBufferAllocationCreateInfo, &indexBuffer, &indexAllocation,nullptr);
-        copyBuffer(indexStagingBuffer,indexBuffer,indexBufferCreateInfo.size);
-        vmaDestroyBuffer(allocator,indexStagingBuffer,indexStagingAlloc);
-
-
-    }
-
-
-
-}
+//kept here as an reference example
+// void OsmiumGLInstance::createDefaultMeshBuffers(const std::vector<DefaultVertex> &vertexVector, const std::vector<uint32_t> &indicesVector,VkBuffer &vertexBuffer,VmaAllocation &vertexAllocation, VkBuffer &indexBuffer,VmaAllocation & indexAllocation)
+// {
+//     {
+//         VkBufferCreateInfo vertexStagingBufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+//         vertexStagingBufferInfo.size = sizeof(DefaultVertex) * vertexVector.size();
+//         vertexStagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+//
+//         VmaAllocationCreateInfo vertexStagingAllocationCreateInfo = {
+//             .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+//             .usage = VMA_MEMORY_USAGE_AUTO,};
+//
+//         VkBuffer vertexStagingBuffer;
+//         VmaAllocation vertexStagingAlloc;
+//         //VmaAllocationInfo vertexStagingAllocationInfo;
+//         vmaCreateBuffer(allocator,&vertexStagingBufferInfo,&vertexStagingAllocationCreateInfo,&vertexStagingBuffer,&vertexStagingAlloc,nullptr);
+//
+//         void* data;
+//         vmaMapMemory(allocator,vertexStagingAlloc,&data);
+//         memcpy(data,vertexVector.data(),vertexStagingBufferInfo.size);
+//         vmaUnmapMemory(allocator,vertexStagingAlloc);
+//
+//         VkBufferCreateInfo vertexBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+//         vertexBufferCreateInfo.size = sizeof(DefaultVertex) * vertexVector.size();
+//         vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+//         VmaAllocationCreateInfo vertexBufferAllocationCreateInfo;
+//         vertexBufferCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+//         vmaCreateBuffer(allocator,&vertexBufferCreateInfo,&vertexBufferAllocationCreateInfo,&vertexBuffer,&vertexAllocation,nullptr);
+//         copyBuffer(vertexStagingBuffer,vertexBuffer,vertexBufferCreateInfo.size);
+//
+//         vmaDestroyBuffer(allocator,vertexStagingBuffer,vertexStagingAlloc);
+//     }
+//
+//     {
+//         //index buffer
+//         VkBufferCreateInfo indexStagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+//         indexStagingBufferCreateInfo.size = sizeof(uint32_t) * indicesVector.size();
+//         indexStagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+//         VmaAllocationCreateInfo indexStagingAllocationCreateInfo{
+//             .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+//             .usage = VMA_MEMORY_USAGE_AUTO,};
+//
+//         VkBuffer indexStagingBuffer;
+//         VmaAllocation indexStagingAlloc;
+//         vmaCreateBuffer(allocator, &indexStagingBufferCreateInfo, &indexStagingAllocationCreateInfo,
+//                         &indexStagingBuffer, &indexStagingAlloc, nullptr);
+//
+//         void* data;
+//         vmaMapMemory(allocator,indexStagingAlloc,&data);
+//         memcpy(data,indicesVector.data(),sizeof(uint32_t) * indicesVector.size());
+//         vmaUnmapMemory(allocator,indexStagingAlloc);
+//         VkBufferCreateInfo indexBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+//         indexBufferCreateInfo.size = sizeof(uint32_t) * indicesVector.size();
+//         indexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+//         VmaAllocationCreateInfo indexBufferAllocationCreateInfo;
+//         indexBufferCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+//         vmaCreateBuffer(allocator, &indexBufferCreateInfo, &indexBufferAllocationCreateInfo, &indexBuffer, &indexAllocation,nullptr);
+//         copyBuffer(indexStagingBuffer,indexBuffer,indexBufferCreateInfo.size);
+//         vmaDestroyBuffer(allocator,indexStagingBuffer,indexStagingAlloc);
+//
+//
+//     }
+//
+//
+//
+// }
 
 void OsmiumGLInstance::initVulkan() {
     //actual init, necessary before doing anything
@@ -1921,6 +1886,7 @@ void OsmiumGLInstance::initVulkan() {
 
     createLogicalDevice();
     createAllocator();
+    //this is to have the option update uniforms in command buffers, ignoring it for now as I don't need it for now
     //vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
     createSwapChain();
     createSwapChainImageViews();
@@ -1935,9 +1901,6 @@ void OsmiumGLInstance::initVulkan() {
     //general command buffers, might need a different setup later to multithread all this
     createCommandBuffers();
     createSyncObjects();
-    //specific, should probably not be in here
-    //createTextureSampler();//this is the viking thing tex sampler
-    //VikingTest();
 
     setupImGui();
     passTree = new PassBindings();
@@ -1947,14 +1910,6 @@ void OsmiumGLInstance::initVulkan() {
     defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame+1);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
 }
-
-// void OsmiumGLInstance::mainLoop() {
-//     while (!glfwWindowShouldClose(window)) {
-//         glfwPollEvents();
-//         drawFrame();
-//     }
-//     vkDeviceWaitIdle(device);
-// }
 
 void OsmiumGLInstance::cleanupSwapChain() {
     vkDestroyImageView(device, colorImageView,nullptr);
@@ -1985,22 +1940,6 @@ void OsmiumGLInstance::cleanup() {
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     cleanupSwapChain();
-    //ImGui_ImplVulkanH_DestroyWindow(instance,device,&imguiWindowsData,nullptr);
-    //vkDestroySampler(device,textureSampler,nullptr);//vikingtest stuff
-    //vkDestroyImageView(device,textureImageView,nullptr);//viking test stuff
-    //vmaDestroyImage(allocator,textureImage,textureImageMemory);
-    //viking stuff
-    // for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    //     //does it need to be unmapped ?
-    //     vmaUnmapMemory(allocator,uniformBuffersAllocations[i]);
-    //     vmaDestroyBuffer(allocator,uniformBuffers[i],uniformBuffersAllocations[i]);
-    // }
-    //vkDestroyDescriptorPool(device, descriptorPool,nullptr);
-    //vkDestroyDescriptorSetLayout(device, descriptorSetLayout,nullptr);
-    //vmaDestroyBuffer(allocator,indexBuffer,indexBufferAllocation);
-    //vmaDestroyBuffer(allocator,vertexBuffer,vertexBufferAllocation);
-    //vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    //vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
     delete defaultSceneDescriptorSets;
     vkDestroyRenderPass(device, renderPass, nullptr);
@@ -2040,22 +1979,6 @@ void OsmiumGLInstance::initWindow() {
     glfwSetFramebufferSizeCallback(window, frameBufferResizeCallback);
     glfwSetErrorCallback(glfw_error_callback);
 }
-//viking stuff
-// void OsmiumGLInstance::updateUniformBuffer(uint32_t currentImage) const {//example rotation function
-//     static auto startTime = std::chrono::high_resolution_clock::now();
-//
-//     auto currentTime = std::chrono::high_resolution_clock::now();
-//     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-//
-//     Descriptors::UniformBufferObject ubo = {
-//         .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
-//         .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
-//         .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width)/ static_cast<float>(swapChainExtent.height),0.1f,10.0f),
-//         };
-//     ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
-//
-//     memcpy(uniformBuffersMapped[currentImage],&ubo,sizeof(ubo));//Note this sort of operation shoudl be done using push constant
-// }
 
 
 
