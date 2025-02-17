@@ -15,7 +15,9 @@ set(PHYSICS_HEADERS
         Core/include/RigidBody.h
         API/src/PhysicsAPI.cpp
         Core/src/PhysicsScene.cpp
-        Core/include/PhysicsScene.h)
+        Core/include/PhysicsScene.h
+        Core/include/Intersection.h
+        Core/include/Shapes.h)
 
 
 add_library(OsmiumPhysics STATIC ${PHYSICS_SOURCES}
