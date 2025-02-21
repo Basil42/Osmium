@@ -21,10 +21,16 @@ public:
 };
 
 
-class BoxCollider : public Collider {};
+class BoxCollider : public Collider {
+    [[nodiscard]] ShapeType shape() const override {
+        return Box;
+    }
+public:
+    glm::vec3 size = {1.0f,1.0f,1.0f};
+};
 class SphereCollider : public Collider {
 public:
-    ShapeType shape() const override {
+    [[nodiscard]] ShapeType shape() const override {
         return Sphere;
     }
 
