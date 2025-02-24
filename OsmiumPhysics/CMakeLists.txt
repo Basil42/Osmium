@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.29)
+cmake_minimum_required(VERSION 3.29)
 project(OsmiumPhysics)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -22,8 +22,8 @@ set(PHYSICS_HEADERS
 
 add_library(OsmiumPhysics STATIC ${PHYSICS_SOURCES}
 ${PHYSICS_HEADERS})
-target_link_libraries(OsmiumPhysics PRIVATE OsmiumCommon)
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumPhysics PRIVATE glm::glm)
+target_link_libraries(OsmiumPhysics PRIVATE OsmiumCommon)
 target_include_directories(OsmiumPhysics PRIVATE Core/include)
 target_include_directories(OsmiumPhysics INTERFACE API/include)

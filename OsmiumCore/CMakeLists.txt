@@ -56,6 +56,7 @@ target_link_libraries(OsmiumCore PUBLIC OsmiumGL)
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumCore PUBLIC glm::glm)
 target_link_libraries(OsmiumCore PRIVATE OsmiumCommon)
+target_link_libraries(OsmiumCore PRIVATE OsmiumPhysics)
 
 add_executable(CoreTest main.cpp)
 target_link_libraries(CoreTest PRIVATE OsmiumCore)
