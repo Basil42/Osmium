@@ -60,8 +60,10 @@ namespace Intersection {
     }
 
     inline bool BoxToBoxIntersection(Collider& a,Collider& b) {
+        //check inscribed sphere and circumscribed sphere collision with the sphere to box implementation, then separate plane algo, that seems very wasteful though
 
     }//might have a separate function for checking axis aligned box for intersection (for bounds related checks)
+    
     inline bool CylinderToCylinderIntersection(Collider& a,Collider& b) {}
     inline bool CylinderToBoxIntersection(Collider& cylinder,Collider& box) {}
     //convenience implementation

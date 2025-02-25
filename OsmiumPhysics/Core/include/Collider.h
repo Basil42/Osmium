@@ -10,7 +10,7 @@
 
 
 class Collider {
-    virtual ~Collider();
+    virtual ~Collider() = delete;
     template<typename T>//could constrian the type to be a collider
     bool isOf() {return (dynamic_cast<T*>(this) != NULL);}
 

@@ -89,11 +89,12 @@ void GameInstance::run() {
 
 
     auto SimulationThread = std::thread(GameLoop,this);
-    auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
+    // auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
     auto LoadingThread = std::thread(LoadingRoutine,this);//maybe I need some kind of staging method here
 
     std::unique_lock<std::mutex> ImGuiLock(ImguiMutex,std::defer_lock);
     std::unique_lock<std::mutex> RenderDataLock(renderDataMutex, std::defer_lock);
+    //initialize imGuiFrame
     while(!OsmiumGL::ShouldClose()) {
         ImGuiLock.lock();
         OsmiumGL::StartFrame();//poll glfw events and start imGui frame
@@ -121,7 +122,7 @@ void GameInstance::run() {
     ImGuiShouldShutoff = true;
     AssetManager::Shutdown();
     SimulationThread.join();
-    ImGuiThread.join();
+    //ImGuiThread.join();
     LoadingThread.join();
     AssetManager::UnloadAll();
     OsmiumGL::Shutdown();
@@ -133,6 +134,15 @@ void GameInstance::run() {
     //     OsmiumGL::EndFrame();
     // }
     // OsmiumGL::Shutdown();
+}
+
+void GameInstance::getImGuiSyncInfo(ImGuiSyncStruct& syncData) {
+    syncData.imGuiMutex = &ImguiMutex;
+    syncData.imGuiNewFrameConditionVariable = &ImguiNewFrameConditionVariable;
+    syncData.isImguiNewFrameReady = &isImguiNewFrameReady;
+    syncData.isImguiUpdateOver = &isImguiUpdateOver;
+    syncData.ImGuiShouldShutoff = &ImGuiShouldShutoff;
+    syncData.ImguiUpdateConditionVariable = &ImguiUpdateConditionVariable;
 }
 
 glm::mat4 GameInstance::getMainCameraViewMatrix() {
@@ -221,6 +231,7 @@ void GameInstance::RenderImGuiFrameTask() {
                     // defaultGOMeshRenderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/models/monkey.obj"));//should finish the setup on its own;
 
             }
+            ImGui::Checkbox("Entity hierarchy", &ShowHierarchy);
             ImGui::End();
 
         }
@@ -233,6 +244,8 @@ void GameInstance::RenderImGuiFrameTask() {
             if (ImGui::Button("Close Me"))
                 showAnotherWindow = false;
             ImGui::End();
+        }
+        if (ShowHierarchy) {
         }
         OsmiumGL::ImguiEndImGuiFrame();
         //sync

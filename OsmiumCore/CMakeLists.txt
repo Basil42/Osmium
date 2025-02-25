@@ -52,11 +52,12 @@ add_library(OsmiumCore STATIC
         )
 
 
-target_link_libraries(OsmiumCore PUBLIC OsmiumGL)
+target_link_libraries(OsmiumCore PUBLIC OsmiumGL)#should fix the lib to make it private at some point
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumCore PUBLIC glm::glm)
 target_link_libraries(OsmiumCore PRIVATE OsmiumCommon)
 target_link_libraries(OsmiumCore PRIVATE OsmiumPhysics)
+target_include_directories(OsmiumCore PUBLIC /)
 
 add_executable(CoreTest main.cpp)
 target_link_libraries(CoreTest PRIVATE OsmiumCore)

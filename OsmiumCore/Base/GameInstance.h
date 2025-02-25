@@ -15,6 +15,15 @@
 #include "config.h"
 #include "GameObject.h"
 #include "GameObjectCreation.h"
+struct ImGuiSyncStruct {
+    std::mutex* imGuiMutex;
+    std::condition_variable* imGuiNewFrameConditionVariable;
+    bool* isImguiNewFrameReady;
+    bool* isImguiUpdateOver;
+    bool* ImGuiShouldShutoff;
+    std::condition_variable* ImguiUpdateConditionVariable;
+};
+
 template <typename T,size_t Max_Capacity>class ResourceArray;
 class GOC_Camera;
 class GameInstance {
@@ -38,10 +47,9 @@ class GameInstance {
     std::queue<std::pair<GameObjectCreateInfo,std::function<void(GameObject*)>>> gameObjectsCreationQueue;
     std::queue<GameObjectHandle> gameObjectsDestructionQueue;
     GOC_Camera* mainCamera = nullptr;
+    bool ShowHierarchy = false;
     static GameInstance * instance;
 
-    void CreateNewGameObject(GameObjectCreateInfo &createStruct, const std::function<void(GameObject *)>& callback = nullptr);//The object itself will be available next simulation tick
-    void DestroyGameObject(GameObject * gameObject);
 
     void RenderImGuiFrameTask();
     void LoadingRoutine();
@@ -58,8 +66,12 @@ class GameInstance {
     void RenderDataUpdate();
 
 public:
+    void CreateNewGameObject(GameObjectCreateInfo &createStruct, const std::function<void(GameObject *)>& callback = nullptr);//The object itself will be available next simulation tick
+    void DestroyGameObject(GameObject * gameObject);
 
     void run();
+
+    void getImGuiSyncInfo(::ImGuiSyncStruct &syncData);
 
     static glm::mat4 getMainCameraViewMatrix();
 };
