@@ -43,7 +43,6 @@ class GameInstance {
     bool simShouldShutoff;
 
     ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;
-    std::vector<GameObject> gameObjects;//Problem -> I need handles for these, as passing pointers around is dangerous
     std::queue<std::pair<GameObjectCreateInfo,std::function<void(GameObject*)>>> gameObjectsCreationQueue;
     std::queue<GameObjectHandle> gameObjectsDestructionQueue;
     GOC_Camera* mainCamera = nullptr;
@@ -68,6 +67,7 @@ class GameInstance {
 public:
     void CreateNewGameObject(GameObjectCreateInfo &createStruct, const std::function<void(GameObject *)>& callback = nullptr);//The object itself will be available next simulation tick
     void DestroyGameObject(GameObject * gameObject);
+    const ResourceArray<GameObject,MAX_GAMEOBJECTS>& GetGameObjects() const;
 
     void run();
 

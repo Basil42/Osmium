@@ -4,7 +4,7 @@
 
 #ifndef GAMEOBJECTCOMPONENT_H
 #define GAMEOBJECTCOMPONENT_H
-#include <cstdint>
+#include <string>
 
 
 class GameObject;
@@ -17,8 +17,8 @@ private:
     GOC_Handle handle;
     GameObject* parent;
 
-
 public:
+    virtual const std::string&  Name() = 0;
     virtual void Update() {};//used for a more classical loop based update
     virtual void RenderUpdate() {}
     [[nodiscard]] GameObject* GetGameObject() const {return parent;}

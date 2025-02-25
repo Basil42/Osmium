@@ -51,6 +51,12 @@ public:
     //     );
     GOC_MeshRenderer(GameObject* parent,MeshHandle meshHandle,MaterialHandle materialHandle);
     GOC_MeshRenderer(GameObject* parent);
+
+    const std::string name = "MeshRenderer";
+
+    const std::string & Name() override {
+        return name;
+    }
 };
 
 

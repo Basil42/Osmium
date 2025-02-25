@@ -65,6 +65,8 @@ public:
     }
 
     ~GameObject();//Bad, I don't want this to be public but it is easier for now
+    const std::multimap<std::type_index, GameObjectComponent *> &GetComponents() const;
+
 private:
     std::multimap<std::type_index,GameObjectComponent*> components;//reference to these pairs(and components) should be stable
 };

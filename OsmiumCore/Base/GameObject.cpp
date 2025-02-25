@@ -30,3 +30,7 @@ GameObject::~GameObject() {
     components.clear();//should call all destructors
 }
 
+const std::multimap<std::type_index, GameObjectComponent *> &GameObject::GetComponents() const{
+    return components;
+}
+

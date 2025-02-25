@@ -1,8 +1,24 @@
 cmake_minimum_required(VERSION 3.29)
 project(OsmiumEditor)
 
-add_executable(OsmiumEditor main.cpp
-        GUI/EditorGUI.cpp
-        GUI/EditorGUI.h)
+set(OSMIUM_EDITOR_SOURCES
+        main.cpp
+        GUI/src/EditorGUI.cpp
+        GUI/src/EditorWindow.cpp
+        GUI/src/HierarchyWindow.cpp
+        GUI/src/InspectorWindow.cpp
+)
+set(OSMIUM_EDITOR_HEADERS
+        GUI/include/EditorGUI.h
+        GUI/include/EditorWindow.h
+        GUI/include/HierarchyWindow.h
+        GUI/include/InspectorWindow.h
+)
+
+add_executable(OsmiumEditor
+        ${OSMIUM_EDITOR_SOURCES}
+        ${OSMIUM_EDITOR_HEADERS}
+        )
 
 target_link_libraries(OsmiumEditor PRIVATE OsmiumCore OsmiumGL OsmiumCommon OsmiumPhysics)
+target_include_directories(OsmiumEditor PUBLIC GUI/include)

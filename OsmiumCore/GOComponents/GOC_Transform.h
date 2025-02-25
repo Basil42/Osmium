@@ -46,6 +46,11 @@ public:
     explicit GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform);
     explicit GOC_Transform(GameObject* parent);//That should be essentially automated
     ~GOC_Transform() override;
+
+    const std::string name = "Transform";
+    const std::string &Name() override {
+        return name;
+    }
 };
 
 

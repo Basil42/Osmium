@@ -5,16 +5,23 @@
 #ifndef EDITORGUI_H
 #define EDITORGUI_H
 #include <condition_variable>
+#include <imgui.h>
 
 
+class InspectorWindow;
+class GameObject;
+class HierarchyWindow;
 struct ImGuiSyncStruct;
 class GameInstance;
 struct ImGuiIO;
-struct ImVec4;
 
 class EditorGUI {
 
-  public:
+    HierarchyWindow* hierarchyWindow = nullptr;
+    InspectorWindow* inspectorWindow = nullptr;
+    const GameObject* selectedGameObject = nullptr;
+
+public:
     void Run();
 
     void RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiShouldShutoff,
@@ -23,12 +30,17 @@ class EditorGUI {
                               &ImguiUpdateConditionVariable);
 
 
-    ImVec4* ImgGuiClearColor;
-    bool showDemoWindow;
-    bool showAnotherWindow;
+    ImVec4 ImgGuiClearColor;
+    bool showDemoWindow = true;
+    bool showAnotherWindow = false;
     GameInstance* OsmiumInstance;
-    bool ShowHierarchy;
-    ImGuiSyncStruct* SyncStruct;
+    bool ShowHierarchy = true;
+    bool ShowInspector = true;
+    const ImGuiSyncStruct* SyncStruct;
+
+    EditorGUI() = default;
+
+    explicit EditorGUI(const ImGuiSyncStruct & im_gui_sync_struct,GameInstance * Instance);
 };
 
 

@@ -161,6 +161,10 @@ void GameInstance::DestroyGameObject(GameObject *gameObject) {
     gameObjectsDestructionQueue.emplace(gameObject->Handle);
 }
 
+const ResourceArray<GameObject, 2000> & GameInstance::GetGameObjects() const {
+    return *GameObjects;
+}
+
 void GameInstance::RenderImGuiFrameTask() {
 
 

@@ -9,6 +9,8 @@
 #include <mutex>
 
 //most of these include will be moved to more specialized inspector and window classes
+#include "HierarchyWindow.h"
+#include "InspectorWindow.h"
 #include "OsmiumGL_API.h"
 #include "AssetManagement/Asset.h"
 #include "Base/GameInstance.h"
@@ -18,8 +20,15 @@
 #include "GOComponents/GOC_Transform.h"
 
 void EditorGUI::Run() {
+
+    hierarchyWindow = new HierarchyWindow(OsmiumInstance,selectedGameObject);
+    inspectorWindow = new InspectorWindow(selectedGameObject);
+
     RenderImGuiFrameTask(*SyncStruct->imGuiMutex,*SyncStruct->ImGuiShouldShutoff,*SyncStruct->imGuiNewFrameConditionVariable,
         *SyncStruct->isImguiNewFrameReady,*SyncStruct->isImguiUpdateOver,*SyncStruct->ImguiUpdateConditionVariable);
+
+    delete inspectorWindow;
+    delete hierarchyWindow;
 
 }
 
@@ -36,7 +45,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
         ImguiNewFrameConditionVariable.wait(startFrameLock,[this, &isImguiNewFrameReady]() {return isImguiNewFrameReady;});
         isImguiNewFrameReady = false;
 
-        auto io = ImGui::GetIO();
+        ImGuiIO io = ImGui::GetIO();
         static bool warningTriggered = false;
         if(warningTriggered) {
             static float lastAbnormalDeltaTime = io.DeltaTime;
@@ -63,7 +72,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
             ImGui::Checkbox("Another Window", &showAnotherWindow);
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)(ImgGuiClearColor)); // Edit 3 floats representing a color
+            ImGui::ColorEdit3("clear color", (float*)(&ImgGuiClearColor)); // Edit 3 floats representing a color
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
@@ -97,6 +106,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
 
             }
             ImGui::Checkbox("Entity hierarchy", &ShowHierarchy);
+            ImGui::Checkbox("Inspector", &ShowInspector);
             ImGui::End();
 
         }
@@ -111,11 +121,18 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
             ImGui::End();
         }
         if (ShowHierarchy) {
+            hierarchyWindow->Render(io);
         }
+        if (ShowInspector)inspectorWindow->Render(io);
         OsmiumGL::ImguiEndImGuiFrame();
         //sync
         isImguiUpdateOver = true;
         startFrameLock.unlock();
         ImguiUpdateConditionVariable.notify_all();
     }
+}
+
+EditorGUI::EditorGUI(const ImGuiSyncStruct &im_gui_sync_struct,GameInstance* Instance) {
+    SyncStruct = &im_gui_sync_struct;
+    OsmiumInstance = Instance;
 }
