@@ -7,12 +7,14 @@ set(OSMIUM_EDITOR_SOURCES
         GUI/src/EditorWindow.cpp
         GUI/src/HierarchyWindow.cpp
         GUI/src/InspectorWindow.cpp
+        GUI/src/BuiltInGameObjectComponentInspectors.cpp
 )
 set(OSMIUM_EDITOR_HEADERS
         GUI/include/EditorGUI.h
         GUI/include/EditorWindow.h
         GUI/include/HierarchyWindow.h
         GUI/include/InspectorWindow.h
+        GUI/include/ComponentInspector.h
 )
 
 add_executable(OsmiumEditor

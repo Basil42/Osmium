@@ -38,8 +38,8 @@ public:
     bool ShowInspector = true;
     const ImGuiSyncStruct* SyncStruct;
 
-    EditorGUI() = default;
 
+    EditorGUI() = delete;
     explicit EditorGUI(const ImGuiSyncStruct & im_gui_sync_struct,GameInstance * Instance);
 };
 

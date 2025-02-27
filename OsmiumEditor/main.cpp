@@ -7,7 +7,7 @@
 int main() {
     //should these object be allocated to the heap instead of living on this stack ?
     GameInstance instance;
-    ImGuiSyncStruct imGuiSync;
+    ImGuiSyncStruct imGuiSync{};
     instance.getImGuiSyncInfo(imGuiSync);
     EditorGUI editorGUI(imGuiSync,&instance);
     auto GUIThread = std::thread(editorGUI.Run,editorGUI);

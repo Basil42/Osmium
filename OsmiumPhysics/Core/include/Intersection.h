@@ -14,24 +14,12 @@
 #include "mathUtils.h"
 namespace Intersection {
     //Default intersection function in case we forget to implement the intersection, or we have user defined shapes later
-    inline bool NonImplementedIntersection(const Collider& collider1,const Collider& collider2) {
+    inline bool NonImplementedIntersection(Collider& collider1, Collider& collider2) {
         std::cout << "Intersection betweeen " << collider1.shape() << "and" << collider2.shape() <<std::endl;
         return false;
     }
 
-    using CollisionCheck = bool (*)(const Collider& collider1, const Collider& collider2);//could extend it later like in jolt for scale and such
-    //table of intersection function containing function to pointer to associated shapes
-    static std::array<std::array<CollisionCheck, Shapes::NumShapeTypes>, Shapes::NumShapeTypes> CollisionChecks{
-        []() constexpr {
-            std::array<std::array<CollisionCheck, Shapes::NumShapeTypes>, Shapes::NumShapeTypes> result{};
-            for (auto &i: result) {
-                for (auto &j: i) {
-                    j = NonImplementedIntersection;
-                }
-            }
-            return result;
-        }()
-    };
+
     //general intersection check function that will look into the table for the actual function
     inline bool CheckIntersection(Collider& a,Collider& b) {
         return CollisionChecks[a.shape()][b.shape()](a,b);
@@ -73,6 +61,23 @@ namespace Intersection {
     inline bool BoxToCylinderIntersection(Collider& box,Collider& cylinder) {
         return CylinderToBoxIntersection(cylinder,box);
     }
+    using CollisionCheck = bool (*)(Collider& collider1, Collider& collider2);//could extend it later like in jolt for scale and such
+    //table of intersection function containing function to pointer to associated shapes
+    static std::array<std::array<CollisionCheck, Shapes::NumShapeTypes>, Shapes::NumShapeTypes> CollisionChecks{
+        []() constexpr {
+            std::array<std::array<CollisionCheck, Shapes::NumShapeTypes>, Shapes::NumShapeTypes> result{};
+            for (auto &i: result) {
+                for (auto &j: i) {
+                    j = NonImplementedIntersection;
+                }
+            }
+            result[Sphere][Sphere] = SphereToSphereIntersection;
+            //result[Box][Box] = BoxToBoxIntersection;
+            result[Sphere][Box] = SphereToBoxIntersection;
+            result[Box][Sphere] = BoxToSphereIntersection;
+            return result;
+        }()
+    };
 
 
 }
