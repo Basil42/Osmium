@@ -7,16 +7,19 @@
 #include <typeindex>
 
 #include "EditorWindow.h"
+#include "Base/GameObject.h"
 #include "Base/GameObjectComponent.h"
 
 
+class GameInstance;
 class GameObject;
 
 class InspectorWindow final : public EditorWindow{
 public:
-    const GameObject*& selectedGameObject;
+    const GameObjectHandle& selectedGameObjectHandle;
+    GameInstance* gameInstanceRef;
 
-    explicit InspectorWindow(const GameObject *&game_object);
+    explicit InspectorWindow(GameInstance* gameInstance,const GameObjectHandle& game_object);
 
     void RenderComponentInspector(ImGuiIO &io, const std::type_index &type_index, GameObjectComponent *component);
 

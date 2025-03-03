@@ -22,7 +22,7 @@
 void EditorGUI::Run() {
 
     hierarchyWindow = new HierarchyWindow(OsmiumInstance,selectedGameObject);
-    inspectorWindow = new InspectorWindow(selectedGameObject);
+    inspectorWindow = new InspectorWindow(OsmiumInstance, selectedGameObject);
 
     RenderImGuiFrameTask(*SyncStruct->imGuiMutex,*SyncStruct->ImGuiShouldShutoff,*SyncStruct->imGuiNewFrameConditionVariable,
         *SyncStruct->isImguiNewFrameReady,*SyncStruct->isImguiUpdateOver,*SyncStruct->ImguiUpdateConditionVariable);

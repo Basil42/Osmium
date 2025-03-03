@@ -7,6 +7,7 @@
 #include "EditorWindow.h"
 #include "ResourceArray.h"
 #include "Base/config.h"
+#include "Base/GameObject.h"
 
 
 class GameObject;
@@ -17,9 +18,9 @@ class HierarchyWindow final : EditorWindow {
 
 
     const ResourceArray<GameObject,MAX_GAMEOBJECTS>& gameObjectContainer;
-    const GameObject*& selectedGameObject;
+    GameObjectHandle& selectedGameObjectHandle;
 public:
-    explicit HierarchyWindow(const GameInstance* gameInstance,const GameObject*& selection);
+    explicit HierarchyWindow(const GameInstance* gameInstance,GameObjectHandle& selection);
     void Render(ImGuiIO &io) override;
 };
 

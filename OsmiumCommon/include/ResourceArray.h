@@ -23,8 +23,8 @@ class  ResourceArray {
   unsigned int Add(T resource);
   bool Remove(unsigned int handle);
 
-  bool contains(unsigned int handle);
-  T get(unsigned int handle);
+  bool contains(unsigned int handle) const;
+  T& get(unsigned int handle);
 
   T* getRef(unsigned int handle);
 
@@ -107,16 +107,16 @@ bool ResourceArray<T, MAX_Capacity>::Remove(unsigned int handle) {
 }
 
 template<typename T, size_t MAX_Capacity>
-bool ResourceArray<T, MAX_Capacity>::contains(unsigned int handle) {
+bool ResourceArray<T, MAX_Capacity>::contains(unsigned int handle) const{
   if (handle >= MAX_Capacity) [[unlikely]] return false;
   return backingArray[handle] < MAX_Capacity;
 }
 
 template<typename T, size_t MAX_Capacity>
-T ResourceArray<T, MAX_Capacity>::get(unsigned int handle) {
+T& ResourceArray<T, MAX_Capacity>::get(unsigned int handle) {
   if (backingArray[handle] >= MAX_Capacity) [[unlikely]] {
     std::cout << "Attempted to get a non valid resource,it might have been unloaded or the handle might be invalid" << std::endl;
-    return T();
+    return get(Add(T()));
   }
   return resourceVector[backingArray[handle]];
 }

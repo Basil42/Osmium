@@ -7,6 +7,9 @@
 #include <condition_variable>
 #include <imgui.h>
 
+#include "Base/config.h"
+#include "Base/GameObject.h"
+
 
 class InspectorWindow;
 class GameObject;
@@ -19,7 +22,7 @@ class EditorGUI {
 
     HierarchyWindow* hierarchyWindow = nullptr;
     InspectorWindow* inspectorWindow = nullptr;
-    const GameObject* selectedGameObject = nullptr;
+    GameObjectHandle selectedGameObject = MAX_GAMEOBJECTS +1;
 
 public:
     void Run();

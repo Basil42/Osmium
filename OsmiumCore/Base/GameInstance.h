@@ -36,28 +36,25 @@ class GameInstance {
     bool isRenderUpdateOver;
     std::mutex ImguiMutex;
     std::condition_variable ImguiNewFrameConditionVariable;
-    bool isImguiNewFrameReady;
+    bool isImguiNewFrameReady = false;
     bool isImguiUpdateOver = true;//should skip over that update on the first sim tick
     std::condition_variable ImguiUpdateConditionVariable;
     bool ImGuiShouldShutoff;
     bool simShouldShutoff;
 
     ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;
+    std::mutex creationQueueMutex;
     std::queue<std::pair<GameObjectCreateInfo,std::function<void(GameObject*)>>> gameObjectsCreationQueue;
+    std::condition_variable creationQueueConditionVariable;
+    std::mutex destructionQueueMutex;
     std::queue<GameObjectHandle> gameObjectsDestructionQueue;
+    std::condition_variable destructionQueueConditionVariable;
     GOC_Camera* mainCamera = nullptr;
     bool ShowHierarchy = false;
     static GameInstance * instance;
 
 
-    void RenderImGuiFrameTask();
     void LoadingRoutine();
-    //temp
-    bool showDemoWindow;
-    bool showAnotherWindow;
-    //Ecapsulate these two fields into a separate struct
-    ImVec4 ImgGuiClearColor;
-    ImGuiIO io;
     //we pass this through parameters so we can latert launch the game in editor context
     void GameLoop();
     void RenderLoop();
@@ -67,7 +64,7 @@ class GameInstance {
 public:
     void CreateNewGameObject(GameObjectCreateInfo &createStruct, const std::function<void(GameObject *)>& callback = nullptr);//The object itself will be available next simulation tick
     void DestroyGameObject(GameObject * gameObject);
-    const ResourceArray<GameObject,MAX_GAMEOBJECTS>& GetGameObjects() const;
+    [[nodiscard]] ResourceArray<GameObject,MAX_GAMEOBJECTS>& GetGameObjects() const;
 
     void run();
 

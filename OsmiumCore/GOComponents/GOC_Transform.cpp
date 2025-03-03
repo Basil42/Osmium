@@ -60,13 +60,32 @@ void GOC_Transform::setRotation(const glm::quat &newRotation) {
 glm::mat4 GOC_Transform::getTransformMatrix() const {
     return model;
 }
+void GOC_Transform::getTransformDecomposed(glm::vec3& translation,glm::quat& rotation,glm::vec3& scale) const{
+    translation = model[3];
+    rotation = cachedRotation;
+    scale = cachedScale;
+}
+
+void GOC_Transform::getTransformDecomposed(glm::vec3 &translation, glm::quat &rotation, glm::vec3 &scale,
+    glm::vec3 &skew, glm::vec4 &perspective) const {
+    translation = model[3];
+    rotation = cachedRotation;
+    scale = cachedScale;
+    skew = cachedSkew;
+    perspective = cachedPerspective;
+}
 
 void GOC_Transform::SetTransformMatrix(glm::mat4 mat) {
     model = mat;
-    glm::vec3 translation;//not caching that
-    glm::vec3 skew;//to investigate
-    glm::vec4 perspective;//doubt we need this here
-    glm::decompose(mat,cachedScale,cachedRotation,translation,skew,perspective);
+    glm::vec3 translation;//not caching that//to investigate
+    glm::decompose(mat,cachedScale,cachedRotation,translation,cachedSkew,cachedPerspective);
+}
+void GOC_Transform::SetTransformMatrix(const glm::vec3& translation, const glm::quat& rotation, const glm::vec3& scale, const glm::vec3 &skew, const glm::vec4& perspective) {
+    cachedRotation = rotation;
+    cachedScale = scale;
+    cachedSkew = skew;
+    cachedPerspective = perspective;
+    model = glm::recompose(scale,rotation,translation,skew,perspective);
 }
 
 GOC_Transform::GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform = nullptr): GameObjectComponent(parent) {

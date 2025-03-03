@@ -25,6 +25,8 @@ private:
     std::vector<GOC_Handle> childrenTransforms;
     glm::vec3 cachedScale = glm::vec3(1.0f);
     glm::quat cachedRotation = glm::quat();
+    glm::vec4 cachedPerspective;
+    glm::vec3 cachedSkew;
     [[nodiscard]] GOC_Handle getParentTransform() const { return parentTransform; }
     void setParent(const GOC_Handle &newParentTransform){ parentTransform = newParentTransform; }
     //glm::vec3 getRootPosition();
@@ -40,9 +42,11 @@ public:
     void setRotation(const glm::quat& newRotation);
     //[[nodiscard]] glm::vec3 getEulerRotation() const;
     [[nodiscard]] glm::mat4 getTransformMatrix() const;
+    void getTransformDecomposed(glm::vec3& translation,glm::quat& rotation,glm::vec3& scale)const;
+    void getTransformDecomposed(glm::vec3& translation,glm::quat& rotation,glm::vec3& scale,glm::vec3 &skew, glm::vec4& perspective)const;
 
     void SetTransformMatrix(glm::mat4 mat);
-
+    void SetTransformMatrix(const glm::vec3& translation, const glm::quat& rotation, const glm::vec3& scale, const glm::vec3 &skew, const glm::vec4& perspective);
     explicit GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform);
     explicit GOC_Transform(GameObject* parent);//That should be essentially automated
     ~GOC_Transform() override;
