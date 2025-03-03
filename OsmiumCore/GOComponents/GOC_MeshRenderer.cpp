@@ -31,6 +31,15 @@ void GOC_MeshRenderer::Update() {
 
     //add more for specialized materials with more constants
 }
+
+MeshHandle GOC_MeshRenderer::GetMeshHandle() const {
+    return mesh;
+}
+
+std::optional<AssetId> GOC_MeshRenderer::GetAssetHandle() const {
+    return AssetHandle;
+}
+
 glm::mat4 GOC_MeshRenderer::viewMatrix = glm::mat4(1.0f);
 void GOC_MeshRenderer::GORenderUpdate() {
     viewMatrix = GameInstance::getMainCameraViewMatrix();
@@ -83,6 +92,7 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
     }
     std::cout << "callback test" << std::endl;
     auto meshAsset = dynamic_cast<MeshAsset*>(asset);//should be garanteed to be valid here
+    AssetHandle = meshAsset->id;
     mesh = meshAsset->GetMeshHandle();
     shouldUpdateRenderObject = true;
     //UpdateRenderedObject();

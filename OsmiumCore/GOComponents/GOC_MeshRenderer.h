@@ -6,6 +6,7 @@
 #define GOC_MESHRENDERER_H
 
 
+#include <optional>
 #include <glm/mat4x4.hpp>
 
 #include "RenderedObject.h"
@@ -28,6 +29,7 @@ class GOC_MeshRenderer : public GameObjectComponent {
     MatInstanceHandle materialInstance;
     MeshHandle mesh;
     bool shouldUpdateRenderObject = false;
+    std::optional<AssetId> AssetHandle;
     static glm::mat4 viewMatrix;
 
     void UpdateRenderedObject();
@@ -37,6 +39,9 @@ class GOC_MeshRenderer : public GameObjectComponent {
 
 public:
     void Update() override;
+    MeshHandle GetMeshHandle() const;
+    std::optional<AssetId> GetAssetHandle() const;
+
     static void GORenderUpdate();
     void RenderUpdate() override;
     void SetMeshAsset(AssetId asset_id);//assign a mesh asset to the mesh renderer

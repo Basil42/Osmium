@@ -4,6 +4,7 @@
 
 #include <glm/gtc/quaternion.hpp>
 
+#include "AssetManagement/AssetType/MeshAsset.h"
 #include "GOComponents/GOC_MeshRenderer.h"
 #ifndef BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #define BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
@@ -34,7 +35,12 @@ namespace GUI{
     inline void RenderGameObjectComponentInspector<GOC_MeshRenderer>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
         //use the combo function to display a query of all mesh assets
         auto comp = dynamic_cast<GOC_MeshRenderer*>(gameObjectComponent);
+        //MeshHandle handle = comp->GetMeshHandle();
+        auto meshAssetPreview  = "None";
+        auto assetHandle = comp->GetAssetHandle();
+        if ()
         //combo boxes will require a query system for asset selection
+        if (ImGui::BeginCombo("Mesh",))
 
     }
     static const bool registered_GOC_MeshRenderer = registerType<GOC_MeshRenderer>();
