@@ -6,11 +6,11 @@
 
 #include <iostream>
 
-void DefaultAsset::Load() {
+void DefaultAsset::Load_Impl() {
     std::cout << "trying to load an unsuported asset" << std::endl;
 }
 
-void DefaultAsset::Unload(bool immediate) {
+void DefaultAsset::Unload_Impl(bool immediate) {
     std::cout << "trying to unload an unsuported asset" << std::endl;
 }
 

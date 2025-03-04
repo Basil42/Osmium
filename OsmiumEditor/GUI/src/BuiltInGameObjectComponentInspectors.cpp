@@ -9,7 +9,7 @@
 #ifndef BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #define BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #include <imgui.h>
-
+#include <filesystem>
 #include "ComponentInspector.h"
 #include "GOComponents/GOC_Transform.h"
 
@@ -38,9 +38,21 @@ namespace GUI{
         //MeshHandle handle = comp->GetMeshHandle();
         auto meshAssetPreview  = "None";
         auto assetHandle = comp->GetAssetHandle();
-        if ()
+        Asset * assetRef = nullptr;
+        if (assetHandle.has_value()) {
+            assetRef = AssetManager::GetAsset(assetHandle.value());
+            meshAssetPreview = assetRef->path.filename().string().c_str();//convoluted conversion, there is surely a better way
+        }
         //combo boxes will require a query system for asset selection
-        if (ImGui::BeginCombo("Mesh",))
+        if (ImGui::BeginCombo("Mesh",meshAssetPreview,0)) {//I'll figure out the flags later
+            for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {
+                if (asset->getType() != mesh)continue;//we should instead use premade queries to do this, it will get very slow on large databases
+                const bool is_selected = (assetHandle.value() == id);
+                if (ImGui::Selectable(asset->path.filename().string().c_str(), is_selected)) {
+                    comp->SetMeshAsset(id);
+                }
+            }
+        }
 
     }
     static const bool registered_GOC_MeshRenderer = registerType<GOC_MeshRenderer>();

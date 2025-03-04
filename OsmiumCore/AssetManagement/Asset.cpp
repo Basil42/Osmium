@@ -18,6 +18,15 @@ AssetType Asset::getType() const {
     return type;
 }
 
+void Asset::Load() {
+    referenceCount++;
+    if (!isLoaded())Load_Impl();
+}
+
+void Asset::Unload(bool immediate = false) {
+    if (--referenceCount == 0)Unload_Impl(immediate);
+}
+
 Asset::Asset(std::filesystem::path const &assetPath) : id(getAssetId(assetPath)),path(assetPath)
  #if defined EDITOR_MODE || defined _DEBUG
 name("tempName")

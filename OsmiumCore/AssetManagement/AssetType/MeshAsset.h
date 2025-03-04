@@ -25,11 +25,11 @@ public:
 
     void loadMeshToDeprecatedFormat();
 
-    void Load() override;
+    void Load_Impl() override;
 
     std::mutex& GetRessourceMutex() override;
     unsigned long GetMeshHandle() const;
-    void Unload(bool immediate) override;
+    void Unload_Impl(bool immediate) override;
 
     explicit MeshAsset(const std::filesystem::path &path);
 private:

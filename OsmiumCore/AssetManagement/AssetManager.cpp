@@ -62,6 +62,10 @@ bool AssetManager::isAssetLoaded(AssetId assetId) {
     return loadedAssets.contains(assetId);
 }
 
+Asset * AssetManager::GetAsset(AssetId assetId) {
+    return AssetDatabase[assetId];
+}
+
 void AssetManager::ProcessCallbacks() {
     for (const auto& pair: CallbackList) {
         for (const auto& entry: pair.second) {
@@ -102,6 +106,7 @@ void AssetManager::LoadAsset(AssetId assetId, const std::function<void(Asset*)> 
 }
 
 void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {//unsafe, tuck it in the loading thread, or maybe an unloading thread
+
     AssetDatabase.at(assetId)->Unload(immediate);
 }
 
@@ -146,4 +151,8 @@ void AssetManager::UnloadAll() {
         UnloadAsset(*loadedAssets.begin(), true);
         loadedAssets.erase(loadedAssets.begin());
     }
+}
+
+const std::map<AssetId, Asset *>& AssetManager::GetAssetDataBase(){
+    return AssetDatabase;
 }

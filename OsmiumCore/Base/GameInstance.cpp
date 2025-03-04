@@ -171,5 +171,5 @@ ResourceArray<GameObject, 2000> & GameInstance::GetGameObjects() const {
 
 
 void GameInstance::LoadingRoutine() {
-    AssetManager::LoadingRoutine();
+    AssetManager::LoadingRoutine();//should be ran privately by the asset manager directly
 }

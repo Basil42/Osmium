@@ -15,12 +15,9 @@
 #include "../AssetManager.h"
 #include "../../Base/ResourceManager.h"
 
-void MeshAsset::Load() {
-    if (AssetManager::isAssetLoaded(id)) {
-        std::cout << "trying to load asset that is already loaded" << std::endl;
-        return;
-    }
-     MeshHandle = OsmiumGL::LoadMesh(path);
+void MeshAsset::Load_Impl() {
+    assert(!AssetManager::isAssetLoaded(id));
+    MeshHandle = OsmiumGL::LoadMesh(path);
 
 }
 
@@ -33,8 +30,8 @@ unsigned long MeshAsset::GetMeshHandle() const {
 }
 
 
-void MeshAsset::Unload(bool immediate = false) {
-    OsmiumGL::UnloadMesh(MeshHandle, immediate);
+void MeshAsset::Unload_Impl(bool immediate) {
+        OsmiumGL::UnloadMesh(MeshHandle, immediate);
 }
 
 MeshAsset::MeshAsset(const std::filesystem::path &path) : Asset(path){

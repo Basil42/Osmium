@@ -107,6 +107,9 @@ void GOC_MeshRenderer::OnMaterialLoaded(Asset *asset) {
 }
 
 void GOC_MeshRenderer::SetMeshAsset(AssetId asset_id) {
+
+    if (AssetHandle.has_value())
+        AssetManager::UnloadAsset(AssetHandle.value(),false);
     std::function<void(Asset*)> callback = [this](auto && PH1) { OnMeshLoaded(std::forward<decltype(PH1)>(PH1)); };
 
     AssetManager::LoadAsset(asset_id, callback);

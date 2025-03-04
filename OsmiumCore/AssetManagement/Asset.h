@@ -22,6 +22,9 @@ protected:
     ~Asset() = default;
     AssetType type;
 
+    unsigned int referenceCount = 0;
+    virtual void Load_Impl() = 0;
+    virtual void Unload_Impl(bool immediate) = 0;
 public:
     const AssetId id;
     const std::filesystem::path path;
@@ -30,9 +33,9 @@ public:
     #endif
     [[nodiscard]] bool isLoaded() const;//check if the id is present in the set of loaded assets
     [[nodiscard]] AssetType getType() const;
-    virtual void Load() = 0;
+    void Load();
 
-    virtual void Unload(bool immediate) = 0;
+    void Unload(bool immediate);
 
     explicit Asset(std::filesystem::path const &assetPath);
     virtual std::mutex& GetRessourceMutex() = 0;

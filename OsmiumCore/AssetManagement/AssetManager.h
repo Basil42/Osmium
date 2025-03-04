@@ -31,11 +31,13 @@ class AssetManager {
     static std::vector<std::pair<Asset*,std::vector<std::function<void(Asset*)>>>> CallbackList;
 
 public:
+    //Could probably be made private with clever use of condition variables
     static void Shutdown();
     static void LoadingRoutine();
-    static bool isAssetLoaded(AssetId assetId);
     static void ProcessCallbacks();
 
+    static bool isAssetLoaded(AssetId assetId);
+    static Asset* GetAsset(AssetId assetId);
 
     static void LoadAsset(AssetId assetId, const std::function<void(Asset *)> &callback);
     static void UnloadAsset(AssetId assetId, bool immediate);
@@ -47,6 +49,8 @@ public:
     static void LoadAssetDatabase();
 
     static void UnloadAll();
+
+    static const std::map<AssetId,Asset*>& GetAssetDataBase();
 
     AssetManager() = delete;//this is purely a static class
 };
