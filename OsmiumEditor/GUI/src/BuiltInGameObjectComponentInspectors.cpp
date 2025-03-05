@@ -44,7 +44,7 @@ namespace GUI{
             meshAssetPreview = assetRef->path.filename().string().c_str();//convoluted conversion, there is surely a better way
         }
         //combo boxes will require a query system for asset selection
-        if (ImGui::BeginCombo("Mesh",meshAssetPreview,0)) {//I'll figure out the flags later
+        if (ImGui::BeginCombo("Mesh",meshAssetPreview,ImGuiComboFlags_None)) {//I'll figure out the flags later
             for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {
                 if (asset->getType() != mesh)continue;//we should instead use premade queries to do this, it will get very slow on large databases
                 const bool is_selected = (assetHandle.value() == id);
@@ -52,6 +52,7 @@ namespace GUI{
                     comp->SetMeshAsset(id);
                 }
             }
+            ImGui::EndCombo();
         }
 
     }

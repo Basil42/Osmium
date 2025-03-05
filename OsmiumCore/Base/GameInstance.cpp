@@ -91,6 +91,7 @@ void GameInstance::run() {
     auto SimulationThread = std::thread(GameLoop,this);
     // auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
     auto LoadingThread = std::thread(LoadingRoutine,this);//maybe I need some kind of staging method here
+    auto UnloadingThread = std::thread(UnloadingRoutine,this);
 
     std::unique_lock<std::mutex> ImGuiLock(ImguiMutex,std::defer_lock);
     std::unique_lock<std::mutex> RenderDataLock(renderDataMutex, std::defer_lock);
@@ -124,7 +125,8 @@ void GameInstance::run() {
     SimulationThread.join();
     //ImGuiThread.join();
     LoadingThread.join();
-    AssetManager::UnloadAll();
+    UnloadingThread.join();
+    AssetManager::UnloadAll(true);
     OsmiumGL::Shutdown();
     delete GameObjects;
     // io = ImGui::GetIO();
@@ -172,4 +174,8 @@ ResourceArray<GameObject, 2000> & GameInstance::GetGameObjects() const {
 
 void GameInstance::LoadingRoutine() {
     AssetManager::LoadingRoutine();//should be ran privately by the asset manager directly
+}
+
+void GameInstance::UnloadingRoutine() {
+    AssetManager::UnloadingRoutine();
 }

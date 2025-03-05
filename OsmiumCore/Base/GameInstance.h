@@ -55,6 +55,7 @@ class GameInstance {
 
 
     void LoadingRoutine();
+    void UnloadingRoutine();
     //we pass this through parameters so we can latert launch the game in editor context
     void GameLoop();
     void RenderLoop();

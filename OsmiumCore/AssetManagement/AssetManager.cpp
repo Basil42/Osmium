@@ -16,13 +16,16 @@
 #include "AssetType/MeshAsset.h"
 
 std::mutex AssetManager::loadingCollectionMutex;
+std::mutex AssetManager::unloadingCollectionMutex;
 std::mutex AssetManager::loadedCollectionMutex;
 std::mutex AssetManager::assetDatabaseMutex;
 std::set<AssetId> AssetManager::loadedAssets;//this needs some sort of reference counting
 std::map<AssetId,std::vector<std::function<void(Asset*)>>> AssetManager::loadingAssets;
+std::set<AssetId> AssetManager::unloadingAssets;
 std::map<AssetId,Asset*> AssetManager::AssetDatabase;
 std::mutex AssetManager::PendingLoadsMutex;
 std::condition_variable AssetManager::LoadingPending;
+std::condition_variable AssetManager::UnloadingPending;
 bool AssetManager::shutdownRequested = false;
 std::mutex AssetManager::CallbackListMutex;
 std::vector<std::pair<Asset*,std::vector<std::function<void(Asset*)>>>> AssetManager::CallbackList;
@@ -32,6 +35,7 @@ void AssetManager::Shutdown() {
     //I can do some syncing here if need be
     shutdownRequested = true;
     LoadingPending.notify_one();
+    UnloadingPending.notify_one();
 }
 
 void AssetManager::LoadingRoutine() {
@@ -55,6 +59,23 @@ void AssetManager::LoadingRoutine() {
         CallbackList.emplace_back(asset,entry.second);
     }
     //might want to unload everything here to be safe
+}
+void AssetManager::UnloadingRoutine() {
+    while (!shutdownRequested) {
+        std::unique_lock UnloadingSetLock(unloadingCollectionMutex);
+        UnloadingPending.wait(UnloadingSetLock, [](){return !unloadingAssets.empty() || shutdownRequested;});
+        if (unloadingAssets.empty()) continue;
+        UnloadingSetLock.unlock();
+        std::unique_lock assetDBLock(assetDatabaseMutex);
+        Asset* asset = AssetDatabase[*unloadingAssets.begin()];
+        assetDBLock.unlock();
+        asset->Unload(false);
+
+        UnloadingSetLock.lock();
+        unloadingAssets.erase(*unloadingAssets.begin());
+
+    }
+
 }
 
 bool AssetManager::isAssetLoaded(AssetId assetId) {
@@ -104,10 +125,31 @@ void AssetManager::LoadAsset(AssetId assetId, const std::function<void(Asset*)> 
 
     }
 }
+/*
+ * Unload the provided asset if no other object has it loaded.
+ */
+void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {
 
-void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {//unsafe, tuck it in the loading thread, or maybe an unloading thread
-
-    AssetDatabase.at(assetId)->Unload(immediate);
+    const auto AssetIt = AssetDatabase.find(assetId);
+    assert(AssetIt != AssetDatabase.end());//abort if asset is not imported
+    std::unique_lock loadedListLock(loadedCollectionMutex);
+    if (!loadedAssets.contains(assetId)) {
+        std::cout << "trying to unload an asset that is not loaded." << std::endl;
+        return;
+    }
+    loadedAssets.erase(assetId);
+    loadedListLock.unlock();
+    if (immediate) {
+        AssetIt->second->Unload(true);
+        return;
+    }
+    std::unique_lock unloadingListLock(unloadingCollectionMutex);
+    if (unloadingAssets.contains(assetId))return;//already unloading
+    //enqueue unload
+    unloadingAssets.emplace(assetId);
+    unloadingListLock.unlock();
+    UnloadingPending.notify_one();
+    //AssetDatabase.at(assetId)->Unload(immediate);
 }
 
 void AssetManager::ImportAsset(const std::filesystem::path &path) {
@@ -144,12 +186,11 @@ void AssetManager::LoadAssetDatabase() {
         ImportAssetDatabase();
 }
 
-void AssetManager::UnloadAll() {
+void AssetManager::UnloadAll(bool immediate = false) {
     //check that no asset are loading, if so, wait ?
     //Jobify this
     while (!loadedAssets.empty()) {
-        UnloadAsset(*loadedAssets.begin(), true);
-        loadedAssets.erase(loadedAssets.begin());
+        UnloadAsset(*loadedAssets.begin(), immediate);
     }
 }
 

@@ -245,7 +245,7 @@ void OsmiumGLInstance::UnloadMesh(MeshHandle mesh,bool immediate = false) {
     //change to something mor elegant later, I could just wait a frame
     if (!immediate) {
         vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
-        vkWaitForFences(device, 1, &inflightFences[currentFrame+1],VK_TRUE,UINT64_MAX);//wait max frames in flight
+        vkWaitForFences(device, 1, &inflightFences[(currentFrame+1)%MAX_FRAMES_IN_FLIGHT],VK_TRUE,UINT64_MAX);//wait max frames in flight
     }else {
         vkDeviceWaitIdle(device);
     }

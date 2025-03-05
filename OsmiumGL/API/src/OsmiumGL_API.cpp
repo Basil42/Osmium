@@ -76,6 +76,7 @@ bool OsmiumGL::RegisterRenderedObject(RenderedObject &rendered_object) {
 }
 
 void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {
+    pushConstantStagingVectors.erase(rendered_object);
     instance->RemoveRenderedObject(rendered_object);
 }
 
