@@ -36,6 +36,6 @@ void GOC_Camera::RenderUpdate() {
     OsmiumGL::UpdateMainCameraData(viewMatrix, glm::radians(verticalFoV));
 }
 
-glm::mat4 GOC_Camera::GetViewMatrix() {
+glm::mat4 GOC_Camera::GetViewMatrix() const {
     return viewMatrix;
 }

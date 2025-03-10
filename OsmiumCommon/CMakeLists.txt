@@ -7,9 +7,9 @@ set(OSMIUMCOMMONHEADERS
         include/MeshFileLoading.h
         include/MathUtils.h)
 
-add_library(OsmiumCommon STATIC
+add_library(OsmiumCommon INTERFACE
     ${OSMIUMCOMMONHEADERS})
 set_target_properties(OsmiumCommon PROPERTIES LINKER_LANGUAGE CXX)
-target_include_directories(OsmiumCommon PUBLIC include)
+target_include_directories(OsmiumCommon INTERFACE include)
 
 

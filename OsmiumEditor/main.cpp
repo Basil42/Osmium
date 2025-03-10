@@ -10,7 +10,7 @@ int main() {
     ImGuiSyncStruct imGuiSync{};
     instance.getImGuiSyncInfo(imGuiSync);
     EditorGUI editorGUI(imGuiSync,&instance);
-    auto GUIThread = std::thread(editorGUI.Run,editorGUI);
+    auto GUIThread = std::thread(&EditorGUI::Run,editorGUI);
     //I will remove this call for play mode
     instance.run();
 

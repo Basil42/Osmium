@@ -17,8 +17,6 @@
 
 #include <InitUtilVk.h>
 #include <filesystem>
-#include <bits/std_mutex.h>
-
 #include "RenderedObject.h"
 #include "MaterialData.h"
 #include "MeshData.h"
@@ -81,7 +79,7 @@ public:
 
 
 private:
-    VmaAllocator allocator;
+    VmaAllocator allocator = VK_NULL_HANDLE;
     ImDrawData * imgGuiDrawData;
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
@@ -141,7 +139,6 @@ private:
     VmaAllocation textureImageMemory = VK_NULL_HANDLE;
     VkImageView textureImageView = VK_NULL_HANDLE;
     VkSampler textureSampler = VK_NULL_HANDLE;
-    VkDescriptorUpdateTemplate VikingPushTemplate;
     //imgui
     ImGui_ImplVulkanH_Window imguiWindowsData;
 
@@ -163,6 +160,7 @@ private:
         VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
         VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME,
     };
+#endif
     bool showDemoWindow = true;
     bool showAnotherWindow = true;
 
@@ -180,7 +178,6 @@ private:
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
-#endif
     void createInstance();;
 
 #ifdef Vk_VALIDATION_LAYER

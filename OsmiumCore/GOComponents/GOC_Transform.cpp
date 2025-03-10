@@ -10,6 +10,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 
 #include "BlinnPhongVertex.h"
+#include <iostream>
 GOC_Transform::~GOC_Transform() {
     while(!childrenTransforms.empty()) {
         //maybe the game object should take care of destroying its children

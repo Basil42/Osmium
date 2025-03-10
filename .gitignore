@@ -7,3 +7,5 @@
 /OsmiumGL/cmake-build-debug-visual-studio/
 /OsmiumGL/cmake-build-release-visual-studio/
 /vcpkg_installed/
+/.vs/
+/out/

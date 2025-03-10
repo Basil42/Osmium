@@ -4,10 +4,9 @@
 #include "OsmiumGL_API.h"
 
 #include <mutex>
-
+#include <filesystem>
 #include "BlinnPhongVertex.h"
-#include "BlinnPhongVertex.h"
-#include "Core.h"
+#include <Core.h>
 #include "DefaultShaders.h"
 OsmiumGLInstance* OsmiumGL::instance;
 void OsmiumGL::Init() {

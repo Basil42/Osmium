@@ -18,13 +18,13 @@ struct MaterialInstanceData {
 
 struct MaterialData {
   VkPipeline pipeline = VK_NULL_HANDLE;
-  VkPipelineLayout pipelineLayout;
-  VkDescriptorSetLayout descriptorSetLayout;
-  uint32_t PushConstantStride;
+  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+  VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+  uint32_t PushConstantStride = 0;
   std::vector<unsigned int> instances;//vector of handles for material instances
-  uint32_t VertexAttributeCount;//The actual max value is probably a lot lower than this I can probably use int 16
-  DefaultVertexAttributeFlags VertexInputAttributes;
-  unsigned int CustomVertexInputAttributes;
+  uint32_t VertexAttributeCount = 0;//The actual max value is probably a lot lower than this I can probably use int 16
+  DefaultVertexAttributeFlags VertexInputAttributes = NONE;
+  unsigned int CustomVertexInputAttributes = 0;
 };
 
 

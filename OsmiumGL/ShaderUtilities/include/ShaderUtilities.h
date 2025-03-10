@@ -6,8 +6,6 @@
 #define SHADERUTILITIES_H
 #include <fstream>
 #include <vector>
-#include <bits/fs_fwd.h>
-#include <bits/fs_path.h>
 
 namespace ShaderUtils{
     static std::vector<char> readfile(const std::string& filename) {

@@ -6,7 +6,7 @@
 #define ASSET_H
 #include <string>
 #include <filesystem>
-#include <bits/std_mutex.h>
+#include <mutex>
 typedef unsigned long AssetId;
 /**
  * This struct is mostly a way to carry around asset IDs.

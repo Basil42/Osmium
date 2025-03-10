@@ -88,10 +88,10 @@ void GameInstance::run() {
     //mainCamTransform->SetTransformMatrix(glm::lookAt(glm::vec3(2.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)));
 
 
-    auto SimulationThread = std::thread(GameLoop,this);
+    auto SimulationThread = std::thread(&GameInstance::GameLoop,this);
     // auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
-    auto LoadingThread = std::thread(LoadingRoutine,this);//maybe I need some kind of staging method here
-    auto UnloadingThread = std::thread(UnloadingRoutine,this);
+    auto LoadingThread = std::thread(&GameInstance::LoadingRoutine,this);//maybe I need some kind of staging method here
+    auto UnloadingThread = std::thread(&GameInstance::UnloadingRoutine,this);
 
     std::unique_lock<std::mutex> ImGuiLock(ImguiMutex,std::defer_lock);
     std::unique_lock<std::mutex> RenderDataLock(renderDataMutex, std::defer_lock);

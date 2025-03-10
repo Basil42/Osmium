@@ -27,3 +27,4 @@ add_executable(OsmiumEditor
 target_link_libraries(OsmiumEditor PRIVATE OsmiumCore OsmiumGL OsmiumCommon OsmiumPhysics)
 target_include_directories(OsmiumEditor PUBLIC GUI/include)
 target_compile_features(OsmiumEditor PRIVATE cxx_std_20)
+

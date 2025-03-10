@@ -6,6 +6,7 @@
 #define VERTEXDESCRIPTOR_H
 
 enum DefaultVertexAttributeFlags : unsigned int {
+    NONE = 0,
     POSITION = 1 << 0,
     TEXCOORD0 = 1<<1,
     NORMAL = 1 << 2,

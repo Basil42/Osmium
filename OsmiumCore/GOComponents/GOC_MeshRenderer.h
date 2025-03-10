@@ -8,7 +8,7 @@
 
 #include <optional>
 #include <glm/mat4x4.hpp>
-
+#include <array>
 #include "RenderedObject.h"
 #include "../Base/GameObjectComponent.h"
 #include "../AssetManagement/AssetManager.h"

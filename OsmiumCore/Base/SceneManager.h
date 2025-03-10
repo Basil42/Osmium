@@ -14,7 +14,7 @@ class SceneManager {
     std::vector<SceneId> LoadingScenes;
     std::vector<SceneId> UnloadingScene;
 public:
-    LoadScene(std::string);
+    SceneId LoadScene(std::string);
     bool isSceneLoaded();
     bool isSceneLoading();
 };

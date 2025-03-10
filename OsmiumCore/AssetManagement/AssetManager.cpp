@@ -103,7 +103,7 @@ void AssetManager::LoadAsset(AssetId assetId, const std::function<void(Asset*)> 
         std::unique_lock loadedListLock(loadedCollectionMutex);
         if(loadedAssets.contains(assetId)) {//creates a potential delay for already loaded assets
             #if defined EDITOR_MODE || defined _DEBUG
-            std::cout << AssetIt->second.name << " at " << AssetIt->second.path << " already loaded" << std::endl;
+            std::cout << AssetIt->second->name << " at " << AssetIt->second->path << " already loaded" << std::endl;
             #endif
             callback(AssetDatabase.at(assetId));
             return;

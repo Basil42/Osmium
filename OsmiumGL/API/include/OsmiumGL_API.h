@@ -8,8 +8,6 @@
 #include <imgui.h>
 #include <map>
 #include <vector>
-#include <bits/std_mutex.h>
-
 #include "DefaultVertex.h"
 #include "RenderedObject.h"
 #include "VertexDescriptor.h"

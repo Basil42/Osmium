@@ -87,7 +87,7 @@ public:
         std::vector<VkQueueFamilyProperties> queueFamilies(graphicsFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &graphicsFamilyCount, queueFamilies.data());
         int i = 0;
-        for(const auto queueFamily : queueFamilies) {
+        for(const auto& queueFamily : queueFamilies) {
             if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphicsFamily = i;
             }
@@ -150,7 +150,7 @@ public:
 
         uint32_t score = 0;
 
-        for (auto available_extension: availableExtensions) {
+        for (const auto& available_extension : availableExtensions) {
             if(allocatorExtensions.contains(available_extension.extensionName))
                 score += 100;
         }

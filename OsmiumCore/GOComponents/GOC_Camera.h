@@ -33,7 +33,7 @@ public:
 
     void RenderUpdate() override;
 
-    glm::mat4 GetViewMatrix();
+    glm::mat4 GetViewMatrix() const;
 
     const std::string name = "Camera";
     const std::string & Name() override {

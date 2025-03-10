@@ -29,6 +29,6 @@ void Asset::Unload(bool immediate = false) {
 
 Asset::Asset(std::filesystem::path const &assetPath) : id(getAssetId(assetPath)),path(assetPath)
  #if defined EDITOR_MODE || defined _DEBUG
-name("tempName")
+,name("tempName")
 #endif
 {}
