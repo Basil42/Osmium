@@ -16,7 +16,7 @@ void OsmiumGL::Init() {
 
 void OsmiumGL::StartFrame() {
 
-    instance->StartFrame();
+    OsmiumGLInstance::StartFrame();
 }
 
 void OsmiumGL::SubmitPushConstantBuffers() {

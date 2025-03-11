@@ -1,9 +1,8 @@
 
 #ifndef TUTORIALVERTEX_H
 #define TUTORIALVERTEX_H
-#include <array>
-#include <glm\glm.hpp>
-#include <vulkan/vulkan_core.h>//it would be nice to declare things that depends on this header in another file
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 //TODO refresh this struct
 //might need to change the bindings in attribute description now that they are not interleaved
 //might need to entirelyu move out the vertex input description from here and have it in material data

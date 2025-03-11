@@ -8,6 +8,7 @@
 #include <glm/vec3.hpp>
 
 #include "DefaultVertex.h"
+#include "PassBindings.h"
 
 struct BlinnPhongVertex {
   glm::vec3 position;

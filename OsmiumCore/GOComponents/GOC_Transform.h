@@ -17,7 +17,7 @@ struct GOC_TransformCreateData : GameObjectComponentCreateInfo{//afraid this sol
 
 };
 
-class GOC_Transform : public GameObjectComponent {
+class GOC_Transform final : public GameObjectComponent {
 
 private:
     glm::mat4 model = glm::mat4(1.0f);

@@ -298,7 +298,7 @@ void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std:
     }
 }
 
-void OsmiumGLInstance::UpdateCameraData(glm::mat4 viewMat, float radianVFOV) {
+void OsmiumGLInstance::UpdateCameraData(const glm::mat4 &viewMat, const float radianVFOV) const {
     //projection is relativelyu stable and could be cached but this is relatively cheap
     auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f);
     proj[1][1] = -1.0f;//correction for orientation convention
