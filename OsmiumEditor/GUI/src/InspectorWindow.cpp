@@ -5,6 +5,7 @@
 #include "InspectorWindow.h"
 
 #include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
 #include <iostream>
 
 #include "ComponentInspector.h"
@@ -31,6 +32,7 @@ void InspectorWindow::Render(ImGuiIO &io) {
     auto& objectResourceArray = gameInstanceRef->GetGameObjects();
     if (objectResourceArray.contains(selectedGameObjectHandle)) {
         GameObject& obj = objectResourceArray.get(selectedGameObjectHandle);
+        ImGui::InputText("Name", &obj.Name);
         ImGui::LabelText(obj.Name.c_str(), "Name");
         for (auto&[typeIndex, component]: obj.GetComponents()) {
             if(ImGui::CollapsingHeader(component->Name().c_str())) {//name is bad here, I should use something else

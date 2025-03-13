@@ -3,9 +3,7 @@ project(OsmiumGL)
 
 set(CMAKE_CXX_STANDARD 20)
 
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-    add_definitions(-DVk_VALIDATION_LAYER=1)
-endif ()
+
 set(IMGUI_SOURCES
         ../imgui/imgui.cpp
         ../imgui/imgui_demo.cpp
@@ -14,6 +12,7 @@ set(IMGUI_SOURCES
         ../imgui/backends/imgui_impl_glfw.cpp
         ../imgui/backends/imgui_impl_vulkan.cpp
         ../imgui/imgui_tables.cpp
+        ../imgui/misc/cpp/imgui_stdlib.cpp
 )
 set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
@@ -48,6 +47,13 @@ add_library(OsmiumGL STATIC
         ${OSMIUMGL_SOURCES}
         ${OSMIUMGL_EXECUTABLE_HEADERS}
         ${IMGUI_SOURCES})
+
+target_compile_features(OsmiumGL PUBLIC cxx_std_20)
+
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    target_compile_definitions(OsmiumGL PUBLIC -DVk_VALIDATION_LAYER)
+endif ()
 #I should have an interface class to not require all these public header and only use one public entry point
 target_include_directories(OsmiumGL PUBLIC ../imgui)
 target_include_directories(OsmiumGL PRIVATE ../imgui/backends)
@@ -94,5 +100,5 @@ add_dependencies(compileBlinnPhongShaders copy_default_resources)
 
 add_executable(OsmiumGLTest OsmiumGlTest.cpp)
 target_link_libraries(OsmiumGLTest OsmiumGL)
-target_compile_features(OsmiumGL PRIVATE cxx_std_20)
+#target_compile_features(OsmiumGL PRIVATE cxx_std_20)
 #set_target_properties(OsmiumGL PROPERTIES LINKER_LANGUAGE CXX)

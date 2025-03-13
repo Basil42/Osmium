@@ -25,6 +25,6 @@ add_executable(OsmiumEditor
         )
 
 target_link_libraries(OsmiumEditor PRIVATE OsmiumCore OsmiumGL OsmiumCommon OsmiumPhysics)
+find_package(glm CONFIG REQUIRED)
+target_link_libraries(OsmiumEditor PRIVATE glm::glm)
 target_include_directories(OsmiumEditor PUBLIC GUI/include)
-target_compile_features(OsmiumEditor PRIVATE cxx_std_20)
-

@@ -1,8 +1,7 @@
 
 #ifndef TUTORIALVERTEX_H
 #define TUTORIALVERTEX_H
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
+#include <glm/glm.hpp>
 //TODO refresh this struct
 //might need to change the bindings in attribute description now that they are not interleaved
 //might need to entirelyu move out the vertex input description from here and have it in material data

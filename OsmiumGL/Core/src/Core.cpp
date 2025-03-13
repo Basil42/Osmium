@@ -37,17 +37,15 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <unordered_map>
 
 #include "config.h"
 #include "DefaultSceneDescriptorSets.h"
 #include "DefaultShaders.h"
-#include "ShaderUtilities.h"
 #include "DefaultVertex.h"
 #include "MeshFileLoading.h"
 #include "PassBindings.h"
 #include "UniformBufferObject.h"
-#include "../include/MaterialData.h"
+#include "MaterialData.h"
 #include "SwapChains/SwapChainUtilities.h"
 
 // Volk headers
@@ -188,7 +186,7 @@ void OsmiumGLInstance::createVertexAttributeBuffer(const void* vertexData,const 
 }
 
 void OsmiumGLInstance::createIndexBuffer(const std::vector<unsigned int> &indices, VkBuffer&vk_buffer,
-    VmaAllocation&vma_allocation) {
+    VmaAllocation&vma_allocation) const {
     VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     stagingBufferCreateInfo.size = sizeof(unsigned int) * indices.size();
     stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -266,7 +264,7 @@ VkDescriptorSetLayout OsmiumGLInstance::GetCameraDescriptorLayout() const {
 }
 
 
-void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) {
+void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) const {
     //these are fairly slow structures but should not be accessed too many times
     for (auto& buffer: pushMap) {
         MaterialBindings* matBinding = nullptr;
@@ -298,15 +296,9 @@ void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std:
     }
 }
 
-void OsmiumGLInstance::UpdateCameraData(const glm::mat4 &viewMat, const float radianVFOV) const {
-    //projection is relativelyu stable and could be cached but this is relatively cheap
-    auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f);
-    proj[1][1] = -1.0f;//correction for orientation convention
-    const CameraUniform cameraUniform {.view = viewMat, .projection = proj};
-    defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
-}
 
-MatInstanceHandle OsmiumGLInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
+
+MatInstanceHandle OsmiumGLInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) const {
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
 }
 
@@ -386,6 +378,15 @@ void OsmiumGLInstance::StartFrame() {
     //start IMGUI frame
     startImGuiFrame();
 }
+
+void OsmiumGLInstance::UpdateCameraData(const glm::mat4& viewMat, float radianVFOV) const {
+        //projection is relatively stable and could be cached but this is relatively cheap
+        auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f);
+        proj[1][1] = -1.0f;//correction for orientation convention
+        const CameraUniform cameraUniform {.view = viewMat, .projection = proj};
+        defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
+}
+
 
 void OsmiumGLInstance::endImgGuiFrame() {
     ImGui::Render();
@@ -873,7 +874,7 @@ void OsmiumGLInstance::DrawCommands(VkCommandBuffer commandBuffer,
                         matData.PushConstantStride,
                         mesh.ObjectPushConstantData[currentFrame].data()+(i*matData.PushConstantStride));
                     vkCmdDrawIndexed(commandBuffer,data.numIndices,1,0,0,0);
-                    //Here it is possible to replace the push constant with some kind of buffer and do instanced rendering with a single draw call
+                    //Here it is possible to replace the push constant with some kind of buffer and implement instanced rendering with a single draw call
                     //can apparently be done with a buffer binding in the shader of input rate instance (the buffer steps per instance instead of per vertex)
                     //Should probably just be a boolean toggle in the material options on the
 
@@ -1073,7 +1074,7 @@ void OsmiumGLInstance::createUniformBuffer() {
 
 void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,
                                    VkSampleCountFlagBits numSamples, VkFormat format,
-                                   const VkImageTiling tiling, VkImageUsageFlags usage, VkImage &image, VmaAllocation &imageAllocation) {
+                                   const VkImageTiling tiling, VkImageUsageFlags usage, VkImage &image, VmaAllocation &imageAllocation) const {
     VkImageCreateInfo imageCreateInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .flags = 0,
@@ -1102,7 +1103,7 @@ void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mip
 void OsmiumGLInstance::createEmptyTextureImage(VkImage& vk_image,VmaAllocation& imageAllocation) {
     VkBuffer stagingBuffer;
     VmaAllocation stagingAllocation;
-    std::byte pixel = static_cast<std::byte>(0xffffffff);
+    auto pixel = static_cast<std::byte>(0xffffffff);
     createBuffer(sizeof(std::byte),
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VMA_MEMORY_USAGE_AUTO,
@@ -1401,7 +1402,7 @@ VkImageView OsmiumGLInstance::createImageView(VkImage image, VkFormat format, Vk
     return imageView;
 }
 
-void OsmiumGLInstance::createTextureSampler(VkSampler &sampler) {
+void OsmiumGLInstance::createTextureSampler(VkSampler &sampler) const {
     VkPhysicalDeviceProperties deviceProp = {};
     vkGetPhysicalDeviceProperties(physicalDevice,&deviceProp);
 
@@ -1744,7 +1745,7 @@ void OsmiumGLInstance::initVulkan() {
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
 }
 
-void OsmiumGLInstance::cleanupSwapChain() {
+void OsmiumGLInstance::cleanupSwapChain() const {
     vkDestroyImageView(device, colorImageView,nullptr);
     vmaDestroyImage(allocator,colorImage,colorImageMemory);
     vkDestroyImageView(device,depthImageView,nullptr);

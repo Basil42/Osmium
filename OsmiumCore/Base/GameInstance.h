@@ -29,18 +29,18 @@ class GOC_Camera;
 class GameInstance {
     //syncing stuff
     std::mutex SimulationCompletionMutex;
-    bool isSimOver;
+    bool isSimOver = false;
     std::condition_variable SimulationConditionVariable;
     std::mutex renderDataMutex;
     std::condition_variable renderDataUpdateConditionVariable;
-    bool isRenderUpdateOver;
+    bool isRenderUpdateOver = false;
     std::mutex ImguiMutex;
     std::condition_variable ImguiNewFrameConditionVariable;
     bool isImguiNewFrameReady = false;
     bool isImguiUpdateOver = true;//should skip over that update on the first sim tick
     std::condition_variable ImguiUpdateConditionVariable;
-    bool ImGuiShouldShutoff;
-    bool simShouldShutoff;
+    bool ImGuiShouldShutoff = false;
+    bool simShouldShutoff = false;
 
     ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;
     std::mutex creationQueueMutex;

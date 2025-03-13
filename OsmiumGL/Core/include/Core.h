@@ -17,6 +17,8 @@
 
 #include <InitUtilVk.h>
 #include <filesystem>
+#include <set>
+
 #include "RenderedObject.h"
 #include "MaterialData.h"
 #include "MeshData.h"
@@ -34,7 +36,7 @@ public:
 
     //Mesh loading
     unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
-    void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation);
+    void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation) const;
     void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation
                                      &vma_allocation) const;
     MeshHandle LoadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags);
@@ -49,7 +51,7 @@ public:
     //Material loading
     MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
     void RemoveMaterial(MaterialHandle material) const;
-    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
+    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material) const;
     [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
     [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
 
@@ -63,9 +65,9 @@ public:
     [[nodiscard]] VkDescriptorSetLayout GetCameraDescriptorLayout() const;
 
     //per frame updates
+    void UpdateCameraData(const glm::mat4& viewMat, float radianVFOV) const;
     static void StartFrame();
-    void UpdateCameraData(const glm::mat4 &viewMat, float radianVFOV) const;
-    void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map);
+    void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
     static void startImGuiFrame();
     void endImgGuiFrame();
     void EndFrame(std::mutex &imGUiMutex, std::condition_variable &imGuiCV, bool &isImguiFrameReady);
@@ -150,6 +152,7 @@ private:
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
+#endif
     const std::set<std::string> allocatorExtensions = {
         VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
         VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
@@ -160,7 +163,6 @@ private:
         VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
         VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME,
     };
-#endif
     bool showDemoWindow = true;
     bool showAnotherWindow = true;
 
@@ -227,14 +229,14 @@ private:
 
     void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
                      tiling, VkImageUsageFlags usage, VkImage
-                     &image, VmaAllocation &imageAllocation);
+                     &image, VmaAllocation &imageAllocation) const;
 
 
     void createEmptyTextureImage(VkImage &vk_image, VmaAllocation &imageAllocation);
     void createTextureImage(const char *path);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
 
-    void createTextureSampler(VkSampler &sampler);
+    void createTextureSampler(VkSampler &sampler) const;
     void createTextureSampler();
     void createDepthResources();
     void createColorResources();
@@ -266,7 +268,7 @@ private:
     void setupImGui();
 
     //internal cleanup
-    void cleanupSwapChain();
+    void cleanupSwapChain() const;
     void cleanup();
 
     //internal per frame update

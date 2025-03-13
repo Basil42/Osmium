@@ -1,6 +1,7 @@
 //
 // Created by nicolas.gerard on 2024-12-02.
 //
+#include <glm/glm.hpp>
 #include "OsmiumGL_API.h"
 
 #include <mutex>
@@ -57,8 +58,8 @@ void OsmiumGL::ClearGOPushConstantBuffers() {
     }
 }
 
-void OsmiumGL::UpdateMainCameraData(glm::mat4 mat, float radianVFoV) {
-    instance->UpdateCameraData(mat,radianVFoV);
+void OsmiumGL::UpdateMainCameraData(const glm::mat4 &mat, const float radianVFoV) {
+    instance->UpdateCameraData(mat, radianVFoV);
 }
 
 MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
@@ -70,7 +71,7 @@ MeshHandle OsmiumGL::LoadMesh(const std::filesystem::path &path) {
 }
 
 
-bool OsmiumGL::RegisterRenderedObject(RenderedObject &rendered_object) {
+bool OsmiumGL::RegisterRenderedObject(const RenderedObject &rendered_object) {
     return instance->AddRenderedObject(rendered_object);
 }
 
@@ -83,8 +84,8 @@ void OsmiumGL::UnloadMesh(unsigned long mesh_handle,bool immediate = false) {
     instance->UnloadMesh(mesh_handle, immediate);
 }
 
-void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>& vertices,
-                                         std::vector<unsigned int>& indices) {
+void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, const std::vector<DefaultVertex>& vertices,
+                                         const std::vector<unsigned int>& indices) {
     mesh_handle = instance->LoadMeshToDefaultBuffer(vertices,indices);
 }
 

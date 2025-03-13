@@ -32,7 +32,7 @@ void GameInstance::GameLoop() {
             auto entry = gameObjectsCreationQueue.front();
             gameObjectsCreationQueue.pop();
             GameObject* newObj;
-            auto handle = GameObjects->emplace_new(newObj);
+            const auto handle = GameObjects->emplace_new(newObj);
             newObj->Name = entry.first.name;
             newObj->Handle = handle;
             entry.second(newObj);

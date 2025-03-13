@@ -14,6 +14,11 @@ set(OSMIUMCORE_SOURCES
         Base/Entity.cpp
         Base/SceneManager.cpp
         AssetManagement/Asset.cpp
+        AssetManagement/AssetManager.cpp
+        Base/ResourceManager.cpp
+        AssetManagement/AssetType/MeshAsset.cpp
+        AssetManagement/AssetType/DefaultAsset.cpp
+        GOComponents/GOC_Camera.cpp
 
 )
 set(OSMIUMCORE_HEADERS
@@ -31,16 +36,11 @@ set(OSMIUMCORE_HEADERS
         Base/SceneManager.h
 
         AssetManagement/Asset.h
-        AssetManagement/AssetManager.cpp
         AssetManagement/AssetManager.h
-        Base/ResourceManager.cpp
         Base/ResourceManager.h
-        AssetManagement/AssetType/MeshAsset.cpp
         AssetManagement/AssetType/MeshAsset.h
         Base/GameObjectComponent.cpp
-        AssetManagement/AssetType/DefaultAsset.cpp
         AssetManagement/AssetType/DefaultAsset.h
-        GOComponents/GOC_Camera.cpp
         GOComponents/GOC_Camera.h
         Base/GameObjectCreation.h
         Base/config.h
@@ -54,7 +54,7 @@ add_library(OsmiumCore STATIC
 
 target_link_libraries(OsmiumCore PUBLIC OsmiumGL)#should fix the lib to make it private at some point
 find_package(glm CONFIG REQUIRED)
-target_link_libraries(OsmiumCore PUBLIC glm::glm)
+target_link_libraries(OsmiumCore PRIVATE glm::glm)
 target_link_libraries(OsmiumCore PRIVATE OsmiumCommon)
 target_link_libraries(OsmiumCore PRIVATE OsmiumPhysics)
 target_include_directories(OsmiumCore PUBLIC /)

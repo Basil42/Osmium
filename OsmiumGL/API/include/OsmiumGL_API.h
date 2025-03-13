@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <map>
 #include <vector>
+#include <glm/fwd.hpp>
 #include "DefaultVertex.h"
 #include "RenderedObject.h"
 #include "VertexDescriptor.h"
@@ -41,7 +42,7 @@ public:
     //Mesh renderer gameobject constant buffer updates
     static void ClearGOPushConstantBuffers();
 
-    static void UpdateMainCameraData(glm::mat4 mat, float radianVFoV);
+    static void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
 
     static MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
 
@@ -49,13 +50,13 @@ public:
 
     static std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors;
 
-    static bool RegisterRenderedObject(RenderedObject &rendered_object);
+    static bool RegisterRenderedObject(const RenderedObject &rendered_object);
 
     static void UnregisterRenderedObject(RenderedObject rendered_object);
 
     static void UnloadMesh(unsigned long mesh_handle, bool immediate);
 
-    static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, std::vector<DefaultVertex>  &vertices, std::vector<unsigned>  &indices);
+    static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, const std::vector<DefaultVertex>  &vertices, const std::vector<unsigned>  &indices);
     static void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
                          bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices);
 

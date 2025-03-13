@@ -15,19 +15,10 @@ void HierarchyWindow::Render(ImGuiIO &io) {
     int HierarchyID = 0;//should probably be a static id
     for (const GameObject& obj : gameObjectContainer) {//might keep a reference to the container directly, it should be as stabel as a ref to an instance
         ImGui::PushID(HierarchyID++);
-        if (renamedObject != obj.Handle) {
-            if (ImGui::Selectable(obj.Name.c_str(),selectedGameObjectHandle == obj.Handle,ImGuiSelectableFlags_AllowDoubleClick)) {
-                selectedGameObjectHandle = obj.Handle;
-
-                if (ImGui::IsMouseDoubleClicked(0))
-                    renamedObject = selectedGameObjectHandle;
-
-            }
-        }else {
-            //renaming widget here
-            //if (ImGui::InputText())
+        if (ImGui::Selectable(obj.Name.c_str(),selectedGameObjectHandle == obj.Handle,ImGuiSelectableFlags_AllowDoubleClick)) {
+            selectedGameObjectHandle = obj.Handle;
         }
-        //double click
+
 
         ImGui::PopID();
     }
