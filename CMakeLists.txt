@@ -7,6 +7,7 @@ if ((MSVC) AND (MSVC_VERSION GREATER_EQUAL 1914))
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "vcpkg_installed/x64-windows/share/stb/FindStb.cmake")
+add_subdirectory(${PROJECT_SOURCE_DIR}/imgui)
 add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumCommon)
 add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumPhysics)
 add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumGL)

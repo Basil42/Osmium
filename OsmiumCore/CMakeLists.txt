@@ -52,10 +52,10 @@ add_library(OsmiumCore STATIC
         )
 
 
-target_link_libraries(OsmiumCore PUBLIC OsmiumGL)#should fix the lib to make it private at some point
+target_link_libraries(OsmiumCore PUBLIC OsmiumGL IMGUI)#should fix the lib to make it private at some point
 find_package(glm CONFIG REQUIRED)
-target_link_libraries(OsmiumCore PRIVATE glm::glm)
-target_link_libraries(OsmiumCore PRIVATE OsmiumCommon)
+#target_link_libraries(OsmiumCore PUBLIC glm::glm)
+target_link_libraries(OsmiumCore PUBLIC OsmiumCommon)
 target_link_libraries(OsmiumCore PRIVATE OsmiumPhysics)
 target_include_directories(OsmiumCore PUBLIC /)
 

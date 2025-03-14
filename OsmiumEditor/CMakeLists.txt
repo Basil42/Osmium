@@ -24,7 +24,6 @@ add_executable(OsmiumEditor
         ${OSMIUM_EDITOR_HEADERS}
         )
 
-target_link_libraries(OsmiumEditor PRIVATE OsmiumCore OsmiumGL OsmiumCommon OsmiumPhysics)
-find_package(glm CONFIG REQUIRED)
-target_link_libraries(OsmiumEditor PRIVATE glm::glm)
+target_link_libraries(OsmiumEditor PUBLIC OsmiumCore IMGUI)
 target_include_directories(OsmiumEditor PUBLIC GUI/include)
+add_compile_definitions(EDITOR)

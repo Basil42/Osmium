@@ -4,19 +4,23 @@
 
 #include "MeshAsset.h"
 
-#include <tiny_obj_loader.h>
-#include <unordered_map>
-#include <iostream>
 #include <DefaultVertex.h>
 
-#include "MeshFileLoading.h"
-#include "MeshInfo.h"
 #include "OsmiumGL_API.h"
 #include "../AssetManager.h"
 #include "../../Base/ResourceManager.h"
 
 void MeshAsset::Load_Impl() {
     assert(!AssetManager::isAssetLoaded(id));
+    //check(assert in builds) here if the asset has imported serialized data
+
+#ifdef EDITOR
+    if (std::filesystem::exists(path.string() + ".mesh")) {
+
+    }
+#endif
+    //if in editor,check the timestamp on it, load directly if not, probably dispatch a new serialization task (in a dedicated, editor only thread)
+    //should rely on the actual file only in the editor
     MeshHandle = OsmiumGL::LoadMesh(path);
 
 }

@@ -5,7 +5,6 @@
 #ifndef OSMIUMGL_API_H
 #define OSMIUMGL_API_H
 #include <condition_variable>
-#include <imgui.h>
 #include <map>
 #include <vector>
 #include <glm/fwd.hpp>
@@ -46,7 +45,6 @@ public:
 
     static MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
 
-    static MeshHandle LoadMesh(const std::filesystem::path &path);
 
     static std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors;
 
@@ -56,7 +54,11 @@ public:
 
     static void UnloadMesh(unsigned long mesh_handle, bool immediate);
 
+
     static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, const std::vector<DefaultVertex>  &vertices, const std::vector<unsigned>  &indices);
+    //use this overload to load a mesh from a file, this is slower than from serialized data
+    static MeshHandle LoadMesh(const std::filesystem::path &path);
+    //use this overload to load a mesh from serialized data
     static void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
                          bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices);
 

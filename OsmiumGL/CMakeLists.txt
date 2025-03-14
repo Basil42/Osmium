@@ -4,16 +4,7 @@ project(OsmiumGL)
 set(CMAKE_CXX_STANDARD 20)
 
 
-set(IMGUI_SOURCES
-        ../imgui/imgui.cpp
-        ../imgui/imgui_demo.cpp
-        ../imgui/imgui_draw.cpp
-        ../imgui/imgui_widgets.cpp
-        ../imgui/backends/imgui_impl_glfw.cpp
-        ../imgui/backends/imgui_impl_vulkan.cpp
-        ../imgui/imgui_tables.cpp
-        ../imgui/misc/cpp/imgui_stdlib.cpp
-)
+
 set(OSMIUMGL_SOURCES
         Core/src/Core.cpp
         Core/src/Descriptors.cpp
@@ -44,9 +35,8 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         API/include/MeshInfo.h
 )
 add_library(OsmiumGL STATIC
-        ${OSMIUMGL_SOURCES}
         ${OSMIUMGL_EXECUTABLE_HEADERS}
-        ${IMGUI_SOURCES})
+        ${OSMIUMGL_SOURCES})
 
 target_compile_features(OsmiumGL PUBLIC cxx_std_20)
 
@@ -55,8 +45,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     target_compile_definitions(OsmiumGL PUBLIC -DVk_VALIDATION_LAYER)
 endif ()
 #I should have an interface class to not require all these public header and only use one public entry point
-target_include_directories(OsmiumGL PUBLIC ../imgui)
-target_include_directories(OsmiumGL PRIVATE ../imgui/backends)
+
 target_include_directories(OsmiumGL PRIVATE
         Core/include
         Initialization
@@ -72,7 +61,7 @@ target_include_directories(OsmiumGL PUBLIC
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE glfw)
 find_package(glm CONFIG REQUIRED)
-target_link_libraries(OsmiumGL PRIVATE glm::glm)
+target_link_libraries(OsmiumGL PUBLIC glm::glm)
 find_package(Vulkan REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
 find_package(Stb REQUIRED)
@@ -84,9 +73,9 @@ target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllo
 target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
 target_compile_features(OsmiumGL PRIVATE cxx_std_20)
 
-
 set(CMAKE_EXE_LINKER_FLAGS " -static")
 target_link_libraries(OsmiumGL PRIVATE -static-libgcc -static-libstdc++)
+target_link_libraries(OsmiumGL PUBLIC IMGUI)
 
 add_custom_target(copy_default_resources COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/DefaultResources ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources)
 add_dependencies(OsmiumGL copy_default_resources)
