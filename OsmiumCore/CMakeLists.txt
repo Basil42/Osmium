@@ -45,22 +45,24 @@ set(OSMIUMCORE_HEADERS
         Base/GameObjectCreation.h
         Base/config.h
 )
+foreach (LIB OsmiumCore OsmiumCore_Editor)
 
-add_library(OsmiumCore STATIC
+add_library(${LIB} STATIC
         ${OSMIUMCORE_SOURCES}
         ${OSMIUMCORE_HEADERS}
         )
 
 
-target_link_libraries(OsmiumCore PUBLIC OsmiumGL IMGUI)#should fix the lib to make it private at some point
+target_link_libraries(${LIB}  PUBLIC OsmiumGL)#should fix the lib to make it private at some point
 find_package(glm CONFIG REQUIRED)
-#target_link_libraries(OsmiumCore PUBLIC glm::glm)
-target_link_libraries(OsmiumCore PUBLIC OsmiumCommon)
-target_link_libraries(OsmiumCore PRIVATE OsmiumPhysics)
-target_include_directories(OsmiumCore PUBLIC /)
+target_link_libraries(${LIB}  PRIVATE glm::glm)
+target_link_libraries(${LIB}  PUBLIC OsmiumCommon)
+target_link_libraries(${LIB}  PRIVATE OsmiumPhysics)
+target_include_directories(${LIB}  PUBLIC /)
 
+
+endforeach ()
+target_compile_definitions(OsmiumCore_Editor PUBLIC EDITOR=1)
 add_executable(CoreTest main.cpp)
 target_link_libraries(CoreTest PRIVATE OsmiumCore)
-
 target_compile_features(CoreTest PRIVATE cxx_std_20)
-
