@@ -201,10 +201,7 @@ const std::map<AssetId, Asset *>& AssetManager::GetAssetDataBase(){
 template<typename T,std::enable_if_t<std::is_base_of_v<Asset, T>,bool>>
 void AssetManager::ImportAsset(const std::filesystem::path& path) {
     std::cout << "import function not defined for file extention " << path.extension() << std::endl;
-}
-//might put these specialisation in their own file later
-template<>
-void AssetManager::ImportAsset<MeshAsset>(const std::filesystem::path& path) {
 
 }
+
 #endif

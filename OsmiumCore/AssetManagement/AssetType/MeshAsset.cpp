@@ -5,10 +5,32 @@
 #include "MeshAsset.h"
 
 #include <DefaultVertex.h>
+#include <iostream>
 
+#include "MeshFileLoading.h"
 #include "OsmiumGL_API.h"
 #include "../AssetManager.h"
 #include "../../Base/ResourceManager.h"
+
+#ifdef EDITOR
+  //might be considered bad practice to put this implemntation here
+template<>
+void AssetManager::ImportAsset<MeshAsset>(const std::filesystem::path& path) {
+    std::vector<DefaultVertex> vertices;
+    std::vector<uint32_t> indices;
+    const auto ext = path.extension();
+        if (ext == ".obj") {
+            MeshFileLoading::LoadFromObj(vertices, indices, path);//I could have importing options to filter out unused attributes, I probably need to offer an option to leave everything uninterleaved
+        }else {
+            throw std::runtime_error("not loader for this mesh format: " + path.extension().string());
+        }
+    //serialize into a separate folder
+    //auto serializePath = ;
+
+
+    }
+#endif
+
 
 void MeshAsset::Load_Impl() {
     assert(!AssetManager::isAssetLoaded(id));
@@ -43,3 +65,4 @@ MeshAsset::MeshAsset(const std::filesystem::path &path) : Asset(path){
     MeshHandle = -1;// starts unloaded
     type = mesh;
 }
+
