@@ -24,7 +24,7 @@ add_executable(OsmiumEditor
         ${OSMIUM_EDITOR_HEADERS}
         )
 
-target_link_libraries(OsmiumEditor PRIVATE OsmiumCore_Editor IMGUI)
+target_link_libraries(OsmiumEditor PRIVATE E_OsmiumCore IMGUI)
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumEditor PRIVATE glm::glm)
 target_include_directories(OsmiumEditor PUBLIC GUI/include)

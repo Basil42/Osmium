@@ -45,7 +45,7 @@ set(OSMIUMCORE_HEADERS
         Base/GameObjectCreation.h
         Base/config.h
 )
-foreach (LIB OsmiumCore OsmiumCore_Editor)
+foreach (LIB OsmiumCore E_OsmiumCore)
 
 add_library(${LIB} STATIC
         ${OSMIUMCORE_SOURCES}
@@ -62,7 +62,7 @@ target_include_directories(${LIB}  PUBLIC /)
 
 
 endforeach ()
-target_compile_definitions(OsmiumCore_Editor PUBLIC EDITOR=1)
+target_compile_definitions(E_OsmiumCore PUBLIC EDITOR=1)
 add_executable(CoreTest main.cpp)
 target_link_libraries(CoreTest PRIVATE OsmiumCore)
 target_compile_features(CoreTest PRIVATE cxx_std_20)

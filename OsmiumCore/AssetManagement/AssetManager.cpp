@@ -152,7 +152,7 @@ void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {
     //AssetDatabase.at(assetId)->Unload(immediate);
 }
 
-void AssetManager::ImportAsset(const std::filesystem::path &path) {
+void AssetManager::RegisterAsset(const std::filesystem::path &path) {
     Asset* asset;
     if (path.extension() == ".obj") {//find a solution to select the right type
         asset = new MeshAsset(path);
@@ -163,27 +163,27 @@ void AssetManager::ImportAsset(const std::filesystem::path &path) {
         AssetDatabase.emplace(asset->id, asset);
 }
 
-void AssetManager::ImportAssetDatabase() {
+void AssetManager::BuildAssetDatabase() {
     std::unique_lock assetDatabaseLock(assetDatabaseMutex);
     AssetDatabase.clear();
     std::filesystem::create_directory("../Assets");
     for (const auto &dirEntry: std::filesystem::recursive_directory_iterator("../Assets")) {
         if(dirEntry.is_regular_file()) {
             const auto& path = dirEntry.path();
-            ImportAsset(path);
+            RegisterAsset(path);
         }
     }
     for (const auto & dirEntry: std::filesystem::recursive_directory_iterator("../OsmiumGL/DefaultResources")) {
         if (dirEntry.is_regular_file()) {
             const auto& path = dirEntry.path();
-            ImportAsset(path);
+            RegisterAsset(path);
         }
     }
 }
 
 void AssetManager::LoadAssetDatabase() {
     //might deserialize from file later
-        ImportAssetDatabase();
+        BuildAssetDatabase();
 }
 
 void AssetManager::UnloadAll(bool immediate = false) {
@@ -197,3 +197,14 @@ void AssetManager::UnloadAll(bool immediate = false) {
 const std::map<AssetId, Asset *>& AssetManager::GetAssetDataBase(){
     return AssetDatabase;
 }
+#ifdef EDITOR
+template<typename T,std::enable_if_t<std::is_base_of_v<Asset, T>,bool>>
+void AssetManager::ImportAsset(const std::filesystem::path& path) {
+    std::cout << "import function not defined for file extention " << path.extension() << std::endl;
+}
+//might put these specialisation in their own file later
+template<>
+void AssetManager::ImportAsset<MeshAsset>(const std::filesystem::path& path) {
+
+}
+#endif

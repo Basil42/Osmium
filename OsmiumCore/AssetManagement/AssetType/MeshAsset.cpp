@@ -14,9 +14,10 @@ void MeshAsset::Load_Impl() {
     assert(!AssetManager::isAssetLoaded(id));
     //check(assert in builds) here if the asset has imported serialized data
 
-#ifdef EDITOR
-    if (std::filesystem::exists(path.string() + ".mesh")) {
-
+#ifdef EDITOR//This symbol will appear undefined if working from the editor executable, it will gt compiled correctly though
+    //checking if there is an already imported file.
+    if (!std::filesystem::exists(path.string() + ".mesh")) {
+        AssetManager::ImportAsset<MeshAsset>(path);
     }
 #endif
     //if in editor,check the timestamp on it, load directly if not, probably dispatch a new serialization task (in a dedicated, editor only thread)
