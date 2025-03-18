@@ -9,11 +9,13 @@
 #include "BlinnPhongVertex.h"
 #include <Core.h>
 #include "DefaultShaders.h"
-OsmiumGLInstance* OsmiumGL::instance;
+
 void OsmiumGL::Init() {
     instance = new OsmiumGLInstance();
     instance->initialize();
 }
+
+
 
 void OsmiumGL::StartFrame() {
 
@@ -43,7 +45,6 @@ MatInstanceHandle OsmiumGL::GetBlinnPhongDefaultInstance() {
     return DefaultShaders::GetBLinnPhongDefaultMaterialInstanceHandle();
 }
 
-std::map<RenderedObject,std::vector<std::byte>> OsmiumGL::pushConstantStagingVectors = std::map<RenderedObject,std::vector<std::byte>>();
 
 void OsmiumGL::ClearGOPushConstantBuffers() {
 
@@ -68,6 +69,8 @@ MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle mate
 
 MeshHandle OsmiumGL::LoadMesh(const std::filesystem::path &path) {
     return instance->LoadMesh(path, POSITION | NORMAL | TEXCOORD0);
+
+
 }
 
 

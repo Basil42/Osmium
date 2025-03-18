@@ -185,8 +185,13 @@ void OsmiumGLInstance::createVertexAttributeBuffer(const void* vertexData,const 
 
 }
 
+MeshHandle OsmiumGLInstance::LoadMesh(const std::filesystem::path &path) {
+
+    return LoadMesh(path, POSITION|TEXCOORD0|NORMAL);
+}
+
 void OsmiumGLInstance::createIndexBuffer(const std::vector<unsigned int> &indices, VkBuffer&vk_buffer,
-    VmaAllocation&vma_allocation) const {
+                                         VmaAllocation&vma_allocation) const {
     VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     stagingBufferCreateInfo.size = sizeof(unsigned int) * indices.size();
     stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;

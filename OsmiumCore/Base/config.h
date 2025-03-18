@@ -5,4 +5,6 @@
 #ifndef CORECONFIG_H
 #define CORECONFIG_H
 #define MAX_GAMEOBJECTS 2000
+#include <filesystem>
+const std::filesystem::path ResourceFolder = "../Data";
 #endif //CORECONFIG_H

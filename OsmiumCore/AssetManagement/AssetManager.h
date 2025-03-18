@@ -58,11 +58,7 @@ public:
 
     static const std::map<AssetId,Asset*>& GetAssetDataBase();
     AssetManager() = delete;//this is purely a static class
-#ifdef EDITOR
-    //specialization are in the relevant asset type cpp file
-    template<typename T,std::enable_if_t<std::is_base_of_v<Asset, T>, bool> =true>
-    static void ImportAsset(const std::filesystem::path& path);
-#endif
+
 };
 
 

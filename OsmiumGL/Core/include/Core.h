@@ -39,6 +39,8 @@ public:
     void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation) const;
     void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation
                                      &vma_allocation) const;
+    //Remove the
+    MeshHandle LoadMesh(const std::filesystem::path& path);
     MeshHandle LoadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags);
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);

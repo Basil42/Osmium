@@ -11,9 +11,11 @@
 
 #include "Asset.h"
 #include "DefaultVertex.h"
+#include "../../OsmiumEditor/config.h"
 #include "../Base/ResourceManager.h"
 #include "AssetType/DefaultAsset.h"
 #include "AssetType/MeshAsset.h"
+#include "Base/config.h"
 
 std::mutex AssetManager::loadingCollectionMutex;
 std::mutex AssetManager::unloadingCollectionMutex;
@@ -155,10 +157,12 @@ void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {
 void AssetManager::RegisterAsset(const std::filesystem::path &path) {
     Asset* asset;
     if (path.extension() == ".obj") {//find a solution to select the right type
+        std::cerr << "registering obj files is deprecated" << std::endl;
         asset = new MeshAsset(path);
     }else {
-        std::cout << path.extension() << " is not a supported file format" << std::endl;
-        asset = new DefaultAsset(path);
+        //std::cerr << path.extension() << " is not a supported file format" << std::endl;
+        asset = new DefaultAsset(path);//user is responsible for loading it
+
     }
         AssetDatabase.emplace(asset->id, asset);
 }
@@ -166,8 +170,9 @@ void AssetManager::RegisterAsset(const std::filesystem::path &path) {
 void AssetManager::BuildAssetDatabase() {
     std::unique_lock assetDatabaseLock(assetDatabaseMutex);
     AssetDatabase.clear();
-    std::filesystem::create_directory("../Assets");
-    for (const auto &dirEntry: std::filesystem::recursive_directory_iterator("../Assets")) {
+    //TODO replace with unique ressource folder
+    std::filesystem::create_directory(AssetFolder);
+    for (const auto &dirEntry: std::filesystem::recursive_directory_iterator(AssetFolder)) {
         if(dirEntry.is_regular_file()) {
             const auto& path = dirEntry.path();
             RegisterAsset(path);
@@ -178,6 +183,14 @@ void AssetManager::BuildAssetDatabase() {
             const auto& path = dirEntry.path();
             RegisterAsset(path);
         }
+    }
+    std::filesystem::create_directory(ResourceFolder);
+    for (const auto& dirEntry : std::filesystem::recursive_directory_iterator(ResourceFolder)) {
+        if (dirEntry.is_regular_file()) {
+            const auto& path = dirEntry.path();
+            RegisterAsset(path);
+        }
+
     }
 }
 
@@ -197,11 +210,3 @@ void AssetManager::UnloadAll(bool immediate = false) {
 const std::map<AssetId, Asset *>& AssetManager::GetAssetDataBase(){
     return AssetDatabase;
 }
-#ifdef EDITOR
-template<typename T,std::enable_if_t<std::is_base_of_v<Asset, T>,bool>>
-void AssetManager::ImportAsset(const std::filesystem::path& path) {
-    std::cout << "import function not defined for file extention " << path.extension() << std::endl;
-
-}
-
-#endif

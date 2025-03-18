@@ -16,64 +16,65 @@
 
 class OsmiumGLInstance;
 
-class  OsmiumGL {
-    static OsmiumGLInstance* instance;
-public:
+namespace  OsmiumGL {
 
-    static void Init();
+    inline OsmiumGLInstance* instance;
+    inline std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors = std::map<RenderedObject,std::vector<std::byte>>();
+    void Init();
 
+    void test();
+    void StartFrame();
 
-    static void StartFrame();
-
-    static void SubmitPushConstantBuffers();
+    void SubmitPushConstantBuffers();
 
     //run imgui in between;
-    static void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
-    static void Shutdown();
+    void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
+    void Shutdown();
 
-    static MaterialHandle GetBlinnPhongHandle();
+    MaterialHandle GetBlinnPhongHandle();
 
-    static MatInstanceHandle GetBlinnPhongDefaultInstance();
+    MatInstanceHandle GetBlinnPhongDefaultInstance();
+
+
 
     template<typename Container>
-    static void SubmitPushConstantDataGO(RenderedObject rendered_object,Container& data);
+    void SubmitPushConstantDataGO(RenderedObject rendered_object, Container& data) {//container should be a vector or std::array, or any container with .begin and .end
+        if (!pushConstantStagingVectors.contains(rendered_object)) {
+            pushConstantStagingVectors[rendered_object] = std::vector<std::byte>();
+        }
+        pushConstantStagingVectors[rendered_object].insert(pushConstantStagingVectors[rendered_object].end(), data.begin(), data.end());
+    }
 
     //Mesh renderer gameobject constant buffer updates
-    static void ClearGOPushConstantBuffers();
+    void ClearGOPushConstantBuffers();
 
-    static void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
+    void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
 
-    static MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
-
-
-    static std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors;
-
-    static bool RegisterRenderedObject(const RenderedObject &rendered_object);
-
-    static void UnregisterRenderedObject(RenderedObject rendered_object);
-
-    static void UnloadMesh(unsigned long mesh_handle, bool immediate);
+    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
 
 
-    static void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, const std::vector<DefaultVertex>  &vertices, const std::vector<unsigned>  &indices);
+    //std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors;
+
+    bool RegisterRenderedObject(const RenderedObject &rendered_object);
+
+    void UnregisterRenderedObject(RenderedObject rendered_object);
+
+    void UnloadMesh(unsigned long mesh_handle, bool immediate);
+
+
+    void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, const std::vector<DefaultVertex>  &vertices, const std::vector<unsigned>  &indices);
     //use this overload to load a mesh from a file, this is slower than from serialized data
-    static MeshHandle LoadMesh(const std::filesystem::path &path);
+    MeshHandle LoadMesh(const std::filesystem::path &path);
     //use this overload to load a mesh from serialized data
-    static void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
+    void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
                          bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices);
 
-    static void ImguiEndImGuiFrame();
+    void ImguiEndImGuiFrame();
 
-    static bool ShouldClose();
+    bool ShouldClose();
+
+
 };
-
-template<typename Container>
-void OsmiumGL::SubmitPushConstantDataGO(RenderedObject rendered_object, Container& data) {//container should be a vector or std::array, or any container with .begin and .end
-    if (!pushConstantStagingVectors.contains(rendered_object)) {
-        pushConstantStagingVectors[rendered_object] = std::vector<std::byte>();
-    }
-    pushConstantStagingVectors[rendered_object].insert(pushConstantStagingVectors[rendered_object].end(), data.begin(), data.end());
-}
 
 
 #endif //OSMIUMGL_API_H

@@ -20,6 +20,8 @@ target_include_directories(IMGUI PUBLIC imgui)
 
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(IMGUI PRIVATE glfw)
+find_package(Vulkan REQUIRED)
+target_link_libraries(IMGUI PRIVATE Vulkan::Vulkan)
 list(APPEND CMAKE_MODULE_PATH "vcpkg_installed/x64-windows/share/stb/FindStb.cmake")
 add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumCommon)
 add_subdirectory(${PROJECT_SOURCE_DIR}/OsmiumPhysics)

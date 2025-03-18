@@ -27,7 +27,7 @@ protected:
     virtual void Unload_Impl(bool immediate) = 0;
 public:
     const AssetId id;
-    const std::filesystem::path path;
+    const std::filesystem::path path;//path of the imported asset (not the original file)
 #if defined EDITOR_MODE || defined _DEBUG
     const std::string name;//might be excluded from release builds to save memory
     #endif

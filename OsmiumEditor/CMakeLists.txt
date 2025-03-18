@@ -17,6 +17,7 @@ set(OSMIUM_EDITOR_HEADERS
         GUI/include/HierarchyWindow.h
         GUI/include/InspectorWindow.h
         GUI/include/ComponentInspector.h
+        config.h
 )
 
 add_executable(OsmiumEditor
