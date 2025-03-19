@@ -32,5 +32,8 @@
   }, {
     "name" : "vulkan-memory-allocator",
     "version>=" : "3.1.0"
+  }, {
+    "name" : "crossguid",
+    "version>=" : "2021-10-22#3"
   } ]
 }
