@@ -62,9 +62,8 @@ void Serialization::ReadMeshMetaData(const std::filesystem::path &filePath, Mesh
     std::getline(ifs, line);
     data.name = line;
     std::getline(ifs, line);//attributes
-    while (std::getline(ifs, line)) {
-        std::getline(ifs, line);
         MeshAttributeType attribute;
+    while (std::getline(ifs, line)) {
         if (MeshAttributeTypeFromString(line, attribute)) {
             data.importedAttributes.push_back(attribute);
         }
@@ -94,7 +93,6 @@ void Serialization::CreateMeshMetaData(const std::filesystem::path &filePath, Me
  */
 bool Serialization::ImportMeshAsset(const std::filesystem::path &filePath, const std::filesystem::path &destination, Serialization::MeshMetaData &metaData) {
     MeshSerializationData data{};
-    UpdateMeshMetaData(filePath, metaData);//create or update meta data
     if (!ImportMeshAssetData(filePath, data, metaData))
         return false;
     //where to document in an accessible way the struture of the exported file ?
