@@ -13,9 +13,10 @@
 #include "VertexDescriptor.h"
 #include <filesystem>
 
-
 class OsmiumGLInstance;
-
+namespace xg {
+    class Guid;
+}
 namespace  OsmiumGL {
 
     inline OsmiumGLInstance* instance;
@@ -64,7 +65,7 @@ namespace  OsmiumGL {
 
     void LoadMeshWithDefaultFormat(unsigned long &mesh_handle, const std::vector<DefaultVertex>  &vertices, const std::vector<unsigned>  &indices);
     //use this overload to load a mesh from a file, this is slower than from serialized data
-    MeshHandle LoadMesh(const std::filesystem::path &path);
+    MeshHandle LoadMesh(const xg::Guid &id);
     //use this overload to load a mesh from serialized data
     void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
                          bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices);

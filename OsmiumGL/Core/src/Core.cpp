@@ -56,6 +56,8 @@
 #ifdef _DEBUG
 #define APP_USE_VULKAN_DEBUG_REPORT
 #endif
+#include <MeshSerialization.h>
+
 
 static void check_vk_result(VkResult result) {
     if(result == 0)return;
@@ -185,15 +187,12 @@ void OsmiumGLInstance::createVertexAttributeBuffer(const void* vertexData,const 
 
 }
 
-MeshHandle OsmiumGLInstance::LoadMesh(const std::filesystem::path &path) {
 
-    return LoadMesh(path, POSITION|TEXCOORD0|NORMAL);
-}
 
 void OsmiumGLInstance::createIndexBuffer(const std::vector<unsigned int> &indices, VkBuffer&vk_buffer,
                                          VmaAllocation&vma_allocation) const {
     VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    stagingBufferCreateInfo.size = sizeof(unsigned int) * indices.size();
+    stagingBufferCreateInfo.size = sizeof(uint32_t) * indices.size();
     stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
     VmaAllocationCreateInfo vma_staging_allocation_create_info = {
@@ -223,6 +222,7 @@ MeshHandle OsmiumGLInstance::LoadMesh(void *vertices_data,DefaultVertexAttribute
     //attribute flags and custom attribute flages should be built from the vertex buffer descriptor instead of being trusted as correct
     meshData.attributeFlags = attribute_flags;
     meshData.numVertices = vertex_count;
+    meshData.numIndices = indices.size();
     std::lock_guard meshDataLock(meshDataMutex);
     for (const auto& buffer_descriptor: bufferDescriptors) {
         VkBuffer buffer_handle;
@@ -307,68 +307,75 @@ MatInstanceHandle OsmiumGLInstance::GetLoadedMaterialDefaultInstance(MaterialHan
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
 }
 
-MeshHandle OsmiumGLInstance::LoadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags) {
-    std::vector<DefaultVertex> vertices;
-    std::vector<uint32_t> indices;
-    //check that the file extension is supported
-    auto fileExtension = path.extension();
-    if(fileExtension == ".obj") {
-        //obj loading here, might encapsulate later for more formats
-        MeshFileLoading::LoadFromObj(vertices, indices, path);
-
-    }else {
-        throw std::runtime_error("File extension " + fileExtension.string() + "  is not supported");
+MeshHandle OsmiumGLInstance::LoadMesh(const std::filesystem::path &path) {
+    Serialization::MeshSerializationData data;
+    if (!Serialization::DeserializeMeshAsset(path,data)) {
+        throw std::runtime_error("Failed to load mesh asset");
+        return -1;
     }
-
     std::vector<VertexBufferDescriptor> buffersDescriptors;
-    unsigned int vertexCount = vertices.size();
-    std::allocator<std::byte> allocator;
-    unsigned int allocationSize = 0;
-    if (POSITION & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::position);
-    if (TEXCOORD0 & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::texCoordinates);
-    if (NORMAL & vertexAttributeFlags) allocationSize += sizeof(DefaultVertex::normal);
-    //add more inbuilt attribute here and in the default vertex struct
-    allocationSize*= vertexCount;
-
-    //there are probably nicer de interleaving algorithm somewhere
-    std::vector<glm::vec3> positions(vertexCount);
-    std::vector<glm::vec2> texcoords(vertexCount);
-    std::vector<glm::vec3> normals(vertexCount);
-    //doing everything in one loop is likely better cache wise
-    for(unsigned int i = 0; i < vertices.size(); i++) {
-        positions[i] = vertices[i].position;
-        texcoords[i] = vertices[i].texCoordinates;
-        normals[i] = vertices[i].normal;
-    }
-    std::byte *buffer = allocator.allocate(allocationSize);
+    DefaultVertexAttributeFlags attributeFlags = NONE;
     unsigned int offset = 0;
-    //I can probably turn that into a loop
-    if (POSITION & vertexAttributeFlags) {
-        unsigned int totalSize
-                = sizeof(DefaultVertex::position) * vertexCount;
-        memcpy(buffer + offset, positions.data(), totalSize);
-        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::position), .data = buffer + offset,.attribute = POSITION});
-        offset += totalSize;
+    for (auto attributeType: data.attributeTypes) {
+        VertexBufferDescriptor bufferDescriptor;
+        switch (attributeType) {
+            case Serialization::VERTEX_POSITION: {
+                attributeFlags |= POSITION;
+                bufferDescriptor.attribute = POSITION;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec3);
+                offset += sizeof(glm::vec3) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_TEXCOORD: {
+                attributeFlags |= TEXCOORD0;
+                bufferDescriptor.attribute = TEXCOORD0;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec2);
+                offset += sizeof(glm::vec2) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_NORMAL: {
+                attributeFlags |= NORMAL;
+                bufferDescriptor.attribute = NORMAL;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec3);
+                offset += sizeof(glm::vec3) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_COLOR: {
+                attributeFlags |= COLOR;
+                bufferDescriptor.attribute = COLOR;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec4);
+                offset += sizeof(glm::vec4) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_TANGENT: {
+                attributeFlags |= TANGENT;
+                bufferDescriptor.attribute = TANGENT;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec3);
+                offset += sizeof(glm::vec3) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            default: {
+                std::cerr << "unsupported attribute type, it is probably already supported by the serializer.";
+                //no way I can think of to recover from that as I can't really guess the stride
+            } ;
+        }
     }
-    if (TEXCOORD0 & vertexAttributeFlags) {
-        unsigned int totalSize
-                = sizeof(DefaultVertex::texCoordinates) * vertexCount;
-        memcpy(buffer + offset, texcoords.data(), totalSize);
-        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::texCoordinates), .data = buffer + offset,.attribute = TEXCOORD0});
-        offset += totalSize;
-    }
-    if (NORMAL & vertexAttributeFlags) {
-        unsigned int totalSize
-                = sizeof(DefaultVertex::normal) * vertexCount;
-        memcpy(buffer + offset, normals.data(), totalSize);
-        buffersDescriptors.push_back({.AttributeStride = sizeof(DefaultVertex::normal), .data = buffer + offset,.attribute = NORMAL});
-        offset += totalSize;
-    }
-    std::cout << "attempting to load " << path.filename() << std::endl;
-    const MeshHandle result = LoadMesh(buffer,vertexAttributeFlags,vertexCount,buffersDescriptors,indices);
-    allocator.deallocate(buffer, allocationSize);
-    std::cout << "loaded " << path.filename() << std::endl;
-    return result;
+    //extracting indices
+    std::vector<uint32_t> indices;
+    indices.resize(data.indiceCount);
+    memcpy(indices.data(),data.data.data() + offset, data.indiceCount * sizeof(uint32_t));
+    //turn attribute info into buffer descriptors
+    return LoadMesh(data.data.data(),attributeFlags,data.vertexCount,buffersDescriptors,indices);
 }
 
 

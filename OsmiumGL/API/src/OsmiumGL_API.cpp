@@ -9,6 +9,9 @@
 #include "BlinnPhongVertex.h"
 #include <Core.h>
 #include "DefaultShaders.h"
+#include "../../../OsmiumCore/Base/config.h"
+#include "crossguid/guid.hpp"
+
 
 void OsmiumGL::Init() {
     instance = new OsmiumGLInstance();
@@ -67,8 +70,8 @@ MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle mate
     return instance->GetLoadedMaterialDefaultInstance(material);
 }
 
-MeshHandle OsmiumGL::LoadMesh(const std::filesystem::path &path) {
-    return instance->LoadMesh(path, POSITION | NORMAL | TEXCOORD0);
+MeshHandle OsmiumGL::LoadMesh(const xg::Guid &id) {
+    return instance->LoadMesh(ResourceFolder / id.str());
 
 
 }

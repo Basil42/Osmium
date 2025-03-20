@@ -20,7 +20,7 @@
 void MeshAsset::Load_Impl() {
     assert(!AssetManager::isAssetLoaded(id));
 
-    MeshHandle = OsmiumGL::LoadMesh(path);
+    MeshHandle = OsmiumGL::LoadMesh(id);
 
 }
 
@@ -37,7 +37,7 @@ void MeshAsset::Unload_Impl(bool immediate) {
         OsmiumGL::UnloadMesh(MeshHandle, immediate);
 }
 
-MeshAsset::MeshAsset(const std::filesystem::path &path) : Asset(path){
+MeshAsset::MeshAsset(const xg::Guid &id) : Asset(id){
     MeshHandle = -1;// starts unloaded
     type = mesh;
 }

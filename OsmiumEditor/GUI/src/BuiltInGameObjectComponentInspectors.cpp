@@ -41,14 +41,14 @@ namespace GUI{
         Asset * assetRef = nullptr;
         if (assetHandle.has_value()) {
             assetRef = AssetManager::GetAsset(assetHandle.value());
-            meshAssetPreview = assetRef->path.filename().string().c_str();//convoluted conversion, there is surely a better way
+            meshAssetPreview = assetRef->name.c_str();//convoluted conversion, there is surely a better way
         }
         //combo boxes will require a query system for asset selection
         if (ImGui::BeginCombo("Mesh",meshAssetPreview,ImGuiComboFlags_None)) {//I'll figure out the flags later
             for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {
                 if (asset->getType() != mesh)continue;//we should instead use premade queries to do this, it will get very slow on large databases
                 const bool is_selected = (assetHandle.value() == id);
-                if (ImGui::Selectable(asset->path.filename().string().c_str(), is_selected)) {
+                if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
                     comp->SetMeshAsset(id);
                 }
             }

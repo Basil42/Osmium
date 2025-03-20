@@ -1,7 +1,9 @@
 //
 // Created by nicolas.gerard on 2025-02-05.
 //
-
+/*
+ * This file is linked from Core, it should be fixed
+ */
 #ifndef MESHLOADING_H
 #define MESHLOADING_H
 #include <tiny_obj_loader.h>

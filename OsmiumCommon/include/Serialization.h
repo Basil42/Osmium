@@ -2,13 +2,13 @@
 // Created by nicolas.gerard on 2025-03-18.
 //
 
-#ifndef MESHSERIALIZATION_H
-#define MESHSERIALIZATION_H
+#ifndef SERIALIZATION_H
+#define SERIALIZATION_H
 #include <filesystem>
+
+#include "crossguid/guid.hpp"
+
 namespace Serialization {
-    struct MeshData;
-    bool ImportMeshAsset(const std::filesystem::path &filePath, const std::filesystem::path &destination);
-    bool ImportMeshAsset(const std::filesystem::path &filePath, MeshData &meshData);
-    bool DeserializeMeshAsset(const std::filesystem::path &filePath,MeshData& data);
+    xg::Guid GetGUIDFromMetaData(const std::filesystem::path & path);
 }
-#endif //MESHSERIALIZATION_H
+#endif //SERIALIZATION_H

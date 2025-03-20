@@ -1,35 +1,19 @@
-//
-// Created by nicolas.gerard on 2025-03-18.
-//
+#include "Serialization.h"
 
-#include "../include/Serialization.h"
-#include <MeshData.h>
+#include <fstream>
 
-/**
- * Import a supported mesh file into a format that can be quickly loaded into OsmiumGL using the source file associated .meta file.
- * Updates or create a default .meta file on successful import and save the imported data into the resource folder.
- * @param filePath source file to import
- * @param destination folder to import to, usually the resource folder
- * @return success
- */
-bool Serialization::ImportMeshAsset(const std::filesystem::path &filePath, const std::filesystem::path &destination) {
-    MeshData data{};
-    if (!ImportMeshAsset(filePath, data))
-        return false;
+#include <assert.h>
 
-    //generate GUID(find a portable solution to this)
-    //save in resource folder as GUID.mesh
 
-}
-
-/**
- * Import a supported mesh file to a struct that can be loaded into OsmiumGL, useful for runtime imports
- * @param filePath source file to import
- * @param meshData raw input of the import, useful for runtime import of supported types
- * @return success
- */
-bool Serialization::ImportMeshAsset(const std::filesystem::path &filePath, MeshData &meshData) {
-}
-
-bool Serialization::DeserializeMeshAsset(const std::filesystem::path &filePath, MeshData &data) {
+xg::Guid Serialization::GetGUIDFromMetaData(const std::filesystem::path &path) {
+    std::ifstream meta(path.string() + ".meta", std::ios::in);
+    if (!meta.is_open()) {
+        std::cerr << path.string() + "is not imported";
+        return xg::Guid();//return empty guid
+    }
+    std::string line;
+    std::getline(meta, line);
+    assert(line == "GUID:");//checking the header is correct
+    std::getline(meta, line);
+    return xg::Guid(line.c_str());
 }

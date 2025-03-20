@@ -15,6 +15,7 @@
 #include "../Base/ResourceManager.h"
 #include "AssetType/DefaultAsset.h"
 #include "AssetType/MeshAsset.h"
+#include "MeshSerialization.h"
 #include "Base/config.h"
 
 std::mutex AssetManager::loadingCollectionMutex;
@@ -47,7 +48,7 @@ void AssetManager::LoadingRoutine() {
         std::unique_lock LoadingMapLock(loadingCollectionMutex);
         LoadingPending.wait(LoadingMapLock, [](){return !loadingAssets.empty() || shutdownRequested;});
         if (loadingAssets.empty()) continue;//that might be redundant with the wait
-        std::pair<const unsigned long, std::vector<std::function<void(Asset *)> > > entry = *loadingAssets.begin();
+        std::pair<AssetId, std::vector<std::function<void(Asset *)> > > entry = *loadingAssets.begin();
         LoadingMapLock.unlock();
         std::unique_lock assetDBLock(assetDatabaseMutex);//could gain to be a "read lock"
         Asset *asset = AssetDatabase[entry.first];
@@ -154,14 +155,45 @@ void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {
     //AssetDatabase.at(assetId)->Unload(immediate);
 }
 
-void AssetManager::RegisterAsset(const std::filesystem::path &path) {
+/**
+ * Register assets to the asset database from a source file, if it is not imported or has changed it will automatically be imported,
+ * the function will then load the imported version of the asset
+ * @param path path to the source file
+ */
+void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
+    if (path.extension() == ".meta")return;//skipping meta files
     Asset* asset;
+
+    //check for existing meta file
+    std::string metaPath = path.string() + ".meta";
+
+
+
     if (path.extension() == ".obj") {//find a solution to select the right type
-        std::cerr << "registering obj files is deprecated" << std::endl;
-        asset = new MeshAsset(path);
+        //might move some of that out of scope and pass the file stream to the different functions ?
+        Serialization::MeshMetaData meshMetaData;
+        bool shouldImport = false;
+        if(std::filesystem::exists(metaPath)) {
+            Serialization::ReadMeshMetaData(path, meshMetaData);
+        }
+        else{
+            Serialization::CreateMeshMetaData(path, meshMetaData);
+            shouldImport = true;
+        }
+        auto resourcePath = ResourceFolder;
+        resourcePath /= meshMetaData.guid.str();
+
+        if (!std::filesystem::exists(resourcePath))shouldImport = true;
+        //because of build process having copying the default resource folder as part of the buidl process, this is always triggered. the copy should probably happen on "project creation" instead
+        if (!shouldImport && std::filesystem::last_write_time(resourcePath) < std::filesystem::last_write_time(path))shouldImport = true;//source time stamp is after last import(if it exist)
+
+        if (shouldImport) {
+            Serialization::ImportMeshAsset(path,ResourceFolder,meshMetaData);
+        }
+        asset = new MeshAsset(meshMetaData.guid);
     }else {
-        //std::cerr << path.extension() << " is not a supported file format" << std::endl;
-        asset = new DefaultAsset(path);//user is responsible for loading it
+        std::cerr << path.extension() << " is not a supported file format" << std::endl;
+        asset = new DefaultAsset();//user is responsible for loading it
 
     }
         AssetDatabase.emplace(asset->id, asset);
@@ -171,27 +203,32 @@ void AssetManager::BuildAssetDatabase() {
     std::unique_lock assetDatabaseLock(assetDatabaseMutex);
     AssetDatabase.clear();
     //TODO replace with unique ressource folder
+#ifdef EDITOR
     std::filesystem::create_directory(AssetFolder);
     for (const auto &dirEntry: std::filesystem::recursive_directory_iterator(AssetFolder)) {
         if(dirEntry.is_regular_file()) {
+
             const auto& path = dirEntry.path();
-            RegisterAsset(path);
+            if (path.extension() == ".meta") continue;//skipping meta files
+            RegisterAssetFromSource(path);
         }
     }
     for (const auto & dirEntry: std::filesystem::recursive_directory_iterator("../OsmiumGL/DefaultResources")) {
         if (dirEntry.is_regular_file()) {
             const auto& path = dirEntry.path();
-            RegisterAsset(path);
+            RegisterAssetFromSource(path);
         }
     }
+#else
+    //use this in builds
     std::filesystem::create_directory(ResourceFolder);
     for (const auto& dirEntry : std::filesystem::recursive_directory_iterator(ResourceFolder)) {
         if (dirEntry.is_regular_file()) {
             const auto& path = dirEntry.path();
             RegisterAsset(path);
         }
-
     }
+#endif
 }
 
 void AssetManager::LoadAssetDatabase() {

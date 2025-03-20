@@ -4,3 +4,6 @@
 [submodule "imgui"]
 	path = imgui
 	url = https://github.com/ocornut/imgui
+[submodule "crossguid"]
+	path = crossguid
+	url = https://github.com/graeme-hill/crossguid

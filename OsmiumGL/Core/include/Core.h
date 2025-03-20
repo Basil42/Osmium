@@ -41,7 +41,6 @@ public:
                                      &vma_allocation) const;
     //Remove the
     MeshHandle LoadMesh(const std::filesystem::path& path);
-    MeshHandle LoadMesh(const std::filesystem::path &path, DefaultVertexAttributeFlags vertexAttributeFlags);
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh, bool immediate);

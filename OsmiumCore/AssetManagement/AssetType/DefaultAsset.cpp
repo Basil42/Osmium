@@ -18,5 +18,8 @@ std::mutex & DefaultAsset::GetRessourceMutex() {
     throw std::runtime_error("Trying to get resource mutex for a non supported ressource type, this is not supported");
 }
 
-DefaultAsset::DefaultAsset(const std::filesystem::path &path) : Asset(path) {
+DefaultAsset::DefaultAsset(const xg::Guid& guid) : Asset(guid) {
+}
+
+DefaultAsset::DefaultAsset() : Asset(xg::Guid()){
 }

@@ -12,10 +12,11 @@
 #include <filesystem>
 #include <functional>
 
+#include "crossguid/guid.hpp"
 
 
 struct Asset;
-typedef unsigned long AssetId;
+typedef xg::Guid AssetId;
 
 class AssetManager {
     static std::set<AssetId> loadedAssets;//this needs some sort of reference counting
@@ -49,7 +50,7 @@ public:
     static void UnloadAsset(AssetId assetId, bool immediate);
 
 
-    static void RegisterAsset(const std::filesystem::path &path);
+    static void RegisterAssetFromSource(const std::filesystem::path &path);
 
     static void BuildAssetDatabase();
     static void LoadAssetDatabase();

@@ -28,7 +28,6 @@ set(OSMIUMCORE_HEADERS
         Base/GameObjectComponent.h
         Components/C_MeshRenderer.h
         GOComponents/GOC_MeshRenderer.h
-        Helpers/Memcheck.h
         GOComponents/GOC_Transform.h
         Base/GameInstance.h
         Base/Entity.h

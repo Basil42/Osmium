@@ -14,7 +14,8 @@ enum DefaultVertexAttributeFlags : unsigned int {
     TANGENT = 1<<3,
     BITANGENT0 = 1<<4,
     JOINTID = 1<<5,
-    MAX_BUILTIN_VERTEX_ATTRIBUTE_FLAGS = JOINTID
+    COLOR = 1<<6,
+    MAX_BUILTIN_VERTEX_ATTRIBUTE_FLAGS = COLOR
 };
 
 constexpr DefaultVertexAttributeFlags operator|(DefaultVertexAttributeFlags a, DefaultVertexAttributeFlags b) {

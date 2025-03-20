@@ -31,7 +31,7 @@ public:
     unsigned long GetMeshHandle() const;
     void Unload_Impl(bool immediate) override;
 
-    explicit MeshAsset(const std::filesystem::path &path);
+    MeshAsset(const xg::Guid &id);
 private:
     unsigned long MeshHandle;
 };

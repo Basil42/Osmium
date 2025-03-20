@@ -15,7 +15,8 @@ public:
 
     std::mutex & GetRessourceMutex() override;
 
-    DefaultAsset(const std::filesystem::path &path);
+    DefaultAsset(const xg::Guid &guid);
+    DefaultAsset();
 };
 
 
