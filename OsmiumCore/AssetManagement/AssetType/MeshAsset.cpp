@@ -41,4 +41,10 @@ MeshAsset::MeshAsset(const xg::Guid &id) : Asset(id){
     MeshHandle = -1;// starts unloaded
     type = mesh;
 }
+#ifdef EDITOR
+MeshAsset::MeshAsset(const xg::Guid &id, const std::string& filename) : Asset(id,filename){
+    MeshHandle = -1;// starts unloaded
+    type = mesh;
+}
+#endif
 

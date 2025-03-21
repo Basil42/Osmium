@@ -12,7 +12,7 @@
 #include <fstream>
 #include "DefaultVertex.h"
 namespace MeshFileLoading{
-//#define USE_CUSTOM_OBJ_LOADER
+#define USE_CUSTOM_OBJ_LOADER
 
 #ifdef USE_CUSTOM_OBJ_LOADER
     inline bool CustomLoadObj(const std::filesystem::path& path,std::vector<DefaultVertex>& vertices,std::vector<uint32_t>& indices, std::string * err) {

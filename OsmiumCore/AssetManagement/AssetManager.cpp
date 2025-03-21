@@ -190,7 +190,7 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
         if (shouldImport) {
             Serialization::ImportMeshAsset(path,ResourceFolder,meshMetaData);
         }
-        asset = new MeshAsset(meshMetaData.guid);
+        asset = new MeshAsset(meshMetaData.guid, meshMetaData.name);
     }else {
         std::cerr << path.extension() << " is not a supported file format" << std::endl;
         asset = new DefaultAsset();//user is responsible for loading it

@@ -18,6 +18,7 @@
 #include "Base/GameObjectCreation.h"
 #include "GOComponents/GOC_MeshRenderer.h"
 #include "GOComponents/GOC_Transform.h"
+#include "GOComponents/GOC_Camera.h"
 
 void EditorGUI::Run() {
 
@@ -32,6 +33,37 @@ void EditorGUI::Run() {
 
 }
 
+void EditorGUI::CameraControls(ImGuiIO &io) {
+    if (ImGui::IsWindowFocused())return;//ignore input
+    glm::vec2 PositionInput = glm::vec2(0.0f);
+    float YawInput = 0.0f;
+    float PitchInput = 0.0f;
+    if (ImGui::IsKeyDown(ImGuiKey_W)) PositionInput.y += 1.0f;
+    if (ImGui::IsKeyDown(ImGuiKey_S)) PositionInput.y -= 1.0f;
+    if (ImGui::IsKeyDown(ImGuiKey_D)) PositionInput.x += 1.0f;
+    if (ImGui::IsKeyDown(ImGuiKey_A)) PositionInput.x -= 1.0f;
+    if (PositionInput == glm::vec2(0.0f)) {;
+        cameraSpeed = cameraSpeed * glm::pow(0.1f,io.DeltaTime);
+        if (cameraSpeed.length() < MinCameraSpeed)cameraSpeed = glm::vec3(0.0f);
+    }
+
+    cameraSpeed = glm::clamp(cameraSpeed + glm::vec3(PositionInput.x,0.0f,PositionInput.y) * CameraSpeedDelta * io.DeltaTime,-CameraMaxSpeed*io.DeltaTime,CameraMaxSpeed * io.DeltaTime);
+    auto rotInput = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right,0.0f);
+    ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
+    YawInput = rotInput.x;
+    PitchInput = rotInput.y;
+
+    auto transformValue = EditorCamera->GetTransform();
+    transformValue = glm::translate(transformValue,cameraSpeed);
+    transformValue = glm::rotate(transformValue,YawInput * RotationSensitivity *io.DeltaTime,glm::vec3(0.0f,1.0f,0.0f));
+    transformValue = glm::rotate(transformValue,PitchInput * RotationSensitivity * io.DeltaTime,glm::vec3(1.0f,0.0f,0.0f));
+    EditorCamera->SetTransform(transformValue);
+    ImGui::Begin("Camera Controls");
+    ImGui::InputFloat2("Rot input", &rotInput[0]);
+    ImGui::End();
+
+}
+
 void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiShouldShutoff,
                                      std::condition_variable &ImguiNewFrameConditionVariable,
                                      bool &isImguiNewFrameReady, bool
@@ -40,12 +72,26 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
 
     std::unique_lock<std::mutex> startFrameLock{ ImguiMutex, std::defer_lock };
 
+    //should request an editor camera here
+    GameObjectCreateInfo editorCameraInfo {
+    .name = "EditorCamera",
+    .parent = 0};
+    OsmiumInstance->CreateNewGameObject(editorCameraInfo,[this](GameObject* go) {
+        go->Addcomponent<GOC_Transform>();
+        EditorCamera = go->Addcomponent<GOC_Camera>();
+
+        OsmiumInstance->SetMainCamera(EditorCamera);
+    });
+
     while (!ImGuiShouldShutoff) {
         startFrameLock.lock();
         ImguiNewFrameConditionVariable.wait(startFrameLock,[this, &isImguiNewFrameReady]() {return isImguiNewFrameReady;});
         isImguiNewFrameReady = false;
 
         ImGuiIO io = ImGui::GetIO();
+
+        CameraControls(io);
+
         static bool warningTriggered = false;
         if(warningTriggered) {
             static float lastAbnormalDeltaTime = io.DeltaTime;
@@ -56,6 +102,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
         }else {
             warningTriggered = io.DeltaTime > 1.0f/60.0f;
         }
+        //TODO clean this up and send the different functionnality to appropriate widgets
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         if (showDemoWindow)
             ImGui::ShowDemoWindow(&showDemoWindow);

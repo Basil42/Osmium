@@ -32,6 +32,9 @@ public:
     void Unload_Impl(bool immediate) override;
 
     MeshAsset(const xg::Guid &id);
+#ifdef EDITOR
+    MeshAsset(const xg::Guid &id, const std::string &filename);
+#endif
 private:
     unsigned long MeshHandle;
 };

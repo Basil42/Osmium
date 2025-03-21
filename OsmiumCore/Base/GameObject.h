@@ -58,7 +58,7 @@ public:
 
     template<typename T,
            typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent, T>>>
-    T* GetComponent(){
+    T* GetComponent() const {
         auto it = components.find(std::type_index(typeid(T)));
         if (it == components.end()) return nullptr;
         return dynamic_cast<T*>(it->second);

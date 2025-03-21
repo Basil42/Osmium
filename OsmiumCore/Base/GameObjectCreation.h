@@ -8,7 +8,7 @@
 
 struct GameObjectComponentCreateInfo {
 };
-
+//TODO: add a mechanism to specify required component here
 struct GameObjectCreateInfo {
   std::string name;
   GameObjectHandle parent;

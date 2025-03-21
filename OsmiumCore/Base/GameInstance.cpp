@@ -78,16 +78,6 @@ void GameInstance::run() {
     GameObjectCreateInfo CameraInfo;
     CameraInfo.name = "Camera";
     CameraInfo.parent = 0;
-    //auto mainCamTransform = CameraGO->Addcomponent<GOC_Transform>();
-    //mainCamera = CameraGO->Addcomponent<GOC_Camera>();
-    CreateNewGameObject(CameraInfo, [this](GameObject* game_object) {
-        game_object->Addcomponent<GOC_Transform>();
-        auto camComponent = game_object->Addcomponent<GOC_Camera>();
-        mainCamera = camComponent;
-    });
-    //mainCamTransform->SetTransformMatrix(glm::lookAt(glm::vec3(2.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)));
-
-
     auto SimulationThread = std::thread(&GameInstance::GameLoop,this);
     // auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
     auto LoadingThread = std::thread(&GameInstance::LoadingRoutine,this);//maybe I need some kind of staging method here
@@ -145,6 +135,16 @@ void GameInstance::getImGuiSyncInfo(ImGuiSyncStruct& syncData) {
     syncData.isImguiUpdateOver = &isImguiUpdateOver;
     syncData.ImGuiShouldShutoff = &ImGuiShouldShutoff;
     syncData.ImguiUpdateConditionVariable = &ImguiUpdateConditionVariable;
+}
+
+void GameInstance::SetMainCamera(GameObjectHandle editor_camera) {//might do an override that takes a GOC_Camera pointer directly
+    const auto& cameraObj =  GameObjects->get(editor_camera);
+    const auto camComponent = cameraObj.GetComponent<GOC_Camera>();
+    mainCamera = camComponent;
+
+}
+void GameInstance::SetMainCamera(GOC_Camera* camComp) {
+    mainCamera = camComp;
 }
 
 glm::mat4 GameInstance::getMainCameraViewMatrix() {

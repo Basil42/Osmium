@@ -49,7 +49,7 @@ class GameInstance {
     std::mutex destructionQueueMutex;
     std::queue<GameObjectHandle> gameObjectsDestructionQueue;
     std::condition_variable destructionQueueConditionVariable;
-    GOC_Camera* mainCamera = nullptr;
+    GOC_Camera* mainCamera = nullptr;//stable for game objects, should probably use some kind of handle though
     bool ShowHierarchy = false;
     static GameInstance * instance;
 
@@ -70,6 +70,10 @@ public:
     void run();
 
     void getImGuiSyncInfo(::ImGuiSyncStruct &syncData);
+
+    void SetMainCamera(GameObjectHandle editor_camera);
+
+    void SetMainCamera(GOC_Camera *camComp);
 
     static glm::mat4 getMainCameraViewMatrix();
 };

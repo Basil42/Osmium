@@ -246,13 +246,18 @@ void OsmiumGLInstance::UnloadMesh(MeshHandle mesh,bool immediate = false) {
     auto data =LoadedMeshes->get(mesh);
     LoadedMeshes->Remove(mesh);
     //change to something mor elegant later, I could just wait a frame
+    meshDataMutex.unlock();
     if (!immediate) {
+        //Not actually allowed, I should be able to just wait a couple frame for the buffer to flush out of use
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+
+        }
         vkWaitForFences(device, 1, &inflightFences[currentFrame],VK_TRUE,UINT64_MAX);
         vkWaitForFences(device, 1, &inflightFences[(currentFrame+1)%MAX_FRAMES_IN_FLIGHT],VK_TRUE,UINT64_MAX);//wait max frames in flight
     }else {
         vkDeviceWaitIdle(device);
     }
-    meshDataMutex.unlock();
+    meshDataMutex.lock();
     for (const auto buffer : data.VertexAttributeBuffers) {
 
         vmaDestroyBuffer(allocator,buffer.second.first,buffer.second.second);
@@ -1892,6 +1897,8 @@ void OsmiumGLInstance::drawFrame(std::mutex& imGuiMutex,std::condition_variable&
 
     IMGUI_IMPL_API
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    //TODO add an internal frame completion signal here (mostly to safely unload ressources)
+
 }
 
 void OsmiumGLInstance::recreateSwapChain() {

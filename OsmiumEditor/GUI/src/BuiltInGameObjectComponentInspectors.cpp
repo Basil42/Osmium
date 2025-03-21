@@ -5,6 +5,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "AssetManagement/AssetType/MeshAsset.h"
+#include "GOComponents/GOC_Camera.h"
 #include "GOComponents/GOC_MeshRenderer.h"
 #ifndef BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #define BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
@@ -57,6 +58,14 @@ namespace GUI{
 
     }
     static const bool registered_GOC_MeshRenderer = registerType<GOC_MeshRenderer>();
+
+    template<>
+    inline void RenderGameObjectComponentInspector<GOC_Camera>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
+        auto comp = dynamic_cast<GOC_Camera*>(gameObjectComponent);
+        ImGui::DragFloat("Vertical FoV", &comp->verticalFoV, 0.01f, 0.0f, 360.0f);
+
+    }
+    static const bool registered_GOC_Camera = registerType<GOC_Camera>();
 }
 
 #endif //BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
