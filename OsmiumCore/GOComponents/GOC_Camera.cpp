@@ -42,7 +42,7 @@ glm::mat4 GOC_Camera::GetViewMatrix() const {
     return glm::inverse(transform->getTransformMatrix());
 }
 
-glm::mat4 GOC_Camera::GetTransform() const {
+glm::mat4 GOC_Camera::GetTransformMatrix() const {
     return transform->getTransformMatrix();
 }
 void GOC_Camera::SetTransform(const glm::mat4 &newTransform) {

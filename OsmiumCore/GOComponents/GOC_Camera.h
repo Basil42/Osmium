@@ -32,8 +32,10 @@ public:
     void RenderUpdate() override;
 
     [[nodiscard]] glm::mat4 GetViewMatrix() const;
-    [[nodiscard]] glm::mat4 GetTransform() const;
+    [[nodiscard]] glm::mat4 GetTransformMatrix() const;
     void SetTransform(const glm::mat4& transform);
+
+    [[nodiscard]] GOC_Transform* GetTransformComponent() const {return transform;}
 
     const std::string name = "Camera";
     float verticalFoV = 90.0f; //in degrees, GL will find the proj matrix on top of a pass that uses this camera

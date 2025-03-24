@@ -46,18 +46,23 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
         cameraSpeed = cameraSpeed * glm::pow(0.1f,io.DeltaTime);
         if (cameraSpeed.length() < MinCameraSpeed)cameraSpeed = glm::vec3(0.0f);
     }
-
-    cameraSpeed = glm::clamp(cameraSpeed + glm::vec3(PositionInput.x,0.0f,PositionInput.y) * CameraSpeedDelta * io.DeltaTime,-CameraMaxSpeed*io.DeltaTime,CameraMaxSpeed * io.DeltaTime);
+    auto transformComp = EditorCamera->GetTransformComponent();
+    //there should be faster way to compute these
+    auto rot = transformComp->getRotation();
+    // auto forwardVector = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) * rot;
+    // auto upVector = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f) * rot;
+    // auto rightVector = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f) * rot;
+    cameraSpeed = glm::clamp(cameraSpeed + glm::vec3(PositionInput.x,0.0f,-PositionInput.y) * CameraSpeedDelta * io.DeltaTime,-CameraMaxSpeed*io.DeltaTime,CameraMaxSpeed * io.DeltaTime);
     auto rotInput = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right,0.0f);
     ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
     YawInput = rotInput.x;
     PitchInput = rotInput.y;
 
-    auto transformValue = EditorCamera->GetTransform();
-    transformValue = glm::translate(transformValue,cameraSpeed);
-    transformValue = glm::rotate(transformValue,YawInput * RotationSensitivity *io.DeltaTime,glm::vec3(0.0f,1.0f,0.0f));
-    transformValue = glm::rotate(transformValue,PitchInput * RotationSensitivity * io.DeltaTime,glm::vec3(1.0f,0.0f,0.0f));
-    EditorCamera->SetTransform(transformValue);
+    auto transformMatrix = transformComp->getTransformMatrix();
+    transformMatrix = glm::translate(transformMatrix,cameraSpeed);
+    transformMatrix = glm::rotate(transformMatrix,YawInput * RotationSensitivity *io.DeltaTime,glm::vec3(0.0f,1.0f,0.0f) *rot);
+    transformMatrix = glm::rotate(transformMatrix,PitchInput * RotationSensitivity * io.DeltaTime,glm::vec3(1.0f,0.0f,0.0f) *rot);
+    EditorCamera->SetTransform(transformMatrix);
     ImGui::Begin("Camera Controls");
     ImGui::InputFloat2("Rot input", &rotInput[0]);
     ImGui::End();
