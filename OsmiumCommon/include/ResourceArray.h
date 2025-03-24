@@ -86,7 +86,7 @@ unsigned int ResourceArray<T, MAX_Capacity>::Add(T resource) {
   }
   unsigned int newHandle = nextHandle;
   nextHandle = (nextHandle +1) % MAX_Capacity;
-  backingArray[newHandle] = resourceVector.size() -1;
+  backingArray[newHandle] = static_cast<unsigned int>(resourceVector.size() -1);
   return newHandle;
 }
 

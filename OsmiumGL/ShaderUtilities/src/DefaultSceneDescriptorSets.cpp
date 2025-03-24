@@ -17,7 +17,7 @@ VkPipelineLayout DefaultSceneDescriptorSets::GetLitPipelineLayout() const {
     return LitPipelineLayout;
 }
 
-void DefaultSceneDescriptorSets::CreateDefaultDescriptorPool(const VkDevice device) {
+void DefaultSceneDescriptorSets::CreateDefaultDescriptorPool(const VkDevice _device) {
     std::array<VkDescriptorPoolSize, BUILT_IN_DESCRIPTOR_POOL_SIZE_COUNT> sizes{};
 
 
@@ -31,12 +31,12 @@ void DefaultSceneDescriptorSets::CreateDefaultDescriptorPool(const VkDevice devi
         .pPoolSizes = sizes.data()
     };
 
-    if (vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+    if (vkCreateDescriptorPool(_device, &descriptorPoolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor pool for built in scene descriptors!");
     }
 }
 
-void DefaultSceneDescriptorSets::CreateDefaultDescriptorLayouts(const VkDevice device) {
+void DefaultSceneDescriptorSets::CreateDefaultDescriptorLayouts(const VkDevice _device) {
     //layout
     //directional light
     constexpr VkDescriptorSetLayoutBinding directionalLightLayoutBinding = {
@@ -54,7 +54,7 @@ void DefaultSceneDescriptorSets::CreateDefaultDescriptorLayouts(const VkDevice d
         .pBindings = &directionalLightLayoutBinding,
     };
 
-    if (vkCreateDescriptorSetLayout(device, &dirLightDescriptorLayoutCreateInfo, nullptr, &litDescriptorSetLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(_device, &dirLightDescriptorLayoutCreateInfo, nullptr, &litDescriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create buitl in descriptor set layout!");
     }
     //view matrix, I could also reuse the struct, but thsi is clearer
@@ -70,13 +70,13 @@ void DefaultSceneDescriptorSets::CreateDefaultDescriptorLayouts(const VkDevice d
     .bindingCount = 1,
     .pBindings = &viewMatrixLayoutBinding,};
 
-    if (vkCreateDescriptorSetLayout(device,&viewMatrixDescriptorLayoutCreateInfo,nullptr,&mainCameraDescriptorSetLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(_device,&viewMatrixDescriptorLayoutCreateInfo,nullptr,&mainCameraDescriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create view matrix built in descriptor set layout!");
     }
 }
 
-void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice device,
-                                                                      const VmaAllocator Allocator,
+void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice _device,
+                                                                      const VmaAllocator allocator,
                                                                       const OsmiumGLInstance &GLInstance,
                                                                       const VkDescriptorSetLayout &
                                                                       descriptor_set_layout,
@@ -94,7 +94,7 @@ void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice device,
         .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
         .pSetLayouts = descriptorSetLayouts.data()
     };
-    if (vkAllocateDescriptorSets(device,&dirLightDescriptorSetAllocateInfo,descriptor_sets.data()) != VK_SUCCESS) {
+    if (vkAllocateDescriptorSets(_device,&dirLightDescriptorSetAllocateInfo,descriptor_sets.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate descriptor sets for directional light!");
     }
     //buffers
@@ -107,7 +107,7 @@ void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice device,
                                 allocations[i], VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
         //not very happy that I'd need it
-        auto result = vmaMapMemory(Allocator,allocations[i],&mappedSource[i]);//I'm uncomfortable with the fact that I do not allocate memory to these void pointers, but mapping might make it safe
+        auto result = vmaMapMemory(allocator,allocations[i],&mappedSource[i]);//I'm uncomfortable with the fact that I do not allocate memory to these void pointers, but mapping might make it safe
         assert(result == VK_SUCCESS);
 
     }
@@ -129,16 +129,16 @@ void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice device,
              .pImageInfo = nullptr,
              .pBufferInfo = &descriptorBufferInfo,
              .pTexelBufferView = nullptr};
-         vkUpdateDescriptorSets(device,descriptorWrites.size(),descriptorWrites.data(),0, nullptr);
+         vkUpdateDescriptorSets(_device,static_cast<uint32_t>(descriptorWrites.size()),descriptorWrites.data(),0, nullptr);
     }
 }
 
-DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(const VkDevice device,const VmaAllocator allocator,OsmiumGLInstance &GLInstance) : device(device){
-    CreateDefaultDescriptorPool(device);
-    CreateDefaultDescriptorLayouts(device);
+DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(const VkDevice _device,const VmaAllocator allocator,OsmiumGLInstance &GLInstance) : device(_device){
+    CreateDefaultDescriptorPool(_device);
+    CreateDefaultDescriptorLayouts(_device);
     Allocator = allocator;
     //directional light
-    CreateDescriptorSets(device, allocator, GLInstance,
+    CreateDescriptorSets(_device, allocator, GLInstance,
                          litDescriptorSetLayout,
                          directionalLightDescriptorSets,
                          directionalLightUniformBuffers,
@@ -149,7 +149,7 @@ DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(const VkDevice device,con
 
 
     //camera
-    CreateDescriptorSets(device, allocator, GLInstance,
+    CreateDescriptorSets(_device, allocator, GLInstance,
                          mainCameraDescriptorSetLayout,
                          mainCameraViewMatrixDescriptorSets,
                          mainCameraViewMatrixUniformBuffers,
@@ -157,8 +157,8 @@ DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(const VkDevice device,con
                          mainCameraViewMatrixMappedSource,
                          sizeof(CameraUniform));
 
-    CreateGlobalPipelineLayout(device);
-    CreateLitPipelineLayout(device);
+    CreateGlobalPipelineLayout(_device);
+    CreateLitPipelineLayout(_device);
 }
 
 DefaultSceneDescriptorSets::~DefaultSceneDescriptorSets() {
@@ -212,7 +212,7 @@ std::array<VkDescriptorSet, 2> DefaultSceneDescriptorSets::GetCameraDescriptorSe
     return mainCameraViewMatrixDescriptorSets;
 }
 
-void DefaultSceneDescriptorSets::CreateGlobalPipelineLayout(VkDevice device) {
+void DefaultSceneDescriptorSets::CreateGlobalPipelineLayout(VkDevice _device) {
     //mandatory for compatibility
     VkPushConstantRange pushConstantRange = {
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -227,12 +227,12 @@ void DefaultSceneDescriptorSets::CreateGlobalPipelineLayout(VkDevice device) {
     .pPushConstantRanges = &pushConstantRange,};
 
     //I could put the model push constant definition here, it would make sense
-    if (vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr, &GlobalMainPipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(_device,&pipelineLayoutCreateInfo,nullptr, &GlobalMainPipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create global pipeline layout");
     }
 }
 
-void DefaultSceneDescriptorSets::CreateLitPipelineLayout(VkDevice device) {
+void DefaultSceneDescriptorSets::CreateLitPipelineLayout(VkDevice _device) {
     std::array<VkDescriptorSetLayout,2> LitSetLayouts = {mainCameraDescriptorSetLayout,litDescriptorSetLayout};
     //mandatory for compatibility
     VkPushConstantRange pushConstantRange = {
@@ -241,11 +241,11 @@ void DefaultSceneDescriptorSets::CreateLitPipelineLayout(VkDevice device) {
         .size = sizeof(Descriptors::UniformBufferObject)};
     const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount = LitSetLayouts.size(),
+    .setLayoutCount = static_cast<uint32_t>(LitSetLayouts.size()),
     .pSetLayouts = LitSetLayouts.data(),
     .pushConstantRangeCount = 1,
     .pPushConstantRanges = &pushConstantRange,};
-    if (vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr,&LitPipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(_device,&pipelineLayoutCreateInfo,nullptr,&LitPipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create lit pipeline layout");
     }
 }

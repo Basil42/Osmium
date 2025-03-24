@@ -1,7 +1,7 @@
 //
 // Created by nicolas.gerard on 2025-03-19.
 //
-
+#define NOMINMAX //disables some ill named windows macros
 #include "../include/Serialization.h"
 #include <cassert>
 #include <fstream>
@@ -97,7 +97,8 @@ bool Serialization::ImportMeshAsset(const std::filesystem::path &filePath, const
         return false;
     //where to document in an accessible way the struture of the exported file ?
 
-    constexpr size_t attributeLimit = (std::numeric_limits<size_t>::max())/sizeof(MeshAttributeType);
+
+    constexpr size_t attributeLimit = std::numeric_limits<size_t>::max() / sizeof(MeshAttributeType);
     uint32_t attributeCount = data.attributeTypes.size();
     if (attributeCount > attributeLimit) {
         std::cerr << "Too many attributes found, this is likely due to corrupted data" << std::endl;

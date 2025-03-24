@@ -67,7 +67,7 @@ public:
     void DestroyGameObject(GameObject * gameObject);
     [[nodiscard]] ResourceArray<GameObject,MAX_GAMEOBJECTS>& GetGameObjects() const;
 
-    void run();
+    void run(const std::string &appName);
 
     void getImGuiSyncInfo(::ImGuiSyncStruct &syncData);
 

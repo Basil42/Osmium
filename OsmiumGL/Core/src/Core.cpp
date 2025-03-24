@@ -58,6 +58,8 @@
 #endif
 #include <MeshSerialization.h>
 
+#include "VkBootstrap.h"
+
 
 static void check_vk_result(VkResult result) {
     if(result == 0)return;
@@ -70,15 +72,12 @@ static void glfw_error_callback(int error, const char* description) {
 
 
 
-void OsmiumGLInstance::initialize() {
+void OsmiumGLInstance::initialize(const std::string& appName) {
     initWindow();
-    initVulkan();
+    initVulkan(appName);
 }
 
-unsigned long OsmiumGLInstance::LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> &vertices,
-    const std::vector<unsigned int> &indices) {
-    throw std::runtime_error("OsmiumGLInstance::LoadMeshToDefaultBuffer");
-}
+
 
 void OsmiumGLInstance::RemoveRenderedObject(RenderedObject rendered_object) const {//very indented and obtuse, shoudl be cleaned up
     auto matIt = passTree->Materials.begin();
@@ -398,7 +397,7 @@ void OsmiumGLInstance::StartFrame() {
 
 void OsmiumGLInstance::UpdateCameraData(const glm::mat4& viewMat, float radianVFOV) const {
         //projection is relatively stable and could be cached but this is relatively cheap
-        auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f);
+        auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChain.extent.width) / static_cast<float>(swapChain.extent.height),0.1f,10.0f);
         proj[1][1] = -1.0f;//correction for orientation convention
         const CameraUniform cameraUniform {.view = viewMat, .projection = proj};
         defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
@@ -484,7 +483,7 @@ void OsmiumGLInstance::createInstance() {
         createInfo.enabledLayerCount = 0;
 #endif
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
+    if (vkCreateInstance(&createInfo, nullptr, &instance.instance) != VK_SUCCESS) {
         throw std::runtime_error("failed to create instance");
     };
     uint32_t extensionsCount = 0;
@@ -546,7 +545,7 @@ void OsmiumGLInstance::pickPhysicalDevice() {
         CandidateDevices.insert(std::make_pair(Score, devices[i]));
     }
     if (CandidateDevices.rbegin()->first > 0) {
-        physicalDevice = CandidateDevices.rbegin()->second;
+        physicalDevice.physical_device = CandidateDevices.rbegin()->second;
         msaaFlags = getMaxSampleCount();
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
@@ -592,7 +591,7 @@ void OsmiumGLInstance::createLogicalDevice() {
 #else
         createInfo.enabledLayerCount = 0;
 #endif
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device.device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device");
     }
     vkGetDeviceQueue(device, queueFamiliesIndices.graphicsFamily.value(), 0, &graphicsQueue);
@@ -600,67 +599,67 @@ void OsmiumGLInstance::createLogicalDevice() {
     vkGetDeviceQueue(device, queueFamiliesIndices.transferFamily.value(), 0, &transferQueue);
 }
 
-void OsmiumGLInstance::createLogicalSurface() {
-    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create window surface");
-    }
+// void OsmiumGLInstance::createLogicalSurface() {
+//     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
+//         throw std::runtime_error("failed to create window surface");
+//     }
+//
+// }
 
-}
+// void OsmiumGLInstance::createSwapChain() {
+//     vkInitUtils::SwapChainSupportDetails swapChainSupport = vkInitUtils::querySwapChainSupport(physicalDevice, surface);
+//     VkSurfaceFormatKHR surfaceFormat = VkSwapChainUtils::chooseSwapSurfaceFormat(swapChainSupport.formats);
+//     VkPresentModeKHR presentMode = VkSwapChainUtils::chooseSwapPresentMode(swapChainSupport.presentModes);
+//     VkExtent2D extent = VkSwapChainUtils::chooseSwapExtent(swapChainSupport.capabilities, window);
+//
+//     uint32_t swapChainImageCount = swapChainSupport.capabilities.minImageCount + 1;
+//     if (swapChainSupport.capabilities.maxImageCount > 0
+//         && swapChainImageCount > swapChainSupport.capabilities.maxImageCount) {
+//         swapChainImageCount = swapChainSupport.capabilities.maxImageCount;
+//     }
+//     VkSwapchainCreateInfoKHR createInfo{};
+//     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+//     createInfo.surface = surface;
+//     createInfo.minImageCount = swapChainImageCount;
+//     createInfo.imageFormat = surfaceFormat.format;
+//     createInfo.imageColorSpace = surfaceFormat.colorSpace;
+//     createInfo.imageExtent = extent;
+//     createInfo.imageArrayLayers = 1;
+//     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+//     vkInitUtils::QueueFamilyIndices indices = vkInitUtils::findQueueFamilies(physicalDevice, surface);
+//     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentationFamily.value()};
+//     if (indices.graphicsFamily.value() != indices.presentationFamily.value()) {
+//         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+//         createInfo.queueFamilyIndexCount = 2;
+//         createInfo.pQueueFamilyIndices = queueFamilyIndices;
+//     } else {
+//         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+//         createInfo.queueFamilyIndexCount = 0;
+//         createInfo.pQueueFamilyIndices = nullptr;
+//     }
+//     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+//     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+//     createInfo.presentMode = presentMode;
+//     createInfo.clipped = VK_TRUE;
+//     createInfo.oldSwapchain = VK_NULL_HANDLE;
+//
+//     if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain.swapchain) != VK_SUCCESS) {
+//         throw std::runtime_error("failed to create swap chain");
+//     }
+//     vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr);
+//     swapChainImages.resize(swapChainImageCount);
+//     vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
+//     swapChainImageFormat = surfaceFormat.format;
+//     swapChainExtent = extent;
+//
+// }
 
-void OsmiumGLInstance::createSwapChain() {
-    vkInitUtils::SwapChainSupportDetails swapChainSupport = vkInitUtils::querySwapChainSupport(physicalDevice, surface);
-    VkSurfaceFormatKHR surfaceFormat = VkSwapChainUtils::chooseSwapSurfaceFormat(swapChainSupport.formats);
-    VkPresentModeKHR presentMode = VkSwapChainUtils::chooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = VkSwapChainUtils::chooseSwapExtent(swapChainSupport.capabilities, window);
-
-    uint32_t swapChainImageCount = swapChainSupport.capabilities.minImageCount + 1;
-    if (swapChainSupport.capabilities.maxImageCount > 0
-        && swapChainImageCount > swapChainSupport.capabilities.maxImageCount) {
-        swapChainImageCount = swapChainSupport.capabilities.maxImageCount;
-    }
-    VkSwapchainCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = surface;
-    createInfo.minImageCount = swapChainImageCount;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
-    createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    vkInitUtils::QueueFamilyIndices indices = vkInitUtils::findQueueFamilies(physicalDevice, surface);
-    uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentationFamily.value()};
-    if (indices.graphicsFamily.value() != indices.presentationFamily.value()) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    } else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;
-        createInfo.pQueueFamilyIndices = nullptr;
-    }
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create swap chain");
-    }
-    vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr);
-    swapChainImages.resize(swapChainImageCount);
-    vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
-    swapChainImageFormat = surfaceFormat.format;
-    swapChainExtent = extent;
-
-}
-
-void OsmiumGLInstance::createSwapChainImageViews() {
-    swapChainImageViews.resize(swapChainImages.size());
-    for (uint32_t i = 0; i < swapChainImages.size(); i++) {
-        swapChainImageViews[i] = createImageView(swapChainImages[i],swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-    }
-}
+// void OsmiumGLInstance::createSwapChainImageViews() {
+//     swapChainImageViews.resize(swapChainImages.size());
+//     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
+//         swapChainImageViews[i] = createImageView(swapChainImages[i],swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+//     }
+// }
 
 void OsmiumGLInstance::createRenderPass() {
     VkAttachmentDescription depthAttachment = {
@@ -680,7 +679,7 @@ void OsmiumGLInstance::createRenderPass() {
 
 
     VkAttachmentDescription colorAttachment = {
-        .format = swapChainImageFormat,
+        .format = swapChain.image_format,
         .samples = msaaFlags,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -696,7 +695,7 @@ void OsmiumGLInstance::createRenderPass() {
     };
 
     VkAttachmentDescription colorAttachmentResolve = {
-        .format = swapChainImageFormat,
+        .format = swapChain.image_format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -741,20 +740,20 @@ void OsmiumGLInstance::createRenderPass() {
 }
 
 void OsmiumGLInstance::createFrameBuffer() {
-    swapChainFrameBuffers.resize(swapChainImageViews.size());
+    auto imageViews = swapChain.get_image_views();
+    swapChainFrameBuffers.resize(imageViews->size());
 
-
-
-    for (uint32_t i = 0; i < swapChainImageViews.size(); i++) {
-        std::array<VkImageView,3> attachments = {colorImageView,depthImageView,swapChainImageViews[i]};
+    const auto & ImageViews = swapChain.get_image_views().value();
+    for (uint32_t i = 0; i < imageViews->size(); i++) {
+        std::array<VkImageView,3> attachments = {colorImageView,depthImageView,ImageViews[i]};
 
         VkFramebufferCreateInfo framebufferCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = renderPass,
             .attachmentCount = attachments.size(),
             .pAttachments = attachments.data(),
-            .width = swapChainExtent.width,
-            .height = swapChainExtent.height,
+            .width = swapChain.extent.width,
+            .height = swapChain.extent.height,
             .layers = 1
         };
         if (vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &swapChainFrameBuffers[i]) != VK_SUCCESS) {
@@ -787,35 +786,6 @@ void OsmiumGLInstance::createCommandBuffers() {
         throw std::runtime_error("failed to allocate command buffers");
     }
  }
-// [[deprecated]]
-// void OsmiumGLInstance::VikingTestDrawCommands(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo &renderPassBeginInfo) const {
-//     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-//     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-//     VkBuffer vertexBuffers[] = {vertexBuffer};
-//     VkDeviceSize offsets[] ={0};
-//     vkCmdBindVertexBuffers(commandBuffer,0,1,vertexBuffers,offsets);
-//     vkCmdBindIndexBuffer(commandBuffer,indexBuffer,0,VK_INDEX_TYPE_UINT32);
-//
-//     static auto startTime = std::chrono::high_resolution_clock::now();
-//
-//     auto currentTime = std::chrono::high_resolution_clock::now();
-//     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-//
-//     Descriptors::UniformBufferObject ubo = {
-//         .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
-//         .view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
-//         .proj = glm::perspective(glm::radians(45.0f),static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height),0.1f,10.0f),
-//         };
-//     ubo.proj[1][1] *= -1.0f;//correction to fit Vulkan coordinate conventions
-//
-//     vkCmdPushConstants(commandBuffer,pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ubo),&ubo);
-//
-//     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-//                             &descriptorSets[currentFrame], 0, nullptr);
-//     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()),1,0,0,0);
-//
-//
-// }
 
 void OsmiumGLInstance::RecordImGuiDrawCommand(VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const {
     //
@@ -919,7 +889,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
         .framebuffer = swapChainFrameBuffers[imageIndex]
     };
     renderPassBeginInfo.renderArea.offset = {0, 0};
-    renderPassBeginInfo.renderArea.extent = swapChainExtent;
+    renderPassBeginInfo.renderArea.extent = swapChain.extent;
 
     std::array<VkClearValue,2> clearValues = {};
     clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
@@ -929,8 +899,8 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     VkViewport viewport = {
         viewport.x = 0.0f,
         viewport.y = 0.0f,
-        viewport.width = static_cast<float>(swapChainExtent.width),
-        viewport.height = static_cast<float>(swapChainExtent.height),
+        viewport.width = static_cast<float>(swapChain.extent.width),
+        viewport.height = static_cast<float>(swapChain.extent.height),
         viewport.minDepth = 0.0f,
         viewport.maxDepth = 1.0f
     };
@@ -938,7 +908,7 @@ void OsmiumGLInstance::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
     VkRect2D scissor = {
         .offset = {0, 0},
-        .extent = swapChainExtent
+        .extent = swapChain.extent
     };
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     DrawCommands(commandBuffer,renderPassBeginInfo, *passTree);
@@ -1114,7 +1084,11 @@ void OsmiumGLInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mip
     .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     };
 
-    vmaCreateImage(allocator,&imageCreateInfo,&allocInfo,&image,&imageAllocation,nullptr);
+    auto result = vmaCreateImage(allocator,&imageCreateInfo,&allocInfo,&image,&imageAllocation,nullptr);
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image");
+    }
+
 }
 
 void OsmiumGLInstance::createEmptyTextureImage(VkImage& vk_image,VmaAllocation& imageAllocation) {
@@ -1478,7 +1452,7 @@ void OsmiumGLInstance::createTextureSampler() {
 
 void OsmiumGLInstance::createDepthResources() {
     VkFormat depthFormat = findDepthFormat();
-    createImage(swapChainExtent.width,swapChainExtent.height,1,msaaFlags,
+    createImage(swapChain.extent.width,swapChain.extent.height,1,msaaFlags,
                 depthFormat,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -1529,12 +1503,13 @@ bool OsmiumGLInstance::hasStencilComponent(const VkFormat format) {
 }
 
 void OsmiumGLInstance::createColorResources() {
-    VkFormat colorFormat = swapChainImageFormat;
-    createImage(swapChainExtent.width,swapChainExtent.height,1,msaaFlags,
+    VkFormat colorFormat = swapChain.image_format;
+    createImage(swapChain.extent.width,swapChain.extent.height,1,msaaFlags,
                 colorFormat,VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                 colorImage,
                 colorImageMemory);
+
     colorImageView = createImageView(colorImage,colorFormat,VK_IMAGE_ASPECT_COLOR_BIT,1);
 }
 
@@ -1560,7 +1535,7 @@ void OsmiumGLInstance::setupImGui() {
         .DescriptorPool = VK_NULL_HANDLE,
         .RenderPass = renderPass,
         .MinImageCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
-        .ImageCount = static_cast<uint32_t>(swapChainImages.size()),
+        .ImageCount = static_cast<uint32_t>(swapChain.image_count),
         .MSAASamples = msaaFlags,
         .PipelineCache = VK_NULL_HANDLE,
         .Subpass = 0,
@@ -1726,23 +1701,81 @@ void OsmiumGLInstance::createAllocator() {
 //
 // }
 
-void OsmiumGLInstance::initVulkan() {
-    //actual init, necessary before doing anything
-    createInstance();
-    setupDebugMessenger();
-    createLogicalSurface();
+void OsmiumGLInstance::initVulkan(const std::string& appName) {
+    // //actual init, necessary before doing anything
+    // createInstance();
+    // setupDebugMessenger();
+    // createLogicalSurface();
+    //
+    // pickPhysicalDevice();
+    //
+    // createLogicalDevice();
+    // createAllocator();
+    // //this is to have the option update uniforms in command buffers, ignoring it for now as I don't need it for now
+    // //vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
+    // createSwapChain();
+    vkb::InstanceBuilder instanceBuilder;
+    //I could probably have a vulkan profile here to define min specs
+    auto inst_builder_result = instanceBuilder.set_app_name(appName.c_str())
+    .set_engine_name("Osmium")
+#ifdef Vk_VALIDATION_LAYER
+    .request_validation_layers()
+#endif
+    .use_default_debug_messenger()
+    .require_api_version(VK_MAKE_VERSION(1, 3, 0))
+    .build();
 
-    pickPhysicalDevice();
-    queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
+    if (!inst_builder_result) {
+        throw std::runtime_error(inst_builder_result.error().message());
+    }
+    std::cout << "created instance" << std::endl;
+    instance = inst_builder_result.value();
 
-    createLogicalDevice();
+    //surface
+    VkResult surface_result = glfwCreateWindowSurface(instance,window,nullptr,&surface);
+
+    if (surface_result != VK_SUCCESS) {
+        throw std::runtime_error("failed to create window surface");
+    }
+    std::cout << "created surface" << std::endl;
+    //pick physical device
+    vkb::PhysicalDeviceSelector deviceSelector(instance);
+    //here I can specify features I need
+    auto deviceSelectorResult = deviceSelector.set_surface(surface)
+    .add_required_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)//putting it here as a useful extension for dynamic rendering
+    .select();//defaults to discret gpu
+    if (!deviceSelectorResult) {
+        throw std::runtime_error(deviceSelectorResult.error().message());
+    }
+    physicalDevice = deviceSelectorResult.value();//no cleanup required
+    std::cout << "picked physical device" << std::endl;
+    //logical device
+    vkb::DeviceBuilder deviceBuilder{ physicalDevice };
+    auto deviceBuilder_result = deviceBuilder.build();
+
+    if (!deviceBuilder_result) {
+        throw std::runtime_error(deviceSelectorResult.error().message());
+    }
+    device = deviceBuilder_result.value();
+    std::cout << "created device" << std::endl;
+    //swapchain
+    vkb::SwapchainBuilder swapchainBuilder{device};
+    auto swapchain_result = swapchainBuilder
+    .set_desired_extent(WIDTH,HEIGHT)
+    .build();
+    if (!swapchain_result) {
+        throw std::runtime_error(swapchain_result.error().message());
+    }
+
+    swapChain = swapchain_result.value();
+    std::cout << "created swapchain" << std::endl;
+    //Allocator
     createAllocator();
-    //this is to have the option update uniforms in command buffers, ignoring it for now as I don't need it for now
-    //vkInitUtils::LoadDescriptorExtension(device,descriptorPushFuncPtr);
-    createSwapChain();
-    createSwapChainImageViews();
+
+    //createSwapChainImageViews();
     //more game specific, but arcane enough that it should not be exposed for now
     //main pass and main resources
+    queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
     createRenderPass();
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
@@ -1762,7 +1795,7 @@ void OsmiumGLInstance::initVulkan() {
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
 }
 
-void OsmiumGLInstance::cleanupSwapChain() const {
+void OsmiumGLInstance::cleanupSwapChain() {
     vkDestroyImageView(device, colorImageView,nullptr);
     vmaDestroyImage(allocator,colorImage,colorImageMemory);
     vkDestroyImageView(device,depthImageView,nullptr);
@@ -1770,7 +1803,7 @@ void OsmiumGLInstance::cleanupSwapChain() const {
     for (const auto &swapChainFrameBuffer: swapChainFrameBuffers) {
         vkDestroyFramebuffer(device, swapChainFrameBuffer, nullptr);
     }
-    for (const auto & swapChainImageView : swapChainImageViews) {
+    for (const auto & swapChainImageView : swapChain.get_image_views().value()) {
         vkDestroyImageView(device, swapChainImageView, nullptr);
     }
     vkDestroySwapchainKHR(device, swapChain, nullptr);
@@ -1904,17 +1937,17 @@ void OsmiumGLInstance::drawFrame(std::mutex& imGuiMutex,std::condition_variable&
 void OsmiumGLInstance::recreateSwapChain() {
     int width = 0, height = 0;
     glfwGetFramebufferSize(window, &width, &height);
-    while(width == 0 || height == 0) {
+    while (width == 0 || height == 0) {
         glfwGetFramebufferSize(window, &width, &height);
         glfwWaitEvents();
     }
     vkDeviceWaitIdle(device);
-    //Here I don't have to wait if I create the new swap chain by passing it a reference to the old, just need to find out when I'm done using it somehow
-    cleanupSwapChain();
-
-    createSwapChain();
-    createSwapChainImageViews();
-    createColorResources();
-    createDepthResources();
-    createFrameBuffer();
+    vkb::SwapchainBuilder swapchain_builder {device};
+    auto swapchain_builder_result = swapchain_builder.set_old_swapchain(swapChain)
+    .build();
+    if (!swapchain_builder_result) {
+        throw std::runtime_error("failed to rebuild swapchain: n" + swapchain_builder_result.error().message());
+    }
+    vkb::destroy_swapchain(swapChain);
+    swapChain = swapchain_builder_result.value();
 }

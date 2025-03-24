@@ -6,16 +6,15 @@
 
 #include <mutex>
 #include <filesystem>
-#include "BlinnPhongVertex.h"
 #include <Core.h>
 #include "DefaultShaders.h"
 #include "../../../OsmiumCore/Base/config.h"
 #include "crossguid/guid.hpp"
 
 
-void OsmiumGL::Init() {
+void OsmiumGL::Init(const std::string &appName) {
     instance = new OsmiumGLInstance();
-    instance->initialize();
+    instance->initialize(appName);
 }
 
 
@@ -90,10 +89,6 @@ void OsmiumGL::UnloadMesh(unsigned long mesh_handle,bool immediate = false) {
     instance->UnloadMesh(mesh_handle, immediate);
 }
 
-void OsmiumGL::LoadMeshWithDefaultFormat(unsigned long &mesh_handle, const std::vector<DefaultVertex>& vertices,
-                                         const std::vector<unsigned int>& indices) {
-    mesh_handle = instance->LoadMeshToDefaultBuffer(vertices,indices);
-}
 
 void OsmiumGL::LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count,
     const std::vector<VertexBufferDescriptor> &bufferDescriptors,DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices) {

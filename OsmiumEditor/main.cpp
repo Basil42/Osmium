@@ -11,7 +11,7 @@ int main() {
     EditorGUI editorGUI(imGuiSync,&instance);
     auto GUIThread = std::thread(&EditorGUI::Run,editorGUI);
     //I will remove this call for play mode
-    instance.run();
+    instance.run("Editor");//replace by the project name appended by editor
 
     GUIThread.join();
     return 0;

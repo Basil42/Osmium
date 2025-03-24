@@ -7,21 +7,24 @@
 #include <condition_variable>
 #include <map>
 #include <vector>
-#include <glm/fwd.hpp>
-#include "DefaultVertex.h"
 #include "RenderedObject.h"
 #include "VertexDescriptor.h"
 #include <filesystem>
+#include <glm/fwd.hpp>
 
+class OsmiumGLDynamicInstance;
+struct DefaultVertex;
 class OsmiumGLInstance;
+
 namespace xg {
     class Guid;
 }
 namespace  OsmiumGL {
 
     inline OsmiumGLInstance* instance;
+    inline OsmiumGLDynamicInstance* instanceDyn;
     inline std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors = std::map<RenderedObject,std::vector<std::byte>>();
-    void Init();
+    void Init(const std::string &appName);
 
     void test();
     void StartFrame();

@@ -211,7 +211,7 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount = descriptorSetLayouts.size(),
+    .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
     .pSetLayouts = descriptorSetLayouts.data(),
     .pushConstantRangeCount = 1,
     .pPushConstantRanges = &pushConstantRange};
@@ -281,7 +281,7 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
         VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * MAX_LOADED_MATERIAL_INSTANCES),
-        .poolSizeCount = poolSizes.size(),
+        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
         .pPoolSizes = poolSizes.data(),
         };
         if (vkCreateDescriptorPool(device,&descriptorPoolCreateInfo,nullptr,&blinnPhongDescriptorPool) != VK_SUCCESS) {

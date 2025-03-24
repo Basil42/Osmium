@@ -66,11 +66,11 @@ void GameInstance::RenderDataUpdate() {
     GOC_MeshRenderer::GORenderUpdate();
 }
 
-void GameInstance::run() {
+void GameInstance::run(const std::string &appName) {
 
     instance = this;
     GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
-    OsmiumGL::Init();
+    OsmiumGL::Init(appName);
     //load the initial assets, probably in its own thread
     AssetManager::LoadAssetDatabase();
     //LoadInitialScene()

@@ -108,7 +108,7 @@ namespace MeshFileLoading{
                  i[1] == -1 ? glm::vec2(0.0f) :texCoords[i[1] -1],
                  i[2] == -1 ? glm::vec3(0.0f) : normals[i[2]-1]);
             if (!uniqueVertices.contains(vertex)) {
-                uniqueVertices[vertex] = uniqueVertices.size();
+                uniqueVertices[vertex] = static_cast<uint32_t>(uniqueVertices.size());
                 vertices.push_back(vertex);
             }
             indices.push_back(uniqueVertices[vertex]);

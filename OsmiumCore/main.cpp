@@ -6,6 +6,6 @@
 int main(int argc, char *argv[]) {
     GameInstance game;
     //TODO add an option to let the engine manage the ImgGUI frame content itself (debug GUI mode)
-    game.run();
+    game.run("Core test");
 
 }

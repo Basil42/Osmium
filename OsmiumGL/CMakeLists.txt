@@ -32,6 +32,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/VertexDescriptor.h
         ShaderUtilities/include/DefaultSceneDescriptorSets.h
         Common/include/UniformBufferObject.h
+        Core/include/DynamicCore.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_EXECUTABLE_HEADERS}
@@ -58,19 +59,23 @@ target_include_directories(OsmiumGL PUBLIC
         ShaderUtilities/include)
 
 find_package(glfw3 CONFIG REQUIRED)
-target_link_libraries(OsmiumGL PRIVATE glfw)
+target_link_libraries(OsmiumGL PUBLIC glfw)
 find_package(Vulkan REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
 find_package(Stb REQUIRED)
 target_include_directories(OsmiumGL PRIVATE ${Stb_INCLUDE_DIR})
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
+target_link_libraries(OsmiumGL PRIVATE vk-bootstrap)
+#target_link_libraries(OsmiumGL PRIVATE vk-bootstrap-compiler-warnings)
 target_compile_features(OsmiumGL PRIVATE cxx_std_20)
 
 set(CMAKE_EXE_LINKER_FLAGS " -static")
 target_link_libraries(OsmiumGL PRIVATE -static-libgcc -static-libstdc++)
 target_link_libraries(OsmiumGL PUBLIC IMGUI)
+
 
 add_custom_target(copy_default_resources COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/DefaultResources ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources)
 add_dependencies(OsmiumGL copy_default_resources)

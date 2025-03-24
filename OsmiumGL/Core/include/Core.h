@@ -23,6 +23,7 @@
 #include "MaterialData.h"
 #include "MeshData.h"
 #include "ResourceArray.h"
+#include "VkBootstrap.h"
 
 
 class DefaultSceneDescriptorSets;
@@ -32,19 +33,15 @@ class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
     friend class DefaultShaders;
 
-    void initialize();
+    void initialize(const std::string &appName);
 
     //Mesh loading
-    unsigned long LoadMeshToDefaultBuffer(const std::vector<DefaultVertex> & vertices, const std::vector<unsigned int> & indices);
-    void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation) const;
-    void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation
-                                     &vma_allocation) const;
-    //Remove the
+
     MeshHandle LoadMesh(const std::filesystem::path& path);
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh, bool immediate);
-    [[nodiscard]] MeshData getMeshData(MeshHandle mesh_handle) const;
+    //[[nodiscard]] MeshData getMeshData(MeshHandle mesh_handle) const;//possible call to get mesh data on the gpu
 
     bool AddRenderedObject(RenderedObject rendered_object) const;
     void RemoveRenderedObject(RenderedObject rendered_object) const;
@@ -87,26 +84,23 @@ private:
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
-    const std::string MODEL_PATH = "../OsmiumGL/DefaultResources/models/viking_room.obj";
-    const std::string TEXTURE_PATH = "../OsmiumGL/DefaultResources/textures/viking_room.png";
-
     GLFWwindow* window = nullptr;
-    VkInstance instance = nullptr;
+    vkb::Instance instance;
     VkDebugUtilsMessengerEXT debugMessenger = nullptr;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device = VK_NULL_HANDLE;
+    vkb::PhysicalDevice physicalDevice;
+    vkb::Device device;
     vkInitUtils::QueueFamilyIndices queueFamiliesIndices;
     VkQueue graphicsQueue = VK_NULL_HANDLE;
     VkQueue presentQueue = VK_NULL_HANDLE;
     VkQueue transferQueue = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
-    VkSwapchainKHR swapChain = VK_NULL_HANDLE;
-    std::vector<VkImage> swapChainImages;
+    vkb::Swapchain swapChain;
+    //std::vector<VkImage> swapChainImages;
     // ReSharper disable once CppUninitializedNonStaticDataMember
-    VkFormat swapChainImageFormat;
+    //VkFormat swapChainImageFormat;
     // ReSharper disable once CppUninitializedNonStaticDataMember
-    VkExtent2D swapChainExtent;
-    std::vector<VkImageView> swapChainImageViews;
+    //VkExtent2D swapChainExtent;
+    //std::vector<VkImageView> swapChainImageViews;
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
@@ -255,6 +249,9 @@ private:
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) const;
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const;
+    void createIndexBuffer(const std::vector<unsigned int> & indices, VkBuffer& vk_buffer, VmaAllocation& vma_allocation) const;
+    void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer &vk_buffer, VmaAllocation
+                                     &vma_allocation) const;
 
     //single time command
     VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
@@ -265,11 +262,11 @@ private:
 
     //internal initialization
     void initWindow();
-    void initVulkan();
+    void initVulkan(const std::string &appName);
     void setupImGui();
 
     //internal cleanup
-    void cleanupSwapChain() const;
+    void cleanupSwapChain();
     void cleanup();
 
     //internal per frame update

@@ -15,11 +15,13 @@
 enum BuiltInSceneWideDescriptors {
     BUILTIN_SCENE_WIDE_DESCRIPTOR_DIRECTIONAL_LIGHT,
 };
+#pragma warning(disable:4324)
 struct DirLightUniform {
     alignas(16) glm::vec3 VLightDirection;
     alignas(16) glm::vec3 DirLightColor;
     float DirLightIntensity;
 };
+#pragma warning(default:4324)
 
 struct CameraUniform {
     alignas(16) glm::mat4 view;
@@ -29,7 +31,7 @@ struct CameraUniform {
 class DefaultSceneDescriptorSets {
 public:
 
-    DefaultSceneDescriptorSets(VkDevice device, VmaAllocator allocator, OsmiumGLInstance &GLInstance);
+    DefaultSceneDescriptorSets(VkDevice _device, VmaAllocator allocator, OsmiumGLInstance &GLInstance);
 
     ~DefaultSceneDescriptorSets();
     //Passing the instance seems harmless as this is effectively an extention of the instance
@@ -44,8 +46,8 @@ public:
     [[nodiscard]] std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> GetCameraDescriptorSets() const;
 
     //layouts used to bind defautl descriptor on top of a pass
-    void CreateGlobalPipelineLayout(VkDevice device);
-    void CreateLitPipelineLayout(VkDevice device);
+    void CreateGlobalPipelineLayout(VkDevice _device);
+    void CreateLitPipelineLayout(VkDevice _device);
     VkPipelineLayout GlobalMainPipelineLayout;
     VkPipelineLayout LitPipelineLayout;
 
@@ -53,11 +55,11 @@ public:
     [[nodiscard]] VkPipelineLayout GetLitPipelineLayout() const;
 
 private:
-    void CreateDefaultDescriptorPool(VkDevice device);
+    void CreateDefaultDescriptorPool(VkDevice _device);
 
-    void CreateDefaultDescriptorLayouts(VkDevice device);
+    void CreateDefaultDescriptorLayouts(VkDevice _device);
 
-    void CreateDescriptorSets(VkDevice device, VmaAllocator Allocator, const OsmiumGLInstance &GLInstance, const VkDescriptorSetLayout &
+    void CreateDescriptorSets(VkDevice _device, VmaAllocator allocator, const OsmiumGLInstance &GLInstance, const VkDescriptorSetLayout &
                               descriptor_set_layout, std::array<VkDescriptorSet, 2> &descriptor_sets, std::array<VkBuffer, 2> &uniformBuffers, std::
                               array<VmaAllocation, 2> &allocations, std::array<void *, 2> &mappedSource, size_t uniformSize);
     VkDevice device;
