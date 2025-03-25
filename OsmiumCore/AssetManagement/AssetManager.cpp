@@ -202,6 +202,7 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
 void AssetManager::BuildAssetDatabase() {
     std::unique_lock assetDatabaseLock(assetDatabaseMutex);
     AssetDatabase.clear();
+    if (!exists(ResourceFolder))std::filesystem::create_directory(ResourceFolder);
     //TODO replace with unique ressource folder
 #ifdef EDITOR
     std::filesystem::create_directory(AssetFolder);

@@ -452,60 +452,7 @@ bool OsmiumGLInstance::checkValidationLayerSupport() const {
     return true;
 }
 #endif
-void OsmiumGLInstance::createInstance() {
-#ifdef Vk_VALIDATION_LAYER
-    if (!checkValidationLayerSupport())
-        throw std::runtime_error("Validation layers requested, but not available!");
-#endif
 
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "OsmiumGame";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "Osmium";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_3;
-
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
-    auto requiredExtensions = vkInitUtils::getRequiredExtensions();
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
-    createInfo.ppEnabledExtensionNames = requiredExtensions.data();
-
-#ifdef Vk_VALIDATION_LAYER
-    VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo{};
-    populateDebugMessengerCreateInfo(debugMessengerCreateInfo);
-    createInfo.pNext = &debugMessengerCreateInfo;
-    createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-    createInfo.ppEnabledLayerNames = validationLayers.data();
-#else
-        createInfo.enabledLayerCount = 0;
-#endif
-
-    if (vkCreateInstance(&createInfo, nullptr, &instance.instance) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create instance");
-    };
-    uint32_t extensionsCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
-    std::vector<VkExtensionProperties> extensions(extensionsCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, extensions.data());
-    std::cout << "available extensions: " << std::endl;
-    for (const auto &[extensionName, specVersion]: extensions) {
-        std::cout << '\t' << extensionName << std::endl;
-    }
-    std::cout << std::endl;
-    std::cout << "required extensions: " << std::endl;
-    for (const auto &requiredExtension: requiredExtensions) {
-        bool found = false;
-        std::string glfwExtensionName(requiredExtension);
-        for (const auto &extension: extensions)
-            if (std::string(extension.extensionName) == glfwExtensionName)
-                found = true;
-        if (!found) throw std::runtime_error("failed to find required extension: " + glfwExtensionName);
-        std::cout << '\t' << requiredExtension << ' ' << "found" << std::endl;
-    }
-}
 #ifdef Vk_VALIDATION_LAYER
 void OsmiumGLInstance::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -518,149 +465,6 @@ void OsmiumGLInstance::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCre
     createInfo.pfnUserCallback = vkInitUtils::debugCallback;
 }
 #endif
-void OsmiumGLInstance::setupDebugMessenger() {
-#ifndef Vk_VALIDATION_LAYER
-        return;
-#else
-    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-    populateDebugMessengerCreateInfo(createInfo);
-    createInfo.pUserData = nullptr;
-    if (vkInitUtils::CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create debug messenger");
-    }
-#endif
-}
-
-void OsmiumGLInstance::pickPhysicalDevice() {
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-    if (deviceCount == 0) {
-        throw std::runtime_error("failed to find GPUs with Vulkan support");
-    }
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-    std::multimap<uint32_t, VkPhysicalDevice> CandidateDevices;
-    for (uint32_t i = 0; i < deviceCount; i++) {
-        uint32_t Score = vkInitUtils::RateDeviceSuitability(devices[i], surface, deviceExtensions,allocatorExtensions);
-        CandidateDevices.insert(std::make_pair(Score, devices[i]));
-    }
-    if (CandidateDevices.rbegin()->first > 0) {
-        physicalDevice.physical_device = CandidateDevices.rbegin()->second;
-        msaaFlags = getMaxSampleCount();
-        VkPhysicalDeviceProperties deviceProperties;
-        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-        std::cout << "picked " << deviceProperties.deviceName << std::endl;
-    } else throw std::runtime_error("failed to find a suitable GPU");
-}
-
-void OsmiumGLInstance::createLogicalDevice() {
-
-    std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos{};
-    std::set<uint32_t> uniqueQueueFamily = {queueFamiliesIndices.graphicsFamily.value(), queueFamiliesIndices.presentationFamily.value(), queueFamiliesIndices.transferFamily.value()};
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily: uniqueQueueFamily) {
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        QueueCreateInfos.push_back(queueCreateInfo);
-    }
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
-    std::vector<const char*> enabledExtensions = deviceExtensions;
-    uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-    for (const auto &available_extension: availableExtensions) {
-        if(allocatorExtensions.contains(available_extension.extensionName))
-            enabledExtensions.push_back(available_extension.extensionName);
-    }
-
-    VkDeviceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos = QueueCreateInfos.data();
-    createInfo.queueCreateInfoCount = QueueCreateInfos.size();
-    createInfo.pEnabledFeatures = &deviceFeatures;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
-    createInfo.ppEnabledExtensionNames = enabledExtensions.data();
-#ifdef Vk_VALIDATION_LAYER
-    createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-    createInfo.ppEnabledLayerNames = validationLayers.data();
-#else
-        createInfo.enabledLayerCount = 0;
-#endif
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device.device) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create logical device");
-    }
-    vkGetDeviceQueue(device, queueFamiliesIndices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, queueFamiliesIndices.presentationFamily.value(), 0, &presentQueue);
-    vkGetDeviceQueue(device, queueFamiliesIndices.transferFamily.value(), 0, &transferQueue);
-}
-
-// void OsmiumGLInstance::createLogicalSurface() {
-//     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-//         throw std::runtime_error("failed to create window surface");
-//     }
-//
-// }
-
-// void OsmiumGLInstance::createSwapChain() {
-//     vkInitUtils::SwapChainSupportDetails swapChainSupport = vkInitUtils::querySwapChainSupport(physicalDevice, surface);
-//     VkSurfaceFormatKHR surfaceFormat = VkSwapChainUtils::chooseSwapSurfaceFormat(swapChainSupport.formats);
-//     VkPresentModeKHR presentMode = VkSwapChainUtils::chooseSwapPresentMode(swapChainSupport.presentModes);
-//     VkExtent2D extent = VkSwapChainUtils::chooseSwapExtent(swapChainSupport.capabilities, window);
-//
-//     uint32_t swapChainImageCount = swapChainSupport.capabilities.minImageCount + 1;
-//     if (swapChainSupport.capabilities.maxImageCount > 0
-//         && swapChainImageCount > swapChainSupport.capabilities.maxImageCount) {
-//         swapChainImageCount = swapChainSupport.capabilities.maxImageCount;
-//     }
-//     VkSwapchainCreateInfoKHR createInfo{};
-//     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-//     createInfo.surface = surface;
-//     createInfo.minImageCount = swapChainImageCount;
-//     createInfo.imageFormat = surfaceFormat.format;
-//     createInfo.imageColorSpace = surfaceFormat.colorSpace;
-//     createInfo.imageExtent = extent;
-//     createInfo.imageArrayLayers = 1;
-//     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-//     vkInitUtils::QueueFamilyIndices indices = vkInitUtils::findQueueFamilies(physicalDevice, surface);
-//     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentationFamily.value()};
-//     if (indices.graphicsFamily.value() != indices.presentationFamily.value()) {
-//         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-//         createInfo.queueFamilyIndexCount = 2;
-//         createInfo.pQueueFamilyIndices = queueFamilyIndices;
-//     } else {
-//         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-//         createInfo.queueFamilyIndexCount = 0;
-//         createInfo.pQueueFamilyIndices = nullptr;
-//     }
-//     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-//     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-//     createInfo.presentMode = presentMode;
-//     createInfo.clipped = VK_TRUE;
-//     createInfo.oldSwapchain = VK_NULL_HANDLE;
-//
-//     if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain.swapchain) != VK_SUCCESS) {
-//         throw std::runtime_error("failed to create swap chain");
-//     }
-//     vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr);
-//     swapChainImages.resize(swapChainImageCount);
-//     vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages.data());
-//     swapChainImageFormat = surfaceFormat.format;
-//     swapChainExtent = extent;
-//
-// }
-
-// void OsmiumGLInstance::createSwapChainImageViews() {
-//     swapChainImageViews.resize(swapChainImages.size());
-//     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
-//         swapChainImageViews[i] = createImageView(swapChainImages[i],swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-//     }
-// }
-
 void OsmiumGLInstance::createRenderPass() {
     VkAttachmentDescription depthAttachment = {
         .format = findDepthFormat(),
@@ -740,12 +544,9 @@ void OsmiumGLInstance::createRenderPass() {
 }
 
 void OsmiumGLInstance::createFrameBuffer() {
-    auto imageViews = swapChain.get_image_views();
-    swapChainFrameBuffers.resize(imageViews->size());
-
-    const auto & ImageViews = swapChain.get_image_views().value();
-    for (uint32_t i = 0; i < imageViews->size(); i++) {
-        std::array<VkImageView,3> attachments = {colorImageView,depthImageView,ImageViews[i]};
+    swapChainFrameBuffers.resize(swapChainImageViews.size());
+    for (uint32_t i = 0; i < swapChainImageViews.size(); i++) {
+        std::array<VkImageView,3> attachments = {colorImageView,depthImageView,swapChainImageViews[i]};
 
         VkFramebufferCreateInfo framebufferCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -1367,13 +1168,27 @@ void OsmiumGLInstance::endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQue
         .commandBufferCount = 1,
         .pCommandBuffers = &commandBuffer,
         };
-
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    if (vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit command buffer command buffer submit");
+    };
     vkQueueWaitIdle(queue);//remove this
 
     vkFreeCommandBuffers(device,queue == transferQueue ? transientCommandPool: commandPool,1,&commandBuffer);
 }
+#ifdef Vk_VALIDATION_LAYER
 
+
+void OsmiumGLInstance::AddDebugName(uint64_t handle, const char* name, VkObjectType type) const {
+    VkDebugUtilsObjectNameInfoEXT debugUtilsObjectNameInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+        .objectType = type,
+        .objectHandle = handle,
+        .pObjectName = name};
+    //instance.fp_vkGetInstanceProcAddr(instance,"v")
+    disp.fp_vkSetDebugUtilsObjectNameEXT(device,&debugUtilsObjectNameInfo);
+}
+
+#endif
 VkImageView OsmiumGLInstance::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const {
     VkImageViewCreateInfo viewInfo{
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1422,34 +1237,6 @@ void OsmiumGLInstance::createTextureSampler(VkSampler &sampler) const {
 //void OsmiumGLInstance::createTextureSampler(VkSampler &sampler, VkSamplerCreateInfo &samplerInfo) {}
 //add some commonly useful overrides likje filter modes
 
-void OsmiumGLInstance::createTextureSampler() {
-
-    VkPhysicalDeviceProperties deviceProp = {};
-    vkGetPhysicalDeviceProperties(physicalDevice,&deviceProp);
-
-    VkSamplerCreateInfo samplerInfo = {
-    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-    .magFilter = VK_FILTER_LINEAR,
-    .minFilter = VK_FILTER_LINEAR,
-    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .mipLodBias = 0.0f,
-    .anisotropyEnable = VK_TRUE,
-    .maxAnisotropy = deviceProp.limits.maxSamplerAnisotropy,
-    .compareEnable = VK_FALSE,
-    .compareOp = VK_COMPARE_OP_ALWAYS,
-    .minLod = 0.0f,
-    .maxLod = static_cast<float>(miplevels),
-    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-    .unnormalizedCoordinates = VK_FALSE//could be true for compute stuff when we want to access specific pixels
-    };
-    if(vkCreateSampler(device,&samplerInfo,nullptr,&textureSampler) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create texture sampler");
-    }
-}
-
 void OsmiumGLInstance::createDepthResources() {
     VkFormat depthFormat = findDepthFormat();
     createImage(swapChain.extent.width,swapChain.extent.height,1,msaaFlags,
@@ -1458,7 +1245,7 @@ void OsmiumGLInstance::createDepthResources() {
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                 depthImage, depthImageMemory);
     depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-
+    AddDebugName(reinterpret_cast<uint64_t>(depthImageView),"depth view", VK_OBJECT_TYPE_IMAGE_VIEW);
     //optional
     transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
@@ -1511,6 +1298,9 @@ void OsmiumGLInstance::createColorResources() {
                 colorImageMemory);
 
     colorImageView = createImageView(colorImage,colorFormat,VK_IMAGE_ASPECT_COLOR_BIT,1);
+#ifdef Vk_VALIDATION_LAYER
+    AddDebugName(reinterpret_cast<uint64_t>(colorImageView),"color image view",VK_OBJECT_TYPE_IMAGE_VIEW);
+    #endif
 }
 
 void OsmiumGLInstance::setupImGui() {
@@ -1720,10 +1510,13 @@ void OsmiumGLInstance::initVulkan(const std::string& appName) {
     .set_engine_name("Osmium")
 #ifdef Vk_VALIDATION_LAYER
     .request_validation_layers()
+    .enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
 #endif
     .use_default_debug_messenger()
     .require_api_version(VK_MAKE_VERSION(1, 3, 0))
     .build();
+
+
 
     if (!inst_builder_result) {
         throw std::runtime_error(inst_builder_result.error().message());
@@ -1741,7 +1534,10 @@ void OsmiumGLInstance::initVulkan(const std::string& appName) {
     //pick physical device
     vkb::PhysicalDeviceSelector deviceSelector(instance);
     //here I can specify features I need
-    auto deviceSelectorResult = deviceSelector.set_surface(surface)
+    auto deviceSelectorResult = deviceSelector
+    .set_surface(surface)
+    .set_required_features({.samplerAnisotropy = VK_TRUE,})
+    .set_required_features_13({.dynamicRendering = VK_TRUE,})
     .add_required_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)//putting it here as a useful extension for dynamic rendering
     .select();//defaults to discret gpu
     if (!deviceSelectorResult) {
@@ -1749,25 +1545,38 @@ void OsmiumGLInstance::initVulkan(const std::string& appName) {
     }
     physicalDevice = deviceSelectorResult.value();//no cleanup required
     std::cout << "picked physical device" << std::endl;
+    msaaFlags = getMaxSampleCount();
     //logical device
     vkb::DeviceBuilder deviceBuilder{ physicalDevice };
-    auto deviceBuilder_result = deviceBuilder.build();
+    auto deviceBuilder_result = deviceBuilder
+    .build();
 
     if (!deviceBuilder_result) {
         throw std::runtime_error(deviceSelectorResult.error().message());
     }
     device = deviceBuilder_result.value();
     std::cout << "created device" << std::endl;
+    //vk-bootstrap should favor dedicated queues whenever possible
+    graphicsQueue = device.get_queue(vkb::QueueType::graphics).value();
+    presentQueue = device.get_queue(vkb::QueueType::present).value();
+    transferQueue = device.get_queue(vkb::QueueType::transfer).value();
+#ifdef Vk_VALIDATION_LAYER
+    disp = device.make_table();
+#endif
     //swapchain
     vkb::SwapchainBuilder swapchainBuilder{device};
     auto swapchain_result = swapchainBuilder
+    .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+    .set_desired_format({VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
     .set_desired_extent(WIDTH,HEIGHT)
+    .set_desired_min_image_count(MAX_FRAMES_IN_FLIGHT)
     .build();
     if (!swapchain_result) {
         throw std::runtime_error(swapchain_result.error().message());
     }
 
     swapChain = swapchain_result.value();
+    swapChainImageViews = swapChain.get_image_views().value();
     std::cout << "created swapchain" << std::endl;
     //Allocator
     createAllocator();
@@ -1803,10 +1612,10 @@ void OsmiumGLInstance::cleanupSwapChain() {
     for (const auto &swapChainFrameBuffer: swapChainFrameBuffers) {
         vkDestroyFramebuffer(device, swapChainFrameBuffer, nullptr);
     }
-    for (const auto & swapChainImageView : swapChain.get_image_views().value()) {
+    for (const auto & swapChainImageView : swapChainImageViews) {
         vkDestroyImageView(device, swapChainImageView, nullptr);
     }
-    vkDestroySwapchainKHR(device, swapChain, nullptr);
+    vkb::destroy_swapchain(swapChain);
 }
 
 void OsmiumGLInstance::cleanup() {
@@ -1839,12 +1648,15 @@ void OsmiumGLInstance::cleanup() {
     vkDestroyCommandPool(device, commandPool, nullptr);
     vkDestroyCommandPool(device, transientCommandPool,nullptr);
     vmaDestroyAllocator(allocator);
-    vkDestroyDevice(device, nullptr);
+    vkb::destroy_device(device);
+    //vkDestroyDevice(device, nullptr);
 #ifdef Vk_VALIDATION_LAYER
     vkInitUtils::DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 #endif
-    vkDestroySurfaceKHR(instance, surface, nullptr);
-    vkDestroyInstance(instance, nullptr);
+    vkb::destroy_surface(instance, surface, nullptr);
+    //vkDestroySurfaceKHR(instance, surface, nullptr);
+    vkb::destroy_instance(instance);
+    //vkDestroyInstance(instance, nullptr);
     glfwDestroyWindow(window);
     glfwTerminate();
 }
@@ -1941,13 +1753,18 @@ void OsmiumGLInstance::recreateSwapChain() {
         glfwGetFramebufferSize(window, &width, &height);
         glfwWaitEvents();
     }
-    vkDeviceWaitIdle(device);
     vkb::SwapchainBuilder swapchain_builder {device};
-    auto swapchain_builder_result = swapchain_builder.set_old_swapchain(swapChain)
+    auto swapchain_builder_result = swapchain_builder
+    .set_old_swapchain(swapChain)
     .build();
     if (!swapchain_builder_result) {
         throw std::runtime_error("failed to rebuild swapchain: n" + swapchain_builder_result.error().message());
     }
     vkb::destroy_swapchain(swapChain);
+    for (auto & framebuffer : swapChainFrameBuffers) {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
     swapChain = swapchain_builder_result.value();
+
+    createFrameBuffer();
 }

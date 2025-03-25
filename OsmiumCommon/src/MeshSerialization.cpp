@@ -110,6 +110,10 @@ bool Serialization::ImportMeshAsset(const std::filesystem::path &filePath, const
         return false;
     }
     std::ofstream ofs(destination.string() + "/" + metaData.guid.str(), std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
+    if (!ofs.is_open()) {
+        std::cerr << "Failed to open file " << strerror(errno) << std::endl;
+        throw std::runtime_error("Failed to open file");
+    }
     ofs.write(reinterpret_cast<char *>(&data.vertexCount),sizeof(data.vertexCount));
     ofs.write(reinterpret_cast<char *>(&data.indiceCount),sizeof(data.indiceCount));
 

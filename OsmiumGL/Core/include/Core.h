@@ -135,7 +135,6 @@ private:
     VkImage textureImage = VK_NULL_HANDLE;
     VmaAllocation textureImageMemory = VK_NULL_HANDLE;
     VkImageView textureImageView = VK_NULL_HANDLE;
-    VkSampler textureSampler = VK_NULL_HANDLE;
     //imgui
     ImGui_ImplVulkanH_Window imguiWindowsData;
 
@@ -172,6 +171,8 @@ private:
     //Light descriptor sets
     DefaultSceneDescriptorSets* defaultSceneDescriptorSets;
     uint32_t currentFrame = 0;
+    vkb::DispatchTable disp;//contains function pointer to non core functions
+    std::vector<VkImageView_T *> swapChainImageViews;
 
 
     [[nodiscard]] bool checkValidationLayerSupport() const;
@@ -189,13 +190,10 @@ private:
 
     void createLogicalDevice();
 
-    void createLogicalSurface();
 
     void createAllocator();
 
-    void createSwapChain();
 
-    void createSwapChainImageViews();
 
     void createRenderPass();
 
@@ -232,7 +230,6 @@ private:
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
 
     void createTextureSampler(VkSampler &sampler) const;
-    void createTextureSampler();
     void createDepthResources();
     void createColorResources();
 
@@ -256,9 +253,9 @@ private:
     //single time command
     VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
     void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue) const;
-
-
-
+#ifdef Vk_VALIDATION_LAYER
+    void AddDebugName(uint64_t handle, const char *name, VkObjectType type) const;
+#endif
 
     //internal initialization
     void initWindow();
