@@ -1567,7 +1567,7 @@ void OsmiumGLInstance::initVulkan(const std::string& appName) {
     vkb::SwapchainBuilder swapchainBuilder{device};
     auto swapchain_result = swapchainBuilder
     .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-    .set_desired_format({VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
+    //.set_desired_format({VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
     .set_desired_extent(WIDTH,HEIGHT)
     .set_desired_min_image_count(MAX_FRAMES_IN_FLIGHT)
     .build();
@@ -1753,18 +1753,25 @@ void OsmiumGLInstance::recreateSwapChain() {
         glfwGetFramebufferSize(window, &width, &height);
         glfwWaitEvents();
     }
+
+
+    // for (auto & framebuffer : swapChainFrameBuffers) {
+    //     vkDestroyFramebuffer(device, framebuffer, nullptr);
+    // }
+    // vkb::destroy_swapchain(swapChain);
+    vkDeviceWaitIdle(device);//Here I'd like to wait on some kindof fence to not hold
+    cleanupSwapChain();
     vkb::SwapchainBuilder swapchain_builder {device};
     auto swapchain_builder_result = swapchain_builder
-    .set_old_swapchain(swapChain)
+    .set_desired_extent(width, height)
+    //.set_old_swapchain(swapChain)
     .build();
     if (!swapchain_builder_result) {
         throw std::runtime_error("failed to rebuild swapchain: n" + swapchain_builder_result.error().message());
     }
-    vkb::destroy_swapchain(swapChain);
-    for (auto & framebuffer : swapChainFrameBuffers) {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
-    }
     swapChain = swapchain_builder_result.value();
-
+    swapChainImageViews = swapChain.get_image_views().value();
+    createColorResources();
+    createDepthResources();
     createFrameBuffer();
 }
