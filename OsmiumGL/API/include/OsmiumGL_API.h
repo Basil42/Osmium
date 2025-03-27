@@ -78,6 +78,7 @@ namespace  OsmiumGL {
     bool ShouldClose();
 
 
+    void TestDynamicRenderer(const std::string& str);
 };
 
 

@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <Core.h>
 #include "DefaultShaders.h"
+#include "DynamicCore.h"
 #include "../../../OsmiumCore/Base/config.h"
 #include "crossguid/guid.hpp"
 
@@ -101,4 +102,13 @@ void OsmiumGL::ImguiEndImGuiFrame() {
 
 bool OsmiumGL::ShouldClose() {
     return instance->ShouldClose();
+}
+
+void OsmiumGL::TestDynamicRenderer(const std::string &str) {
+    OsmiumGLDynamicInstance* dynamicInstance = new OsmiumGLDynamicInstance();
+    dynamicInstance->initialize(str);
+    // while (!dynamicInstance->shouldClose) {
+    //
+    // }
+    dynamicInstance->shutdown();
 }

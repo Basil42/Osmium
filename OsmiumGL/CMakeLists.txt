@@ -13,6 +13,7 @@ set(OSMIUMGL_SOURCES
         API/src/RenderedObject.cpp
         Core/src/MaterialData.cpp
         ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
+        Core/src/DynamicCore.cpp
 
 )
 #this is here for the IDE
@@ -88,6 +89,7 @@ add_dependencies(OsmiumGL compileBlinnPhongShaders)
 add_dependencies(compileBlinnPhongShaders copy_default_resources)
 
 add_executable(OsmiumGLTest OsmiumGlTest.cpp)
-target_link_libraries(OsmiumGLTest OsmiumGL)
+target_link_libraries(OsmiumGLTest PRIVATE OsmiumGL)
+target_link_libraries(OsmiumGLTest PRIVATE vk-bootstrap)
 #target_compile_features(OsmiumGL PRIVATE cxx_std_20)
 #set_target_properties(OsmiumGL PROPERTIES LINKER_LANGUAGE CXX)

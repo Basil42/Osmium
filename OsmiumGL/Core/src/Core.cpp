@@ -59,7 +59,7 @@
 #include <MeshSerialization.h>
 
 #include "VkBootstrap.h"
-
+#define DYNAMIC_RENDERING
 
 static void check_vk_result(VkResult result) {
     if(result == 0)return;
@@ -466,6 +466,7 @@ void OsmiumGLInstance::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCre
 }
 #endif
 void OsmiumGLInstance::createRenderPass() {
+#ifndef DYNAMIC_RENDERING
     VkAttachmentDescription depthAttachment = {
         .format = findDepthFormat(),
         .samples = msaaFlags,
@@ -541,9 +542,39 @@ void OsmiumGLInstance::createRenderPass() {
     if (vkCreateRenderPass(device, &renderPassCreateInfo, nullptr, &renderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create render pass");
     }
+#endif
 }
-
 void OsmiumGLInstance::createFrameBuffer() {
+    createColorResources();
+    createDepthResources();
+//TODO adapt for deferred lights
+    std::vector<VkDescriptorImageInfo> attachmentsDescriptorInfos(2);
+    attachmentsDescriptorInfos[0] = {
+    .sampler = VK_NULL_HANDLE,
+    .imageView = colorImageView,
+    .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+    attachmentsDescriptorInfos[1] = {
+    .sampler = VK_NULL_HANDLE,
+    .imageView = depthImageView,
+    .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+
+
+    std::vector<VkWriteDescriptorSet> writeDescriptorSets;
+    // for (size_t i = 0; i < attachmentsDescriptorInfos.size(); i++) {
+    //     VkWriteDescriptorSet writeDescriptorSet = {
+    //     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    //     .pNext = nullptr,
+    //     .dstSet = ,
+    //     .dstBinding = ,
+    //     .dstArrayElement = ,
+    //     .descriptorCount = ,
+    //     .descriptorType = ,
+    //     .pImageInfo = ,
+    //     .pBufferInfo = ,
+    //     .pTexelBufferView = }
+    // }
+#ifndef DYNAMIC_RENDERING
+
     swapChainFrameBuffers.resize(swapChainImageViews.size());
     for (uint32_t i = 0; i < swapChainImageViews.size(); i++) {
         std::array<VkImageView,3> attachments = {colorImageView,depthImageView,swapChainImageViews[i]};
@@ -561,8 +592,8 @@ void OsmiumGLInstance::createFrameBuffer() {
             throw std::runtime_error("failed to create framebuffer");
         }
     }
+#endif
 }
-
 void OsmiumGLInstance::createCommandPool(VkCommandPoolCreateFlags createFlags, VkCommandPool& poolHandle, uint32_t queueFamilyIndex) const {
 
     VkCommandPoolCreateInfo commandPoolCreateInfo = {
@@ -1340,42 +1371,6 @@ void OsmiumGLInstance::setupImGui() {
 
 }
 
-// void OsmiumGLInstance::createImGuiWindow() {
-//     imguiWindowsData.Surface = surface;
-//
-//     VkBool32 result;
-//     vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,queueFamiliesIndices.graphicsFamily.value(),surface, &result);
-//     if(result != VK_TRUE) {
-//         throw std::runtime_error("imgui not supported");
-//     }
-//     const VkFormat requestSurfaceImageFormat[] = {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8_UNORM, VK_FORMAT_R8G8B8_UNORM};//might need to be set to the same format as the swap chain image
-//     const VkColorSpaceKHR requestSurfaceColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
-//     imguiWindowsData.SurfaceFormat = ImGui_ImplVulkanH_SelectSurfaceFormat(physicalDevice,surface,requestSurfaceImageFormat,IM_ARRAYSIZE(requestSurfaceImageFormat),requestSurfaceColorSpace);
-// #ifdef APP_USE_UNLIMITED_FRAME_RATE
-//     VkPresentModeKHR present_Modes[] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
-// #else
-//     VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_FIFO_KHR };
-// #endif
-//     imguiWindowsData.PresentMode = ImGui_ImplVulkanH_SelectPresentMode(physicalDevice,imguiWindowsData.Surface,&present_modes[0],IM_ARRAYSIZE(present_modes));
-//     IM_ASSERT(MAX_FRAMES_IN_FLIGHT >= 2);
-//     ImGui_ImplVulkanH_CreateOrResizeWindow(instance,physicalDevice,device,&imguiWindowsData,queueFamiliesIndices.graphicsFamily.value_or(-1),nullptr,500,300,MAX_FRAMES_IN_FLIGHT);
-// }
-
-
-// void OsmiumGLInstance::VikingTest() {
-//     Descriptors::createDescriptorSetLayout(device,descriptorSetLayout);
-//     createGraphicsPipeline();
-//     loadModel(MODEL_PATH.c_str());
-//     createTextureImage(TEXTURE_PATH.c_str());
-//     textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, miplevels);
-//     //Replace with buffer creation using the allocator
-//     createVertexBuffer();
-//     createIndexBuffer();
-//     createUniformBuffer();
-//     Descriptors::createDescriptorPool(device,descriptorPool);
-//     Descriptors::createDescriptorSets(device,descriptorSetLayout,descriptorPool, descriptorSets, uniformBuffers, textureImageView, textureSampler);
-// }
-
 void OsmiumGLInstance::createAllocator() {
 
 
@@ -1585,11 +1580,11 @@ void OsmiumGLInstance::initVulkan(const std::string& appName) {
     //more game specific, but arcane enough that it should not be exposed for now
     //main pass and main resources
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
+
     createRenderPass();
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, commandPool, queueFamiliesIndices.graphicsFamily.value());
     createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, transientCommandPool, queueFamiliesIndices.transferFamily.value());
-    createColorResources();
-    createDepthResources();
+
     createFrameBuffer();
     //general command buffers, might need a different setup later to multithread all this
     createCommandBuffers();
@@ -1771,7 +1766,5 @@ void OsmiumGLInstance::recreateSwapChain() {
     }
     swapChain = swapchain_builder_result.value();
     swapChainImageViews = swapChain.get_image_views().value();
-    createColorResources();
-    createDepthResources();
     createFrameBuffer();
 }

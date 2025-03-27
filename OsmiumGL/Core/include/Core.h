@@ -53,6 +53,7 @@ public:
     [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
     [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
 
+    void DrawCommandDynamic(VkCommandBuffer commandBuffer, const PassBindings &passBindings);
 
 
     void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VmaMemoryUsage memory_usage, VkBuffer &vk_buffer, VmaAllocation &

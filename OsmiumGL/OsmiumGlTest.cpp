@@ -9,6 +9,7 @@
 //
 int main(int argc, char *argv[]) {
     try {
+        OsmiumGL::TestDynamicRenderer("Gl test");
 
     } catch (std::runtime_error) {
         std::cout << "An exception occured!" << std::endl;
