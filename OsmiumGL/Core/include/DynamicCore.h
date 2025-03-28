@@ -46,6 +46,8 @@ private:
     vkb::Device device;
     VmaAllocator allocator = VK_NULL_HANDLE;
     vkb::Swapchain swapchain;
+    vkb::DispatchTable disp;//contains function pointer to non core functions
+
     bool frameBufferResized = false;
     GLFWwindow * window = nullptr;
     const uint32_t WIDTH = 800;
@@ -99,11 +101,12 @@ private:
 
     void setupFrameBuffer();
 
-    void createAttachment(VkFormat format, VkImageUsageFlags usage, OsmiumGLDynamicInstance::Attachment &attachment, VkFence fence, VkCommandBuffer
+    void createAttachment(VkFormat format, VkImageUsageFlags usage, OsmiumGLDynamicInstance::Attachment &attachment, VkFence &fence, VkCommandBuffer
                           &command_buffer);
 
     void createAttachments();
     void destroyAttachment(Attachment &attachment);
+    void destroyAttachments();
     void setupImgui();
     //Draw related function
     void DrawFrame(std::mutex& imGuiMutex,std::condition_variable& imGuiCV,bool& isImGuiFrameComplete);//I feel like I could get these syncing info there more elegantly
@@ -115,6 +118,7 @@ private:
     //GLFW related callbacks, maybe I could move all this in a separate class for cleaning up
     static void glfw_frameBufferResizedCallback(GLFWwindow *window, int width, int height);
     static void glfw_error_callback(int error_code, const char *description);
+    void AddDebugName(uint64_t handle, const char *name, VkObjectType type) const;
 
 };
 

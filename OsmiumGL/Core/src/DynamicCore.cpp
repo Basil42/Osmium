@@ -13,6 +13,7 @@
 #include <backends/imgui_impl_glfw.h>
 
 #include "DefaultSceneDescriptorSets.h"
+#include "DefaultShaders.h"
 #include "InitUtilVk.h"
 #include "MeshData.h"
 #include "MeshSerialization.h"
@@ -61,18 +62,25 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
 
     //pick physical device
     vkb::PhysicalDeviceSelector deviceSelector(instance);
+
+    //local read feature
+    VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR dynamicRenderingLocalReadFeaturesKHR {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR,
+    .dynamicRenderingLocalRead = VK_TRUE,};
     //here I can specify features I need
     auto deviceSelectorResult = deviceSelector.set_surface(surface)//putting it here as a useful extension for dynamic rendering
     .add_required_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)
     .add_required_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
     .add_required_extension(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)
+    .add_required_extension(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)
     .set_required_features({
     .samplerAnisotropy = VK_TRUE,
     })
-    .set_required_features_13({
-        .synchronization2 = VK_TRUE,//assuming this covers the local read extension features (it should be, it's 1.3)
-    .dynamicRendering = VK_TRUE,
-    })
+     .set_required_features_13({
+         .synchronization2 = VK_TRUE,
+     .dynamicRendering = VK_TRUE,
+     })
+    .add_required_extension_features(dynamicRenderingLocalReadFeaturesKHR)
     .select();//defaults to discret gpu
     if (!deviceSelectorResult) {
         throw std::runtime_error(deviceSelectorResult.error().message());
@@ -88,7 +96,7 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
         throw std::runtime_error(deviceSelectorResult.error().message());
     }
     device = deviceBuilder_result.value();
-
+    disp = device.make_table();
     queues.graphicsQueue = device.get_queue(vkb::QueueType::graphics).value();
     queues.presentQueue = device.get_queue(vkb::QueueType::present).value();
     queues.transferQueue = device.get_queue(vkb::QueueType::transfer).value();
@@ -130,6 +138,7 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
 
     check_vk_result_dyn(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.renderComplete));
 
+    //that is probably not the actual best place to do this
     constexpr VkPipelineStageFlags submitPipelineFlag = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     submitInfo = VkSubmitInfo{
     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -180,9 +189,24 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
 }
 
 void OsmiumGLDynamicInstance::shutdown() {
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    destroyAttachments();
     //deallocate command buffer
     vkDestroyCommandPool(device,commandPools.draw,nullptr);
     vkDestroyCommandPool(device,commandPools.transient,nullptr);
+    vkDestroySemaphore(device,semaphores.renderComplete,nullptr);
+    vkDestroySemaphore(device,semaphores.aquiredImageReady,nullptr);
+
+    for (const auto fence : drawFences) {
+        vkDestroyFence(device,fence,nullptr);
+    }
+    vmaDestroyAllocator(allocator);
+    for (const auto view: swapchainViews) {
+        vkDestroyImageView(device,view,nullptr);
+    }
     vkb::destroy_swapchain(swapchain);
     vkb::destroy_device(device);
     vkb::destroy_surface(instance,surface);
@@ -405,11 +429,7 @@ void OsmiumGLDynamicInstance::setupFrameBuffer() {
 
 }
 
-void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachment &attachment) {
-    vkDestroyImageView(device,attachment.imageView,nullptr);
-    vmaDestroyImage(allocator,attachment.image,attachment.imageMemory);
-    attachment = {};
-}
+
 
 void OsmiumGLDynamicInstance::setupImgui() {
     //context
@@ -456,10 +476,11 @@ void OsmiumGLDynamicInstance::setupImgui() {
 
 }
 
+
 //I could have a overload that waits on individual fences if I need it
 //Create attachement and submit it, fence needs to be waited upon before accessing the image and the command buffer must be disposed of after that
 void OsmiumGLDynamicInstance::createAttachment(VkFormat format, VkImageUsageFlags usage,
-                                               OsmiumGLDynamicInstance::Attachment &attachment, VkFence fence , VkCommandBuffer& command_buffer) {
+                                               OsmiumGLDynamicInstance::Attachment &attachment, VkFence& fence , VkCommandBuffer& command_buffer) {
     if (attachment.image != VK_NULL_HANDLE) {
         //need to clean it up before recreating
         destroyAttachment(attachment);
@@ -555,7 +576,12 @@ void OsmiumGLDynamicInstance::createAttachment(VkFormat format, VkImageUsageFlag
     if (vkCreateFence(device,&fenceCreateInfo,nullptr,&fence) != VK_SUCCESS) {
         throw std::runtime_error("failed to create fence");
     }
-
+    AddDebugName(reinterpret_cast<uint64_t>(fence),"attachement fence", VK_OBJECT_TYPE_FENCE);
+    check_vk_result_dyn(vkQueueSubmit(queues.graphicsQueue,1,&submitInfo,fence));
+    //immadiate version
+    // vkWaitForFences(device,1,&fence,VK_TRUE,UINT64_MAX);
+    // vkDestroyFence(device,fence,nullptr);
+    // vkFreeCommandBuffers(device,commandPools.draw,1, &command_buffer);
 }
 
 void OsmiumGLDynamicInstance::createAttachments() {
@@ -566,12 +592,26 @@ void OsmiumGLDynamicInstance::createAttachments() {
     createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.normal, fences[1], cmdBuffers[1]);
     createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.albedo, fences[2], cmdBuffers[2]);
 
+
     vkWaitForFences(device,3,fences,VK_TRUE,UINT64_MAX);
     vkDestroyFence(device,fences[0],nullptr);
     vkDestroyFence(device,fences[1],nullptr);
     vkDestroyFence(device,fences[2],nullptr);
     vkFreeCommandBuffers(device,commandPools.draw,3,cmdBuffers);
 }
+void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachment &attachment) {
+    vkDestroyImageView(device,attachment.imageView,nullptr);
+    vmaDestroyImage(allocator,attachment.image,attachment.imageMemory);
+    attachment = {};
+}
+
+void OsmiumGLDynamicInstance::destroyAttachments() {
+    destroyAttachment(attachments.positionDepth);
+    destroyAttachment(attachments.normal);
+    destroyAttachment(attachments.albedo);
+
+}
+
 
 void OsmiumGLDynamicInstance::DrawFrame(std::mutex &imGuiMutex, std::condition_variable &imGuiCV,
                                         bool &isImGuiFrameComplete) {
@@ -594,5 +634,15 @@ void OsmiumGLDynamicInstance::glfw_frameBufferResizedCallback(GLFWwindow * windo
 
 void OsmiumGLDynamicInstance::glfw_error_callback(int error_code, const char * description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error_code, description);
+}
+
+void OsmiumGLDynamicInstance::AddDebugName(uint64_t handle, const char *name, VkObjectType type) const {
+    VkDebugUtilsObjectNameInfoEXT debugUtilsObjectNameInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+        .objectType = type,
+        .objectHandle = handle,
+        .pObjectName = name};
+    //instance.fp_vkGetInstanceProcAddr(instance,"v")
+    disp.fp_vkSetDebugUtilsObjectNameEXT(device,&debugUtilsObjectNameInfo);
 }
 
