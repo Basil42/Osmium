@@ -1363,6 +1363,18 @@ void OsmiumGLInstance::setupImGui() {
         .DescriptorPoolSize = 10,
         .CheckVkResultFn = check_vk_result,
     };
+#ifdef DYNAMIC_RENDERING
+    vulkanInitInfo.UseDynamicRendering = true;
+    vulkanInitInfo.PipelineRenderingCreateInfo = VkPipelineRenderingCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .viewMask = 0,//allowed to be 0
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &swapChain.image_format,//probably the only needed information, I don't need the depth or stencil for now ?
+            //.depthAttachmentFormat = attachments.positionDepth.format,
+            //.stencilAttachmentFormat = attachments.positionDepth.format,
+        };
+#endif
+
     ImGui_ImplVulkan_Init(&vulkanInitInfo);
 
     showDemoWindow = true;
