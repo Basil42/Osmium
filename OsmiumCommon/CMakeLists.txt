@@ -11,6 +11,7 @@ set(OSMIUMCOMMONHEADERS
         include/MeshSerialization.h
         include/Memcheck.h
         src/MeshSerialization.cpp
+        include/SyncUtils.h
 )
 
 add_library(OsmiumCommon STATIC

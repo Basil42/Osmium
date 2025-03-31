@@ -17,6 +17,7 @@
 #include "InitUtilVk.h"
 #include "MeshData.h"
 #include "MeshSerialization.h"
+#include "SyncUtils.h"
 
 static void check_vk_result_dyn(VkResult result) {
     if(result == 0)return;
@@ -85,8 +86,13 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     if (!deviceSelectorResult) {
         throw std::runtime_error(deviceSelectorResult.error().message());
     }
-    physicalDevice = deviceSelectorResult.value();//no cleanup required
 
+
+    physicalDevice = deviceSelectorResult.value();//no cleanup required
+    for (const auto& alloc_extension_to_enable: allocatorExtensions) {
+        physicalDevice.enable_extension_if_present(alloc_extension_to_enable.c_str());
+
+    }
     //logical device
     vkb::DeviceBuilder deviceBuilder{ physicalDevice };
     auto deviceBuilder_result = deviceBuilder
@@ -114,7 +120,6 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
 
     std::cout << "init successful" << std::endl;
     //depth format, sort of addendum on device selection , I should probably fold this in device selection
-    VkFormat DepthFormat = VK_FORMAT_UNDEFINED;
     const std::vector<VkFormat> DepthPriorityList = {
     VK_FORMAT_D32_SFLOAT,
     VK_FORMAT_D24_UNORM_S8_UINT,
@@ -149,14 +154,14 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     .pSignalSemaphores = &semaphores.renderComplete};
 
     //draw command pool
-    auto familyindices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
+    queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
     VkCommandPoolCreateInfo cmdPoolCreateInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .queueFamilyIndex = familyindices.graphicsFamily.value(),};
+    .queueFamilyIndex = queueFamiliesIndices.graphicsFamily.value(),};
     check_vk_result_dyn(vkCreateCommandPool(device,&cmdPoolCreateInfo,nullptr,&commandPools.draw));
     //transient command pool
     cmdPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    cmdPoolCreateInfo.queueFamilyIndex = familyindices.transferFamily.value();
+    cmdPoolCreateInfo.queueFamilyIndex = queueFamiliesIndices.transferFamily.value();
     check_vk_result_dyn(vkCreateCommandPool(device,&cmdPoolCreateInfo,nullptr,&commandPools.transient));
 
     //command buffers seems to free themselves
@@ -179,12 +184,14 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     //attachement, tweaking it from previous implementation to use a single call
     setupFrameBuffer();
 
+
     //TODO loading meshes and sending push constant
     //TODO light buffers
     //layout and descriptor
     setupImgui();
 
     //TODO: pipeline cache
+
 
 }
 
@@ -217,102 +224,241 @@ void OsmiumGLDynamicInstance::shutdown() {
 
 
 
-// MeshHandle OsmiumGLDynamicInstance::LoadMesh(const std::filesystem::path &path) {
-//     Serialization::MeshSerializationData data;
-//     if (!Serialization::DeserializeMeshAsset(path,data)) {
-//         throw std::runtime_error("Failed to load mesh asset");
-//         return -1;
-//     }
-//     std::vector<VertexBufferDescriptor> buffersDescriptors;
-//     DefaultVertexAttributeFlags attributeFlags = NONE;
-//     unsigned int offset = 0;
-//     for (auto attributeType: data.attributeTypes) {
-//         VertexBufferDescriptor bufferDescriptor;
-//         switch (attributeType) {
-//             case Serialization::VERTEX_POSITION: {
-//                 attributeFlags |= POSITION;
-//                 bufferDescriptor.attribute = POSITION;
-//                 bufferDescriptor.data = data.data.data() + offset;
-//                 bufferDescriptor.AttributeStride = sizeof(glm::vec3);
-//                 offset += sizeof(glm::vec3) * data.vertexCount;
-//                 buffersDescriptors.push_back(bufferDescriptor);
-//                 break;
-//             }
-//             case Serialization::VERTEX_TEXCOORD: {
-//                 attributeFlags |= TEXCOORD0;
-//                 bufferDescriptor.attribute = TEXCOORD0;
-//                 bufferDescriptor.data = data.data.data() + offset;
-//                 bufferDescriptor.AttributeStride = sizeof(glm::vec2);
-//                 offset += sizeof(glm::vec2) * data.vertexCount;
-//                 buffersDescriptors.push_back(bufferDescriptor);
-//                 break;
-//             }
-//             case Serialization::VERTEX_NORMAL: {
-//                 attributeFlags |= NORMAL;
-//                 bufferDescriptor.attribute = NORMAL;
-//                 bufferDescriptor.data = data.data.data() + offset;
-//                 bufferDescriptor.AttributeStride = sizeof(glm::vec3);
-//                 offset += sizeof(glm::vec3) * data.vertexCount;
-//                 buffersDescriptors.push_back(bufferDescriptor);
-//                 break;
-//             }
-//             case Serialization::VERTEX_COLOR: {
-//                 attributeFlags |= COLOR;
-//                 bufferDescriptor.attribute = COLOR;
-//                 bufferDescriptor.data = data.data.data() + offset;
-//                 bufferDescriptor.AttributeStride = sizeof(glm::vec4);
-//                 offset += sizeof(glm::vec4) * data.vertexCount;
-//                 buffersDescriptors.push_back(bufferDescriptor);
-//                 break;
-//             }
-//             case Serialization::VERTEX_TANGENT: {
-//                 attributeFlags |= TANGENT;
-//                 bufferDescriptor.attribute = TANGENT;
-//                 bufferDescriptor.data = data.data.data() + offset;
-//                 bufferDescriptor.AttributeStride = sizeof(glm::vec3);
-//                 offset += sizeof(glm::vec3) * data.vertexCount;
-//                 buffersDescriptors.push_back(bufferDescriptor);
-//                 break;
-//             }
-//             default: {
-//                 std::cerr << "unsupported attribute type, it is probably already supported by the serializer.";
-//                 //no way I can think of to recover from that as I can't really guess the stride
-//             } ;
-//         }
-//     }
-//     //extracting indices
-//     std::vector<uint32_t> indices;
-//     indices.resize(data.indiceCount);
-//     memcpy(indices.data(),data.data.data() + offset, data.indiceCount * sizeof(uint32_t));
-//     //turn attribute info into buffer descriptors
-//     return LoadMesh(data.data.data(),attributeFlags,data.vertexCount,buffersDescriptors,indices);
-// }
+MeshHandle OsmiumGLDynamicInstance::LoadMesh(const std::filesystem::path &path) {
+    Serialization::MeshSerializationData data;
+    if (!Serialization::DeserializeMeshAsset(path,data)) {
+        throw std::runtime_error("Failed to load mesh asset");
+        return -1;
+    }
+    std::vector<VertexBufferDescriptor> buffersDescriptors;
+    DefaultVertexAttributeFlags attributeFlags = NONE;
+    unsigned int offset = 0;
+    for (auto attributeType: data.attributeTypes) {
+        VertexBufferDescriptor bufferDescriptor;
+        switch (attributeType) {
+            case Serialization::VERTEX_POSITION: {
+                attributeFlags |= POSITION;
+                bufferDescriptor.attribute = POSITION;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec3);
+                offset += sizeof(glm::vec3) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_TEXCOORD: {
+                attributeFlags |= TEXCOORD0;
+                bufferDescriptor.attribute = TEXCOORD0;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec2);
+                offset += sizeof(glm::vec2) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_NORMAL: {
+                attributeFlags |= NORMAL;
+                bufferDescriptor.attribute = NORMAL;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec3);
+                offset += sizeof(glm::vec3) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_COLOR: {
+                attributeFlags |= COLOR;
+                bufferDescriptor.attribute = COLOR;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec4);
+                offset += sizeof(glm::vec4) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            case Serialization::VERTEX_TANGENT: {
+                attributeFlags |= TANGENT;
+                bufferDescriptor.attribute = TANGENT;
+                bufferDescriptor.data = data.data.data() + offset;
+                bufferDescriptor.AttributeStride = sizeof(glm::vec3);
+                offset += sizeof(glm::vec3) * data.vertexCount;
+                buffersDescriptors.push_back(bufferDescriptor);
+                break;
+            }
+            default: {
+                std::cerr << "unsupported attribute type, it is probably already supported by the serializer.";
+                //no way I can think of to recover from that as I can't really guess the stride
+            } ;
+        }
+    }
+    //extracting indices
+    std::vector<uint32_t> indices;
+    indices.resize(data.indiceCount);
+    memcpy(indices.data(),data.data.data() + offset, data.indiceCount * sizeof(uint32_t));
+    //turn attribute info into buffer descriptors
+    return LoadMesh(data.data.data(),attributeFlags,data.vertexCount,buffersDescriptors,indices);
+}
 
-// MeshHandle OsmiumGLDynamicInstance::LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags,
-//     unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors,
-//     const std::vector<unsigned> &indices) {
-//     MeshData meshData;
-//     //attribute flags and custom attribute flages should be built from the vertex buffer descriptor instead of being trusted as correct
-//     meshData.attributeFlags = attribute_flags;
-//     meshData.numVertices = vertex_count;
-//     meshData.numIndices = indices.size();
-//     std::lock_guard meshDataLock(meshDataMutex);
-//     for (const auto& buffer_descriptor: bufferDescriptors) {
-//         VkBuffer buffer_handle;
-//         VmaAllocation buffer_memory;
-//         createVertexAttributeBuffer(vertices_data,buffer_descriptor,vertex_count,buffer_handle, buffer_memory);
-//         meshData.VertexAttributeBuffers[buffer_descriptor.attribute] = {buffer_handle,buffer_memory};
-//     }
-//
-//     //indices
-//
-//     createIndexBuffer(indices, meshData.indexBuffer,meshData.IndexBufferAlloc);
-//     meshData.numIndices = indices.size();
-//
-//     //returns the loaded mesh's handle
-//     return LoadedMeshes.Add(meshData);
-// }
+MeshHandle OsmiumGLDynamicInstance::LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags,
+    unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors,
+    const std::vector<unsigned> &indices) {
+    MeshData meshData;
+    //attribute flags and custom attribute flages should be built from the vertex buffer descriptor instead of being trusted as correct
+    meshData.attributeFlags = attribute_flags;
+    meshData.numVertices = vertex_count;
+    meshData.numIndices = indices.size();
+    std::lock_guard meshDataLock(meshDataMutex);
+    assert(!bufferDescriptors.empty());
+    for (const auto& buffer_descriptor: bufferDescriptors) {
+        VkBuffer buffer_handle;
+        VmaAllocation buffer_memory;
+        createVertexAttributeBuffer(vertices_data,buffer_descriptor,vertex_count,buffer_handle, buffer_memory);
+        meshData.VertexAttributeBuffers[buffer_descriptor.attribute] = {buffer_handle,buffer_memory};
+    }
 
+    //indices
+
+    createIndexBuffer(indices, meshData.indexBuffer,meshData.IndexBufferAlloc);
+    meshData.numIndices = indices.size();
+
+    //returns the loaded mesh's handle
+    return LoadedMeshes->Add(meshData);
+}
+
+void OsmiumGLDynamicInstance::UnloadMesh(MeshHandle mesh, bool immediate) {
+    std::unique_lock<std::mutex> meshDataLock(meshDataMutex);
+    auto data =LoadedMeshes->get(mesh);
+    LoadedMeshes->Remove(mesh);
+    //change to something mor elegant later, I could just wait a frame
+    uint32_t NextSafeFrame = currentFrame + swapchainViews.size();
+    if (!immediate) {
+        frameCompletionCV.wait(meshDataLock,[this, NextSafeFrame]{return currentFrame >= NextSafeFrame;});
+    }else {
+        vkDeviceWaitIdle(device);
+    }
+    for (const auto buffer : data.VertexAttributeBuffers) {
+
+        vmaDestroyBuffer(allocator,buffer.second.first,buffer.second.second);
+    }
+    vmaDestroyBuffer(allocator,data.indexBuffer,data.IndexBufferAlloc);
+}
+
+
+void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition) {
+
+    glfwPollEvents();
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+
+    ImGui::NewFrame();
+
+    ImGuiFrameReadyCondition.cv.notify_one();//let's assume there is only one waiter
+
+    RenderUpdateCompleteCondition.waitAndLock();
+
+    //acquire next swap chain image
+    vkWaitForFences(device,1,&drawFences[currentFrame],VK_TRUE,UINT64_MAX);
+
+    uint32_t imageIndex;
+    //might want to have a fence to change swapchain more elegantly?
+    VkResult result = vkAcquireNextImageKHR(device,swapchain,UINT64_MAX,semaphores.aquiredImageReady,VK_NULL_HANDLE,&imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        RecreateSwapChain();
+    }
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swapchain image");
+    }
+    vkResetFences(device, 1, &drawFences[currentFrame]);
+    vkResetCommandBuffer(drawCommandBuffers[currentFrame], 0);//i coudl also apparently reset the command pool here
+    std::scoped_lock resourcesLock(meshDataMutex);//TODO Add material and mat instance resources
+
+    //recording command buffer here,
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &drawCommandBuffers[currentFrame];
+
+    VkCommandBufferBeginInfo beginInfo = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,};
+    //clear color
+    VkClearValue clear_values[5]{};
+    clear_values[0].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//swapchainimage clear
+    clear_values[1].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//positiondepth
+    clear_values[2].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//normal
+    clear_values[3].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//albedo
+    clear_values[4].depthStencil = {0.0f, 0};//depth stencil
+
+    VkCommandBuffer commandBuffer = drawCommandBuffers[currentFrame];
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    std::vector<Attachment> attachmentVector = {attachments.positionDepth,attachments.normal,attachments.albedo};
+
+    VkImageSubresourceRange subresourceRangeColor = {};
+    subresourceRangeColor.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRangeColor.levelCount = VK_REMAINING_MIP_LEVELS;
+    subresourceRangeColor.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    VkImageSubresourceRange subresourceRangeDepth{};
+    subresourceRangeDepth.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    subresourceRangeDepth.levelCount = VK_REMAINING_MIP_LEVELS;
+    subresourceRangeDepth.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    //transition the images we'll use, I don't think I need to do this every frame
+    VkImage swapChainImage =  swapchain.get_images().value()[currentFrame];//doesn't seem to allocat the way the view getter does (hopefully)
+
+    //transition for write to image should be done at swapchain creation
+    transitionImageLayoutCmd(commandBuffer,swapChainImage,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,0,VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, subresourceRangeColor);
+    assert(attachments.depthSencil.image != VK_NULL_HANDLE);
+    //depthstencil is already transitioned
+    VkRenderingAttachmentInfo colorAttachmentsInfos[4];//non depth stencil attachement
+    for (auto i = 0; i < 4; i++) {
+        colorAttachmentsInfos[i] = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,
+        .resolveMode = VK_RESOLVE_MODE_NONE,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clear_values[i],};
+    }
+    colorAttachmentsInfos[0].imageView = swapchainViews[currentFrame];
+    for (auto i = 1; i < 4; i++) {
+        colorAttachmentsInfos[i].imageView = attachmentVector[i].imageView;
+    }
+    VkRenderingAttachmentInfo depthAttachmentsInfo = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+    .imageView = attachments.depthSencil.imageView,
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+    .resolveMode = VK_RESOLVE_MODE_NONE,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .clearValue = clear_values[4]};//might not be the correct clear value
+
+    VkRenderingInfo rendering_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+    .flags = 0,
+    .renderArea = {0,0,swapchain.extent.width,swapchain.extent.height},
+    .layerCount = 1,
+    .viewMask = 0,
+    .colorAttachmentCount = 4,
+    .pColorAttachments = &colorAttachmentsInfos[0],
+    .pDepthAttachment = &depthAttachmentsInfo,
+    .pStencilAttachment = &depthAttachmentsInfo,};
+
+    //Beginning rendering
+    vkCmdBeginRendering(commandBuffer,&rendering_info);
+
+    //viewport and scissor stuff
+    VkViewport viewport = {
+    .x = 0.0f,
+    .y = 0.0f,
+    .width = static_cast<float>(swapchain.extent.width),
+    .height = static_cast<float>(swapchain.extent.height),
+    .minDepth = 0.0f,
+    .maxDepth = 1.0f};
+    vkCmdSetViewport(commandBuffer,0,1,&viewport);
+    VkRect2D scissor = {
+    .offset = {0, 0},
+    .extent = swapchain.extent};
+    vkCmdSetScissor(commandBuffer,0,1,&scissor);
+    //geometry pass
+    //shaders that output to position, normals, and albedo
+
+
+    //wrap frame, update current frame count
+}
 
 void OsmiumGLDynamicInstance::RecreateSwapChain() {
     int width = 0, height = 0;
@@ -333,16 +479,6 @@ void OsmiumGLDynamicInstance::RecreateSwapChain() {
 }
 
 void OsmiumGLDynamicInstance::createAllocator() {
-    const std::set<std::string> allocatorExtensions = {
-        VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-        VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE_4_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE_5_EXTENSION_NAME,
-        VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
-        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-        VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
-        VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME,
-    };
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
@@ -426,7 +562,7 @@ void OsmiumGLDynamicInstance::setupFrameBuffer() {
     .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
     .pImageInfo = &descriptor_image_infos[0],
     };
-
+    createDepthResources();
 }
 
 
@@ -474,6 +610,99 @@ void OsmiumGLDynamicInstance::setupImgui() {
     ImGui_ImplVulkan_Init(&vulkanInitInfo);
 
 
+}
+
+void OsmiumGLDynamicInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags,
+    VkBuffer&vk_buffer, VmaAllocation&vma_allocation,
+    const VmaMemoryUsage memory_usage, const VmaAllocationCreateFlags allocationFlags) const {
+    VkBufferCreateInfo bufferCreateInfo;
+    uint32_t QueueFamilyIndices[] = {queueFamiliesIndices.graphicsFamily.value(), queueFamiliesIndices.transferFamily.value()};
+    if (queueFamiliesIndices.graphicsFamily != queueFamiliesIndices.transferFamily) {
+        bufferCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = bufferSize,
+            .usage = usageFlags,
+            .sharingMode = VK_SHARING_MODE_CONCURRENT,
+            .queueFamilyIndexCount = 2,
+            .pQueueFamilyIndices = QueueFamilyIndices};
+    }else {
+        bufferCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = bufferSize,
+            .usage = usageFlags,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+
+            };
+    }
+    VmaAllocationCreateInfo vmaAllocationCreateInfo = {
+        .flags = allocationFlags,
+        .usage = memory_usage,
+    };
+    if (allocationFlags)vmaAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    if (vmaCreateBuffer(allocator,&bufferCreateInfo,&vmaAllocationCreateInfo,&vk_buffer,&vma_allocation,nullptr) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create buffer");
+    }
+}
+
+void OsmiumGLDynamicInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const {
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(queues.transferQueue);
+
+    VkBufferCopy copyRegion = {};
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer,srcBuffer,dstBuffer,1,&copyRegion);
+
+    endSingleTimeCommands(commandBuffer, queues.transferQueue);
+}
+
+void OsmiumGLDynamicInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,
+    VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage&image,
+    VmaAllocation&imageAllocation) const {
+    VkImageCreateInfo imageCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .flags = 0,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .mipLevels = mipLevels,
+        .arrayLayers = 1,
+        .samples = numSamples,
+        .tiling = tiling,
+        .usage = usage,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+    imageCreateInfo.extent.width = Width;
+    imageCreateInfo.extent.height = Height;
+    imageCreateInfo.extent.depth = 1;
+
+    VmaAllocationCreateInfo allocInfo = {
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        };
+
+    auto result = vmaCreateImage(allocator,&imageCreateInfo,&allocInfo,&image,&imageAllocation,nullptr);
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image");
+    }
+}
+
+VkImageView OsmiumGLDynamicInstance::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+    uint32_t mipLevels) const {
+    VkImageViewCreateInfo viewInfo{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .subresourceRange = {
+            .aspectMask = aspectFlags,
+            .baseMipLevel = 0,
+            .levelCount = mipLevels,
+            .baseArrayLayer = 0,
+            .layerCount = 1}};
+    VkImageView imageView;
+    if(vkCreateImageView(device,&viewInfo,nullptr,&imageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image view");
+    }
+    return imageView;
 }
 
 
@@ -583,6 +812,40 @@ void OsmiumGLDynamicInstance::createAttachment(VkFormat format, VkImageUsageFlag
     // vkDestroyFence(device,fence,nullptr);
     // vkFreeCommandBuffers(device,commandPools.draw,1, &command_buffer);
 }
+void OsmiumGLDynamicInstance::createDepthResources() {
+    Attachment& att = attachments.depthSencil;
+    createImage(swapchain.extent.width,swapchain.extent.height,1,msaaFlags,
+                DepthFormat,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                att.image, att.imageMemory);
+    attachments.depthSencil.imageView = createImageView(att.image, DepthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    AddDebugName(reinterpret_cast<uint64_t>(att.imageView),"depth view", VK_OBJECT_TYPE_IMAGE_VIEW);
+
+    VkCommandBuffer cmdBuffer = beginSingleTimeCommands(queues.graphicsQueue);
+     //manual transition
+    VkImageSubresourceRange subResourceRange{
+        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+        .baseMipLevel = 0,
+        .levelCount = VK_REMAINING_MIP_LEVELS,
+        .baseArrayLayer = 0,
+        .layerCount = VK_REMAINING_ARRAY_LAYERS};
+    VkImageMemoryBarrier imageMemoryBarrier {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = att.image,
+    .subresourceRange = subResourceRange};
+
+    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0,
+                         nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+
+    endSingleTimeCommands(cmdBuffer,queues.graphicsQueue);
+}
 
 void OsmiumGLDynamicInstance::createAttachments() {
 
@@ -591,7 +854,7 @@ void OsmiumGLDynamicInstance::createAttachments() {
     createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.positionDepth, fences[0], cmdBuffers[0]);
     createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.normal, fences[1], cmdBuffers[1]);
     createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.albedo, fences[2], cmdBuffers[2]);
-
+    //shouldn't the depth stencil be created here as well ?
 
     vkWaitForFences(device,3,fences,VK_TRUE,UINT64_MAX);
     vkDestroyFence(device,fences[0],nullptr);
@@ -612,18 +875,116 @@ void OsmiumGLDynamicInstance::destroyAttachments() {
 
 }
 
+void OsmiumGLDynamicInstance::createIndexBuffer(const std::vector<unsigned> &indices, VkBuffer vk_buffer,
+    VmaAllocation vma_allocation) {
+    VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    stagingBufferCreateInfo.size = sizeof(uint32_t) * indices.size();
+    stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-void OsmiumGLDynamicInstance::DrawFrame(std::mutex &imGuiMutex, std::condition_variable &imGuiCV,
-                                        bool &isImGuiFrameComplete) {
-    //TODO rebuild this
+    VmaAllocationCreateInfo vma_staging_allocation_create_info = {
+        .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO};
 
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+    vmaCreateBuffer(allocator,&stagingBufferCreateInfo,&vma_staging_allocation_create_info,&stagingBuffer,&stagingAllocation,nullptr);
+
+    void* data;
+    vmaMapMemory(allocator,stagingAllocation,&data);
+    memcpy(data,indices.data(),sizeof(unsigned int) * indices.size());
+    vmaUnmapMemory(allocator,stagingAllocation);
+
+    createBuffer(stagingBufferCreateInfo.size,VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                 vk_buffer,
+                 vma_allocation);
+    copyBuffer(stagingBuffer,vk_buffer,stagingBufferCreateInfo.size);
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 }
 
 
-
 void OsmiumGLDynamicInstance::createVertexAttributeBuffer(const void *vertexData,
-    const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer&vk_buffer,
-    VmaAllocation&vma_allocation) const {
+                                                          const VertexBufferDescriptor &buffer_descriptor, unsigned int vertexCount, VkBuffer&vk_buffer,
+                                                          VmaAllocation&vma_allocation) const {
+    VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    stagingBufferCreateInfo.size = buffer_descriptor.AttributeStride * vertexCount;
+    stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+    VmaAllocationCreateInfo vma_staging_allocation_create_info = {
+        .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO};
+
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+    vmaCreateBuffer(allocator,&stagingBufferCreateInfo,&vma_staging_allocation_create_info,&stagingBuffer,&stagingAllocation,nullptr);
+
+
+    vmaCopyMemoryToAllocation(allocator,buffer_descriptor.data,stagingAllocation,0,stagingBufferCreateInfo.size);
+
+    createBuffer(buffer_descriptor.AttributeStride * vertexCount,
+                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                 vk_buffer,
+                 vma_allocation);
+    copyBuffer(stagingBuffer,vk_buffer,stagingBufferCreateInfo.size);
+    vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
+}
+
+VkCommandBuffer OsmiumGLDynamicInstance::beginSingleTimeCommands(VkQueue queue) const {
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = queue == queues.transferQueue ? commandPools.transient : commandPools.draw,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1};
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    return commandBuffer;
+}
+
+void OsmiumGLDynamicInstance::endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue) const {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+        };
+    if (vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit command buffer command buffer submit");
+    };
+    vkQueueWaitIdle(queue);//remove this
+
+    vkFreeCommandBuffers(device,queue == queues.transferQueue ? commandPools.transient: commandPools.draw,1,&commandBuffer);
+}
+
+void OsmiumGLDynamicInstance::transitionImageLayoutCmd(VkCommandBuffer command_buffer,
+        VkImage image,
+        VkPipelineStageFlags src_stage_mask,
+        VkPipelineStageFlags dst_stage_mask,
+        VkAccessFlags src_access_mask,
+        VkAccessFlags dst_access_mask,
+        VkImageLayout old_layout,
+        VkImageLayout new_layout,
+        const VkImageSubresourceRange &subresource_range) {
+    // Create an image barrier object
+    VkImageMemoryBarrier image_memory_barrier{};
+    image_memory_barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_memory_barrier.srcAccessMask       = src_access_mask;
+    image_memory_barrier.dstAccessMask       = dst_access_mask;
+    image_memory_barrier.oldLayout           = old_layout;
+    image_memory_barrier.newLayout           = new_layout;
+    image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    image_memory_barrier.image               = image;
+    image_memory_barrier.subresourceRange    = subresource_range;
+
+    // Put barrier inside setup command buffer
+    vkCmdPipelineBarrier(command_buffer, src_stage_mask, dst_stage_mask, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
 }
 
 

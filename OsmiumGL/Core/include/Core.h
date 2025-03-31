@@ -32,6 +32,7 @@ struct PassBindings;
 class OsmiumGLInstance { // NOLINT(*-pro-type-member-init)
 public:
     friend class DefaultShaders;
+    friend class DefaultSceneDescriptorSets;
 
     void initialize(const std::string &appName);
 
@@ -47,7 +48,7 @@ public:
     void RemoveRenderedObject(RenderedObject rendered_object) const;
 
     //Material loading
-    MaterialHandle RegisterMaterial(MaterialData material);//material instance 0 is implied
+    MaterialHandle RegisterMaterial(MaterialData material);//should also retunr a default instance handle
     void RemoveMaterial(MaterialHandle material) const;
     MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material) const;
     [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
@@ -56,8 +57,7 @@ public:
     void DrawCommandDynamic(VkCommandBuffer commandBuffer, const PassBindings &passBindings);
 
 
-    void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VmaMemoryUsage memory_usage, VkBuffer &vk_buffer, VmaAllocation &
-                      vma_allocation, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
+
 
     //Scene descriptors, not exposed to the api
     [[nodiscard]] VkDescriptorSetLayout GetLitDescriptorLayout() const;
@@ -215,6 +215,8 @@ private:
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, std::mutex &imGuiMutex, std::condition_variable &imGuiUpdateCV, bool
                              &isImGuiFrameComplete) const;
 
+    void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VmaMemoryUsage memory_usage, VkBuffer &vk_buffer, VmaAllocation &
+                      vma_allocation, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
     void createVertexBuffer();
 
     void createIndexBuffer();

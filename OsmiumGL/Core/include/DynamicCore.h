@@ -9,13 +9,16 @@
 #include <string>
 #include <filesystem>
 #include <mutex>
+#include <set>
 #include <vk_mem_alloc.h>
 
 #include "BlinnPhongVertex.h"
 #include "config.h"
+#include "InitUtilVk.h"
 #include "ResourceArray.h"
 #include "VertexDescriptor.h"
 #include "MeshData.h"
+#include "SyncUtils.h"
 enum DefaultVertexAttributeFlags : unsigned int;
 typedef unsigned long MeshHandle;
 class GLFWwindow;
@@ -27,16 +30,16 @@ class OsmiumGLDynamicInstance {
     void shutdown();
 
 
+
     //Mesh loading should probably take the deserialized struct directly
     MeshHandle LoadMesh(const std::filesystem::path& path);
 
-    void createVertexAttributeBuffer(void * vertices_data, const VertexBufferDescriptor & buffer_descriptor, unsigned int vertex_count, VkBuffer vk_buffer, VmaAllocation vma_allocation);
 
-    void createIndexBuffer(const std::vector<unsigned> & vector, VkBuffer vk_buffer, VmaAllocation vma_allocation);
 
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh, bool immediate);
+
 
 
 private:
@@ -55,14 +58,17 @@ private:
 
     //internal sync info
     std::mutex meshDataMutex;
-    ResourceArray<MeshData,MAX_LOADED_MESHES> LoadedMeshes;
+    std::unique_ptr<ResourceArray<MeshData,MAX_LOADED_MESHES>> LoadedMeshes = std::make_unique<ResourceArray<MeshData,MAX_LOADED_MESHES>>();
 
     struct {
         VkSemaphore aquiredImageReady = VK_NULL_HANDLE;
         VkSemaphore renderComplete = VK_NULL_HANDLE;
     }semaphores;
     std::vector<VkFence> drawFences;
-    VkSubmitInfo submitInfo;
+    //condition to be signaled when a frame is completely done on the gpu, I should be able to use the fences for this
+    std::condition_variable frameCompletionCV;
+    uint32_t currentFrame = 0;
+    VkSubmitInfo submitInfo = {};
     struct {
         VkQueue graphicsQueue = VK_NULL_HANDLE;
         VkQueue presentQueue = VK_NULL_HANDLE;
@@ -76,6 +82,20 @@ private:
     std::vector<VkImageView> swapchainViews;
     std::vector<VkCommandBuffer> drawCommandBuffers;
     VkSampleCountFlagBits msaaFlags = VK_SAMPLE_COUNT_1_BIT;//TODO establish max supported before creating attachement
+    const std::set<std::string> allocatorExtensions{
+        VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+        VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+        VK_KHR_MAINTENANCE_4_EXTENSION_NAME,
+        VK_KHR_MAINTENANCE_5_EXTENSION_NAME,
+        VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
+        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+        VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
+        VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME,
+    };
+    vkInitUtils::QueueFamilyIndices queueFamiliesIndices;
+    VkFormat DepthFormat = VK_FORMAT_UNDEFINED;
+
+
 
     struct Attachment {
         VkImage image = VK_NULL_HANDLE;
@@ -84,7 +104,7 @@ private:
         VkFormat format = VK_FORMAT_UNDEFINED;
     };
     struct {
-       Attachment positionDepth, normal, albedo;
+       Attachment positionDepth, normal, albedo,depthSencil;
     } attachments;
 
     //the three struct are used to describe blinnphong shading with deffered light
@@ -96,25 +116,53 @@ private:
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
     } scene_opaque_pass_defaults, scene_transparent_pass_defaults, composition_pass_default;
 
-    void RecreateSwapChain();
-    void createAllocator();
 
+
+    void RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition);//I feel like I could get these syncing info there more elegantly
+    void RecreateSwapChain();
+//setup functions
+    void createAllocator();
     void setupFrameBuffer();
+    void setupImgui();
+
+    //resource management functions
+
+    void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkBuffer &vk_buffer, VmaAllocation &
+                      vma_allocation,VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const;
+
+    void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
+                     tiling, VkImageUsageFlags usage, VkImage
+                     &image, VmaAllocation &imageAllocation) const;
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
 
     void createAttachment(VkFormat format, VkImageUsageFlags usage, OsmiumGLDynamicInstance::Attachment &attachment, VkFence &fence, VkCommandBuffer
                           &command_buffer);
 
+    void createDepthResources();
+
     void createAttachments();
     void destroyAttachment(Attachment &attachment);
     void destroyAttachments();
-    void setupImgui();
-    //Draw related function
-    void DrawFrame(std::mutex& imGuiMutex,std::condition_variable& imGuiCV,bool& isImGuiFrameComplete);//I feel like I could get these syncing info there more elegantly
+    void createIndexBuffer(const std::vector<unsigned> & indices, VkBuffer vk_buffer, VmaAllocation vma_allocation);
     void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor,
                                      unsigned int vertexCount, VkBuffer &vk_buffer,
                                      VmaAllocation &vma_allocation) const;
+    //utility function
+    VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue queue) const;
+    void transitionImageLayoutCmd(
+        VkCommandBuffer command_buffer,
+        VkImage image,
+        VkPipelineStageFlags src_stage_mask,
+        VkPipelineStageFlags dst_stage_mask,
+        VkAccessFlags src_access_mask,
+        VkAccessFlags dst_access_mask,
+        VkImageLayout old_layout,
+        VkImageLayout new_layout,
+        const VkImageSubresourceRange &subresource_range);
 
-
+//debug
     //GLFW related callbacks, maybe I could move all this in a separate class for cleaning up
     static void glfw_frameBufferResizedCallback(GLFWwindow *window, int width, int height);
     static void glfw_error_callback(int error_code, const char *description);
