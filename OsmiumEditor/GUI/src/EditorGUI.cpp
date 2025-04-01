@@ -19,6 +19,7 @@
 #include "GOComponents/GOC_MeshRenderer.h"
 #include "GOComponents/GOC_Transform.h"
 #include "GOComponents/GOC_Camera.h"
+#include "GOComponents/GOC_DirectionalLight.h"
 
 void EditorGUI::Run() {
 
@@ -49,19 +50,19 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
     auto transformComp = EditorCamera->GetTransformComponent();
     //there should be faster way to compute these
     auto rot = transformComp->getRotation();
-    // auto forwardVector = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) * rot;
-    // auto upVector = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f) * rot;
-    // auto rightVector = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f) * rot;
+    auto forwardVector = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) * rot;
+    auto upVector = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f) * rot;
+    auto rightVector = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f) * rot;
     cameraSpeed = glm::clamp(cameraSpeed + glm::vec3(PositionInput.x,0.0f,-PositionInput.y) * CameraSpeedDelta * io.DeltaTime,-CameraMaxSpeed*io.DeltaTime,CameraMaxSpeed * io.DeltaTime);
     auto rotInput = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right,0.0f);
     ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
-    YawInput = rotInput.x;
-    PitchInput = rotInput.y;
+    YawInput = -rotInput.x;
+    PitchInput = -rotInput.y;
 
     auto transformMatrix = transformComp->getTransformMatrix();
     transformMatrix = glm::translate(transformMatrix,cameraSpeed);
-    transformMatrix = glm::rotate(transformMatrix,YawInput * RotationSensitivity *io.DeltaTime,glm::vec3(0.0f,1.0f,0.0f) *rot);
-    transformMatrix = glm::rotate(transformMatrix,PitchInput * RotationSensitivity * io.DeltaTime,glm::vec3(1.0f,0.0f,0.0f) *rot);
+    transformMatrix = glm::rotate(transformMatrix,YawInput * RotationSensitivity *io.DeltaTime,glm::vec3(0.0f,1.0f,0.0f));
+    transformMatrix = glm::rotate(transformMatrix,PitchInput * RotationSensitivity * io.DeltaTime,glm::vec3(1.0f,0.0f,0.0f));
     EditorCamera->SetTransform(transformMatrix);
     ImGui::Begin("Camera Controls");
     ImGui::InputFloat2("Rot input", &rotInput[0]);
@@ -86,6 +87,13 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
         EditorCamera = go->Addcomponent<GOC_Camera>();
 
         OsmiumInstance->SetMainCamera(EditorCamera);
+    });
+    GameObjectCreateInfo DirLightInfo {
+    .name = "DirLight",
+    .parent = 0};
+    OsmiumInstance->CreateNewGameObject(DirLightInfo,[this](GameObject* go) {
+        auto DirectionalLightComp = go->Addcomponent<GOC_DirectionalLight>();
+        OsmiumInstance->SetDirectionalLight(DirectionalLightComp);
     });
 
     while (!ImGuiShouldShutoff) {

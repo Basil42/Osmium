@@ -65,6 +65,9 @@ public:
 
     //per frame updates
     void UpdateCameraData(const glm::mat4& viewMat, float radianVFOV) const;
+
+    void UpdateDirectionalLightData(glm::vec3 direction, glm::vec3 color, float intensity) const;
+
     static void StartFrame();
     void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
     static void startImGuiFrame();

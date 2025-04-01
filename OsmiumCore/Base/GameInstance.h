@@ -15,6 +15,8 @@
 #include "config.h"
 #include "GameObject.h"
 #include "GameObjectCreation.h"
+#include "GOComponents/GOC_DirectionalLight.h"
+
 struct ImGuiSyncStruct {
     std::mutex* imGuiMutex;
     std::condition_variable* imGuiNewFrameConditionVariable;
@@ -50,6 +52,7 @@ class GameInstance {
     std::queue<GameObjectHandle> gameObjectsDestructionQueue;
     std::condition_variable destructionQueueConditionVariable;
     GOC_Camera* mainCamera = nullptr;//stable for game objects, should probably use some kind of handle though
+    GOC_DirectionalLight * directionLight = nullptr;
     bool ShowHierarchy = false;
     static GameInstance * instance;
 
@@ -74,6 +77,8 @@ public:
     void SetMainCamera(GameObjectHandle editor_camera);
 
     void SetMainCamera(GOC_Camera *camComp);
+
+    void SetDirectionalLight(GOC_DirectionalLight * DirLightComp);
 
     static glm::mat4 getMainCameraViewMatrix();
 };

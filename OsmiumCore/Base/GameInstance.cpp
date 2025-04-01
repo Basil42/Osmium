@@ -63,7 +63,10 @@ void GameInstance::GameLoop() {
 void GameInstance::RenderDataUpdate() {
     if (mainCamera == nullptr) return;
     mainCamera->RenderUpdate();
+
+    directionLight->RenderUpdate();
     GOC_MeshRenderer::GORenderUpdate();
+
 }
 
 void GameInstance::run(const std::string &appName) {
@@ -145,6 +148,10 @@ void GameInstance::SetMainCamera(GameObjectHandle editor_camera) {//might do an 
 }
 void GameInstance::SetMainCamera(GOC_Camera* camComp) {
     mainCamera = camComp;
+}
+
+void GameInstance::SetDirectionalLight(GOC_DirectionalLight *DirLightComp) {
+    directionLight = DirLightComp;
 }
 
 glm::mat4 GameInstance::getMainCameraViewMatrix() {

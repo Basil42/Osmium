@@ -6,6 +6,10 @@
 
 #include <stdexcept>
 
+#include "BlinnPhongVertex.h"
+#include "BlinnPhongVertex.h"
+#include "BlinnPhongVertex.h"
+#include "BlinnPhongVertex.h"
 #include "Core.h"
 #include "UniformBufferObject.h"
 
@@ -182,6 +186,16 @@ void DefaultSceneDescriptorSets::UpdateDirectionalLight(const DirLightUniform &u
     //I'll update all frames manually for now, but I feel like this will cause some problems if I want to use it dynamically
     memcpy(directionalLightBufferMappedSources[currentImage],&directionalLightValue,sizeof(DirLightUniform));
 }
+
+void DefaultSceneDescriptorSets::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity,const unsigned int currentImage) {
+    DirLightUniform updatedValue = {
+    .VLightDirection = glm::normalize(glm::vec3(mainCameraUniformValue.view * glm::vec4(direction,1.0f))),
+    .DirLightColor = color,
+    .DirLightIntensity = intensity};
+    UpdateDirectionalLight(updatedValue,currentImage);
+}
+
+
 
 VkDescriptorSetLayout DefaultSceneDescriptorSets::GetLitDescriptorSetLayout() const {
     return litDescriptorSetLayout;

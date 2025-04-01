@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <glm/fwd.hpp>
 
+
 class OsmiumGLDynamicInstance;
 struct DefaultVertex;
 class OsmiumGLInstance;
@@ -79,6 +80,8 @@ namespace  OsmiumGL {
 
 
     void TestDynamicRenderer(const std::string& str);
+
+    void UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
 };
 
 

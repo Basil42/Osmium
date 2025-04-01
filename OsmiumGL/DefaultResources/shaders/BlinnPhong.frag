@@ -43,5 +43,5 @@ void main() {
     (DiffuseColor * lambertian +
     SpecColor * specular) ;
     //maybe linearize here
-    outColor = vec4(colorLinear,1.0);
+    outColor = vec4(VLightDirection,1.0);
 }

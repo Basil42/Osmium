@@ -36,6 +36,7 @@ GOC_Camera::GOC_Camera(GameObject *parent) : GameObjectComponent(parent){
 void GOC_Camera::RenderUpdate() {
     GameObjectComponent::RenderUpdate();
     OsmiumGL::UpdateMainCameraData(GetViewMatrix(), glm::radians(verticalFoV));//move this out
+
 }
 
 glm::mat4 GOC_Camera::GetViewMatrix() const {

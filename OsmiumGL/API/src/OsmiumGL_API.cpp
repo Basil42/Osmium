@@ -112,3 +112,7 @@ void OsmiumGL::TestDynamicRenderer(const std::string &str) {
     // }
     dynamicInstance->shutdown();
 }
+
+void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {
+    instance->UpdateDirectionalLightData(direction,color,intensity);
+}

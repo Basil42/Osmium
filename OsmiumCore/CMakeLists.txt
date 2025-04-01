@@ -43,6 +43,8 @@ set(OSMIUMCORE_HEADERS
         GOComponents/GOC_Camera.h
         Base/GameObjectCreation.h
         Base/config.h
+        GOComponents/GOC_DIrectionalLight.cpp
+        GOComponents/GOC_DIrectionalLight.h
 )
 foreach (LIB OsmiumCore E_OsmiumCore)
 

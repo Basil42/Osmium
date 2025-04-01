@@ -36,6 +36,8 @@ public:
     ~DefaultSceneDescriptorSets();
     //Passing the instance seems harmless as this is effectively an extention of the instance
     void UpdateDirectionalLight(const DirLightUniform &updatedValue, unsigned int currentImage);
+    void UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity, unsigned int currentImage);
+
     [[nodiscard]] VkDescriptorSetLayout GetLitDescriptorSetLayout() const;
     [[nodiscard]] const VkDescriptorSet *GetLitDescriptorSet(uint32_t currentFrame) const;
     [[nodiscard]] std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> GetLitDescriptorSets() const;
@@ -48,6 +50,8 @@ public:
     //layouts used to bind defautl descriptor on top of a pass
     void CreateGlobalPipelineLayout(VkDevice _device);
     void CreateLitPipelineLayout(VkDevice _device);
+
+
     VkPipelineLayout GlobalMainPipelineLayout;
     VkPipelineLayout LitPipelineLayout;
 
@@ -71,6 +75,7 @@ private:
     std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> directionalLightUniformBuffers;
     std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> directionalLightAllocations;
 
+    glm::vec4 directionalLightDirection = glm::vec4(1.0f,-1.0f,1.0f,1.0f);
     DirLightUniform directionalLightValue{.VLightDirection = {glm::vec3(1.0f)}, .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 1.0f};
     std::array<void*,MAX_FRAMES_IN_FLIGHT> directionalLightBufferMappedSources;
     VkDescriptorSetLayout mainCameraDescriptorSetLayout;

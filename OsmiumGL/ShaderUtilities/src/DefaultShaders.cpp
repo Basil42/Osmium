@@ -103,8 +103,8 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
                                               ResourceArray<MaterialData,MAX_LOADED_MATERIALS>* materialResourceArray,
                                               ResourceArray<MaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* materialInstanceArray,
                                               OsmiumGLInstance& GLInstance) {
-    auto vertShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongVert.spv");
-    auto fragShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphongFrag.spv");
+    auto vertShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphong.vert.spv");
+    auto fragShaderCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/blinnphong.frag.spv");
 
     VkShaderModule vertShaderModule = ShaderUtils::createShaderModule(vertShaderCode,device);
     VkShaderModule fragShaderModule = ShaderUtils::createShaderModule(fragShaderCode,device);
