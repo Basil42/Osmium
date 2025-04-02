@@ -189,7 +189,7 @@ void DefaultSceneDescriptorSets::UpdateDirectionalLight(const DirLightUniform &u
 
 void DefaultSceneDescriptorSets::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity,const unsigned int currentImage) {
     DirLightUniform updatedValue = {
-    .VLightDirection = glm::normalize(glm::vec3(mainCameraUniformValue.view * glm::vec4(direction,1.0f))),
+    .VLightDirection = glm::normalize(glm::vec3(mainCameraUniformValue.view * glm::vec4(direction,0.0f))),
     .DirLightColor = color,
     .DirLightIntensity = intensity};
     UpdateDirectionalLight(updatedValue,currentImage);

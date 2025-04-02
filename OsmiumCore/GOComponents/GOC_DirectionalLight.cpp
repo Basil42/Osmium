@@ -21,7 +21,7 @@ void GOC_DirectionalLight::Update() {
     auto CurrentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(CurrentTime - startTime).count();
 
-    Direction = glm::normalize(glm::vec3(0.0f,0.0f,glm::sin(time)));
+    Direction = glm::normalize(glm::vec3(glm::cos(time),0.0f,glm::sin(time)));
 }
 
 void GOC_DirectionalLight::RenderUpdate() {
