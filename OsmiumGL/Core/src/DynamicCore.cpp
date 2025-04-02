@@ -14,16 +14,13 @@
 
 #include "DefaultSceneDescriptorSets.h"
 #include "DefaultShaders.h"
+#include "ErrorChecking.h"
 #include "InitUtilVk.h"
 #include "MeshData.h"
 #include "MeshSerialization.h"
 #include "SyncUtils.h"
 
-static void check_vk_result_dyn(VkResult result) {
-    if(result == 0)return;
-    fprintf(stderr,"[vulkan] Error : VkResult = %d \n,",result);
-    if(result < 0)abort();//never seen this before
-}
+
 
 
 void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
@@ -139,9 +136,9 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     VkSemaphoreCreateInfo semaphoreCreateInfo{
     .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
     };
-    check_vk_result_dyn(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.aquiredImageReady));
+    check_vk_result(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.aquiredImageReady));
 
-    check_vk_result_dyn(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.renderComplete));
+    check_vk_result(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.renderComplete));
 
     //that is probably not the actual best place to do this
     constexpr VkPipelineStageFlags submitPipelineFlag = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -158,11 +155,11 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     VkCommandPoolCreateInfo cmdPoolCreateInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
     .queueFamilyIndex = queueFamiliesIndices.graphicsFamily.value(),};
-    check_vk_result_dyn(vkCreateCommandPool(device,&cmdPoolCreateInfo,nullptr,&commandPools.draw));
+    check_vk_result(vkCreateCommandPool(device,&cmdPoolCreateInfo,nullptr,&commandPools.draw));
     //transient command pool
     cmdPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     cmdPoolCreateInfo.queueFamilyIndex = queueFamiliesIndices.transferFamily.value();
-    check_vk_result_dyn(vkCreateCommandPool(device,&cmdPoolCreateInfo,nullptr,&commandPools.transient));
+    check_vk_result(vkCreateCommandPool(device,&cmdPoolCreateInfo,nullptr,&commandPools.transient));
 
     //command buffers seems to free themselves
     drawCommandBuffers.resize(swapchainViews.size());
@@ -171,14 +168,14 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     .commandPool = commandPools.draw,
     .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,//non primary are I believed used for multithreaded render command buffer building
     .commandBufferCount = static_cast<uint32_t>(drawCommandBuffers.size())};
-    check_vk_result_dyn(vkAllocateCommandBuffers(device,&cmdBufferAllocateInfo,drawCommandBuffers.data()));
+    check_vk_result(vkAllocateCommandBuffers(device,&cmdBufferAllocateInfo,drawCommandBuffers.data()));
     //draw buffer fence
     VkFenceCreateInfo fenceCreateInfo{
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
     .flags = VK_FENCE_CREATE_SIGNALED_BIT,};
     drawFences.resize(drawCommandBuffers.size());
     for (auto& fence : drawFences) {
-        check_vk_result_dyn(vkCreateFence(device,&fenceCreateInfo,nullptr,&fence));
+        check_vk_result(vkCreateFence(device,&fenceCreateInfo,nullptr,&fence));
     }
     //depth stencil(might need something a bit different for dynamic rendering
     //attachement, tweaking it from previous implementation to use a single call
@@ -384,7 +381,7 @@ void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFr
 
     VkCommandBuffer commandBuffer = drawCommandBuffers[currentFrame];
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
-    std::vector<Attachment> attachmentVector = {attachments.positionDepth,attachments.normal,attachments.albedo};
+    std::vector<Attachment> attachmentVector = {attachments.NormalSpread,attachments.Diffuse,attachments.Specular};
 
     VkImageSubresourceRange subresourceRangeColor = {};
     subresourceRangeColor.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -531,15 +528,15 @@ void OsmiumGLDynamicInstance::setupFrameBuffer() {
     std::vector<VkDescriptorImageInfo> descriptor_image_infos(3);
     descriptor_image_infos[0] = {
     .sampler = VK_NULL_HANDLE,
-    .imageView = attachments.positionDepth.imageView,
+    .imageView = attachments.NormalSpread.imageView,
     .imageLayout = layout};
     descriptor_image_infos[1] = {
     .sampler = VK_NULL_HANDLE,
-    .imageView = attachments.normal.imageView,
+    .imageView = attachments.Diffuse.imageView,
     .imageLayout = layout};
     descriptor_image_infos[2] = {
     .sampler = VK_NULL_HANDLE,
-    .imageView = attachments.albedo.imageView,
+    .imageView = attachments.Specular.imageView,
     .imageLayout = layout};
 //apparently it is possible to prepare these before having prepared the actual descriptor sets ??
     std::vector<VkWriteDescriptorSet> write_descriptor_sets(4);
@@ -567,7 +564,7 @@ void OsmiumGLDynamicInstance::setupFrameBuffer() {
 
 
 
-void OsmiumGLDynamicInstance::setupImgui() {
+void OsmiumGLDynamicInstance::setupImgui() const {
     //context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -595,7 +592,7 @@ void OsmiumGLDynamicInstance::setupImgui() {
         .PipelineCache = VK_NULL_HANDLE,
         .Subpass = 0,
         .DescriptorPoolSize = 10,
-        .CheckVkResultFn = check_vk_result_dyn,
+        .CheckVkResultFn = check_vk_result,
     };
     vulkanInitInfo.UseDynamicRendering = true;
     vulkanInitInfo.PipelineRenderingCreateInfo = VkPipelineRenderingCreateInfo{
@@ -806,7 +803,7 @@ void OsmiumGLDynamicInstance::createAttachment(VkFormat format, VkImageUsageFlag
         throw std::runtime_error("failed to create fence");
     }
     AddDebugName(reinterpret_cast<uint64_t>(fence),"attachement fence", VK_OBJECT_TYPE_FENCE);
-    check_vk_result_dyn(vkQueueSubmit(queues.graphicsQueue,1,&submitInfo,fence));
+    check_vk_result(vkQueueSubmit(queues.graphicsQueue,1,&submitInfo,fence));
     //immadiate version
     // vkWaitForFences(device,1,&fence,VK_TRUE,UINT64_MAX);
     // vkDestroyFence(device,fence,nullptr);
@@ -851,9 +848,9 @@ void OsmiumGLDynamicInstance::createAttachments() {
 
     VkFence fences[3];
     VkCommandBuffer cmdBuffers[3];
-    createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.positionDepth, fences[0], cmdBuffers[0]);
-    createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.normal, fences[1], cmdBuffers[1]);
-    createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.albedo, fences[2], cmdBuffers[2]);
+    createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.NormalSpread, fences[0], cmdBuffers[0]);
+    createAttachment(VK_FORMAT_R8G8B8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.Diffuse, fences[1], cmdBuffers[1]);
+    createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.Specular, fences[2], cmdBuffers[2]);
     //shouldn't the depth stencil be created here as well ?
 
     vkWaitForFences(device,3,fences,VK_TRUE,UINT64_MAX);
@@ -869,9 +866,9 @@ void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachm
 }
 
 void OsmiumGLDynamicInstance::destroyAttachments() {
-    destroyAttachment(attachments.positionDepth);
-    destroyAttachment(attachments.normal);
-    destroyAttachment(attachments.albedo);
+    destroyAttachment(attachments.NormalSpread);
+    destroyAttachment(attachments.Diffuse);
+    destroyAttachment(attachments.Specular);
 
 }
 

@@ -14,7 +14,7 @@ set(OSMIUMGL_SOURCES
         Core/src/MaterialData.cpp
         ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
         Core/src/DynamicCore.cpp
-
+        ShaderUtilities/src/DeferredLightingPipeline.cpp
 )
 #this is here for the IDE
 set(OSMIUMGL_EXECUTABLE_HEADERS
@@ -34,6 +34,8 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/DefaultSceneDescriptorSets.h
         Common/include/UniformBufferObject.h
         Core/include/DynamicCore.h
+        ShaderUtilities/include/DeferredLightingPipeline.h
+        DebugUtils/ErrorChecking.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_EXECUTABLE_HEADERS}

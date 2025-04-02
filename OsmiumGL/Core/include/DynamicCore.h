@@ -104,7 +104,7 @@ private:
         VkFormat format = VK_FORMAT_UNDEFINED;
     };
     struct {
-       Attachment positionDepth, normal, albedo,depthSencil;
+       Attachment NormalSpread, Diffuse, Specular,depthSencil;
     } attachments;
 
     //the three struct are used to describe blinnphong shading with deffered light
@@ -123,7 +123,7 @@ private:
 //setup functions
     void createAllocator();
     void setupFrameBuffer();
-    void setupImgui();
+    void setupImgui() const;
 
     //resource management functions
 
