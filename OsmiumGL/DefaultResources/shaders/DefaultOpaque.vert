@@ -23,13 +23,13 @@ layout(location = 0)out OpaqueFragInput {
 
 
 void main() {
-    gl_position = VP.proj * VP.view * ubo.model * inPosition;
+    gl_Position = VP.proj * VP.view * ubo.model * inPosition;
 
-    outworldpos = vec3(ubo.model * inPosition);
+    outWorldPos = vec3(ubo.model * inPosition);
     //outWorldPos.y = -outWorldPos.y;//vulkan coordinates, but I can account for this CPU side
 
     mat3 normalMat = transpose(inverse(mat3(mat3(ubo.model))));//probably faster to do it here
-    outnormal = normalize(normalMat * inNormal);
+    outNormal = normalize(normalMat * inNormal);
 
     TexCoord0 = inTexCoordinates;
 }

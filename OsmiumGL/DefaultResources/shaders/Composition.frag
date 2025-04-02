@@ -11,12 +11,11 @@ layout (location = 0) out vec4 outColor;
 
 
 
-struct DirectionalLight{
+layout(binding = 4)uniform DirectionalLight {
     vec3 Direction;//probably world in this case
     vec4 Color;//alpha is intensity
     vec4 ambient;//sneaking it here
-};
-layout(binding = 4)uniform DirectionalLight dirLight;
+}dirLight;
 struct PointLight {
     vec4 position;
     vec4 color;//alpha is intensity
@@ -36,15 +35,18 @@ struct SpotLight{
 layout(binding = 6)readonly buffer SpotLightsBuffer {
     SpotLight spotlights[];
 };
-layout(binding = 7)uniform vec3 viewPos;//worlpos of the camera
+layout(binding = 7)uniform ViewBlock {
+vec3 viewPos; //worlpos of the camera
+};
 
-void main() {
+void main()
+{
     vec3 fragPos = subpassLoad(positionDepthAttachment).rgb;
     vec3 normal = normalize(subpassLoad(normalAttachment).rgb);//check this normal is in the same space as my blinn phong one
     vec4 albedo = subpassLoad(albedoAttachment);
     vec4 specularity = subpassLoad(specularAttachment);
     //do I need extra attachement for specular/ ?
-    vec3 fragColor = albedo.rgb * dirLight.ambient;
+    vec3 fragColor = albedo.rgb * dirLight.ambient.rgb;
 
 
 
@@ -58,17 +60,17 @@ void main() {
     //point lights
     for(int i = 0; i < pointLights.length();i++){
         PointLight light = pointLights[i];
-        vec3 lightDir = light.position.xyz - fragPos;
+        vec3 lightDir = normalize(light.position.xyz - fragPos);
         float lambertian = max(dot(lightDir,normal),0.0);
         float specular = 0;
         if(lambertian > 0.0f){
             vec3 eyeDir = normalize(viewPos-fragPos);
             vec3 halfVector = normalize(lightDir+eyeDir);
-            float specAngle = max(dot(halfDir,normal),0.0);
+            float specAngle = max(dot(halfVector,normal),0.0);
             specular = pow(specAngle,specularity.a);
 
         }
-        fragColor += (light.color.rgb * light.color.a) * (albedo * lambertian + specularity.rgb * specular);
+        fragColor += (light.color.rgb * light.color.a) * (albedo.rgb * lambertian + specularity.rgb * specular);
 
     }
 
