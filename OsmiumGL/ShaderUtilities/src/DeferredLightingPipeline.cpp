@@ -14,17 +14,17 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     this->instance = instance;
 
     CreateDescriptors();
-    CreatePipelines(instance->device, mssaFlags, swapchainFormat);
     createAttachments();
     createDepthResources();
+    CreatePipelines(instance->device, mssaFlags, swapchainFormat);
     //setupFrameBuffer();
 }
 
 DeferredLightingPipeline::~DeferredLightingPipeline() {
 
+    CleanupPipelines(instance->device);
     destroyAttachments();
     instance->destroyAttachment(attachments.depthSencil);
-    CleanupPipelines(instance->device);
     CleanupDescriptors();
 
     //CleanupFrameBuffer();
@@ -402,7 +402,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     //last pass needs only position and texcoord
     std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {};
 
-    std::array<VkVertexInputBindingDescription,3> VertexBindings;
+    std::array<VkVertexInputBindingDescription,3> VertexBindings = {};
     VertexBindings[0] = {//position
         .binding = 0,
         .stride = sizeof(glm::vec3),//probably properly aligned
@@ -476,6 +476,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     colorBlending.pAttachments = colorBlendAttachments.data();
 
     pipelineInfo.layout = NormalSpreadPass.pipelineLayout;
+
     VkFormat collorAttachementFormat[4] = {
         swapchainFormat,
         attachments.NormalSpread.format,
@@ -490,6 +491,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     pipelineRenderingInfo.stencilAttachmentFormat = pipelineRenderingInfo.depthAttachmentFormat;
 
     shaderStages[0] = instance->loadShader("../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDL.vert.spv",VK_SHADER_STAGE_VERTEX_BIT);
+
     shaderStages[1] = instance->loadShader("../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDL.frag.spv",VK_SHADER_STAGE_FRAGMENT_BIT);
 
 

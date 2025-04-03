@@ -78,10 +78,11 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     })
      .set_required_features_13({
          .synchronization2 = VK_TRUE,
-     .dynamicRendering = VK_TRUE,
+         .dynamicRendering = VK_TRUE,
      })
     .add_required_extension_features(dynamicRenderingLocalReadFeaturesKHR)
     .select();//defaults to discret gpu
+
     if (!deviceSelectorResult) {
         throw std::runtime_error(deviceSelectorResult.error().message());
     }
@@ -105,6 +106,7 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
         throw std::runtime_error(deviceSelectorResult.error().message());
     }
     device = deviceBuilder_result.value();
+
     disp = device.make_table();
     queues.graphicsQueue = device.get_queue(vkb::QueueType::graphics).value();
     queues.presentQueue = device.get_queue(vkb::QueueType::present).value();
