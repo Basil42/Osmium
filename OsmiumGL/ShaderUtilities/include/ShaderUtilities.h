@@ -5,6 +5,7 @@
 #ifndef SHADERUTILITIES_H
 #define SHADERUTILITIES_H
 #include <fstream>
+#include <io.h>
 #include <vector>
 
 namespace ShaderUtils{
@@ -21,6 +22,7 @@ namespace ShaderUtils{
         file.close();
         return buffer;
     }
+
     inline VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice device) {
         VkShaderModuleCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -32,7 +34,10 @@ namespace ShaderUtils{
         }
         return shaderModule;
     }
-
+    inline VkShaderModule createShaderModule(const std::string& path,VkDevice device) {
+        const std::vector<char> source = readfile(path);
+        return createShaderModule(source,device);
+    }
 
 }
 #endif //SHADERUTILITIES_H

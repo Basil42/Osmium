@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <set>
+#include <ShaderUtilities.h>
 #include <GLFW/glfw3.h>
 
 #include <VkBootstrap.h>
@@ -14,6 +15,7 @@
 
 #include "DefaultSceneDescriptorSets.h"
 #include "DefaultShaders.h"
+#include "DeferredLightingPipeline.h"
 #include "ErrorChecking.h"
 #include "InitUtilVk.h"
 #include "MeshData.h"
@@ -88,8 +90,12 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     physicalDevice = deviceSelectorResult.value();//no cleanup required
     for (const auto& alloc_extension_to_enable: allocatorExtensions) {
         physicalDevice.enable_extension_if_present(alloc_extension_to_enable.c_str());
-
     }
+    VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
+    .bufferDeviceAddress = VK_TRUE};
+    physicalDevice.enable_extension_features_if_present(bufferDeviceAddressFeatures);
+
     //logical device
     vkb::DeviceBuilder deviceBuilder{ physicalDevice };
     auto deviceBuilder_result = deviceBuilder
@@ -118,8 +124,8 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     std::cout << "init successful" << std::endl;
     //depth format, sort of addendum on device selection , I should probably fold this in device selection
     const std::vector<VkFormat> DepthPriorityList = {
-    VK_FORMAT_D32_SFLOAT,
     VK_FORMAT_D24_UNORM_S8_UINT,
+    VK_FORMAT_D32_SFLOAT,
     VK_FORMAT_D16_UNORM,};
     for (auto &format : DepthPriorityList) {
         VkFormatProperties formatProperties;
@@ -177,27 +183,26 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     for (auto& fence : drawFences) {
         check_vk_result(vkCreateFence(device,&fenceCreateInfo,nullptr,&fence));
     }
-    //depth stencil(might need something a bit different for dynamic rendering
-    //attachement, tweaking it from previous implementation to use a single call
-    setupFrameBuffer();
 
 
     //TODO loading meshes and sending push constant
     //TODO light buffers
-    //layout and descriptor
     setupImgui();
 
     //TODO: pipeline cache
 
+    CreateCameraDescriptorSet();
+
+    MainPipeline = new DeferredLightingPipeline(this,msaaFlags,swapchain.image_format);
 
 }
 
 void OsmiumGLDynamicInstance::shutdown() {
 
+    delete MainPipeline;
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    destroyAttachments();
     //deallocate command buffer
     vkDestroyCommandPool(device,commandPools.draw,nullptr);
     vkDestroyCommandPool(device,commandPools.transient,nullptr);
@@ -337,8 +342,8 @@ void OsmiumGLDynamicInstance::UnloadMesh(MeshHandle mesh, bool immediate) {
 }
 
 
-void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition) {
-
+void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition,
+    const Sync::SyncBoolCondition &RenderUpdateCompleteCondition) {
     glfwPollEvents();
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -363,14 +368,14 @@ void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFr
     }
     vkResetFences(device, 1, &drawFences[currentFrame]);
     vkResetCommandBuffer(drawCommandBuffers[currentFrame], 0);//i coudl also apparently reset the command pool here
-    std::scoped_lock resourcesLock(meshDataMutex);//TODO Add material and mat instance resources
 
+    std::scoped_lock resourcesLock(meshDataMutex);//seems premature
     //recording command buffer here,
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &drawCommandBuffers[currentFrame];
 
     VkCommandBufferBeginInfo beginInfo = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,};
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,};
     //clear color
     VkClearValue clear_values[5]{};
     clear_values[0].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//swapchainimage clear
@@ -381,8 +386,6 @@ void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFr
 
     VkCommandBuffer commandBuffer = drawCommandBuffers[currentFrame];
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
-    std::vector<Attachment> attachmentVector = {attachments.NormalSpread,attachments.Diffuse,attachments.Specular};
-
     VkImageSubresourceRange subresourceRangeColor = {};
     subresourceRangeColor.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     subresourceRangeColor.levelCount = VK_REMAINING_MIP_LEVELS;
@@ -395,66 +398,12 @@ void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFr
 
     //transition the images we'll use, I don't think I need to do this every frame
     VkImage swapChainImage =  swapchain.get_images().value()[currentFrame];//doesn't seem to allocat the way the view getter does (hopefully)
-
-    //transition for write to image should be done at swapchain creation
     transitionImageLayoutCmd(commandBuffer,swapChainImage,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,0,VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, subresourceRangeColor);
-    assert(attachments.depthSencil.image != VK_NULL_HANDLE);
-    //depthstencil is already transitioned
-    VkRenderingAttachmentInfo colorAttachmentsInfos[4];//non depth stencil attachement
-    for (auto i = 0; i < 4; i++) {
-        colorAttachmentsInfos[i] = {
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,
-        .resolveMode = VK_RESOLVE_MODE_NONE,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clear_values[i],};
-    }
-    colorAttachmentsInfos[0].imageView = swapchainViews[currentFrame];
-    for (auto i = 1; i < 4; i++) {
-        colorAttachmentsInfos[i].imageView = attachmentVector[i].imageView;
-    }
-    VkRenderingAttachmentInfo depthAttachmentsInfo = {
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-    .imageView = attachments.depthSencil.imageView,
-    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-    .resolveMode = VK_RESOLVE_MODE_NONE,
-    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-    .clearValue = clear_values[4]};//might not be the correct clear value
-
-    VkRenderingInfo rendering_info = {
-    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-    .flags = 0,
-    .renderArea = {0,0,swapchain.extent.width,swapchain.extent.height},
-    .layerCount = 1,
-    .viewMask = 0,
-    .colorAttachmentCount = 4,
-    .pColorAttachments = &colorAttachmentsInfos[0],
-    .pDepthAttachment = &depthAttachmentsInfo,
-    .pStencilAttachment = &depthAttachmentsInfo,};
-
-    //Beginning rendering
-    vkCmdBeginRendering(commandBuffer,&rendering_info);
-
-    //viewport and scissor stuff
-    VkViewport viewport = {
-    .x = 0.0f,
-    .y = 0.0f,
-    .width = static_cast<float>(swapchain.extent.width),
-    .height = static_cast<float>(swapchain.extent.height),
-    .minDepth = 0.0f,
-    .maxDepth = 1.0f};
-    vkCmdSetViewport(commandBuffer,0,1,&viewport);
-    VkRect2D scissor = {
-    .offset = {0, 0},
-    .extent = swapchain.extent};
-    vkCmdSetScissor(commandBuffer,0,1,&scissor);
-    //geometry pass
-    //shaders that output to position, normals, and albedo
 
 
-    //wrap frame, update current frame count
+
+    MainPipeline->RenderDeferredFrameCmd(commandBuffer, swapChainImage);
+    //imgui frame
 }
 
 void OsmiumGLDynamicInstance::RecreateSwapChain() {
@@ -482,7 +431,7 @@ void OsmiumGLDynamicInstance::createAllocator() {
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
 
     VmaAllocatorCreateFlags allocFlags = {};
-    std::set<const char *> enabledAllocatorExtensions;
+    std::set<std::string> enabledAllocatorExtensions;
     for (const auto& available_extension: availableExtensions) {
             if(allocatorExtensions.contains(available_extension.extensionName))
                 enabledAllocatorExtensions.insert(available_extension.extensionName);
@@ -521,46 +470,7 @@ void OsmiumGLDynamicInstance::createAllocator() {
     vmaCreateAllocator(&allocatorCreateInfo,&allocator);
 }
 
-void OsmiumGLDynamicInstance::setupFrameBuffer() {
-    createAttachments();
-    //input info for using these as uniforms for defered lights
-    const VkImageLayout layout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
-    std::vector<VkDescriptorImageInfo> descriptor_image_infos(3);
-    descriptor_image_infos[0] = {
-    .sampler = VK_NULL_HANDLE,
-    .imageView = attachments.NormalSpread.imageView,
-    .imageLayout = layout};
-    descriptor_image_infos[1] = {
-    .sampler = VK_NULL_HANDLE,
-    .imageView = attachments.Diffuse.imageView,
-    .imageLayout = layout};
-    descriptor_image_infos[2] = {
-    .sampler = VK_NULL_HANDLE,
-    .imageView = attachments.Specular.imageView,
-    .imageLayout = layout};
-//apparently it is possible to prepare these before having prepared the actual descriptor sets ??
-    std::vector<VkWriteDescriptorSet> write_descriptor_sets(4);
-    for (size_t i = 0; i < descriptor_image_infos.size(); i++) {
-        write_descriptor_sets[i] = VkWriteDescriptorSet{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = composition_pass_default.descriptorSet,//suspicious
-        .dstBinding = static_cast<uint32_t>(i),
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        .pImageInfo = &descriptor_image_infos[i],
-       };
-    }
-    //depth info for the transparency pass
-    write_descriptor_sets[3] = {
-    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .dstSet = scene_transparent_pass_defaults.descriptorSet,
-    .dstBinding = 0,
-    .descriptorCount = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-    .pImageInfo = &descriptor_image_infos[0],
-    };
-    createDepthResources();
-}
+
 
 
 
@@ -609,9 +519,45 @@ void OsmiumGLDynamicInstance::setupImgui() const {
 
 }
 
+void OsmiumGLDynamicInstance::CreateCameraDescriptorSet() {
+    VkDescriptorPoolSize poolSize = {
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = MAX_FRAMES_IN_FLIGHT,};
+
+    VkDescriptorPoolCreateInfo poolInfo= {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    .poolSizeCount = 1,
+    .pPoolSizes = &poolSize};
+    check_vk_result(vkCreateDescriptorPool(device,&poolInfo,nullptr,&cameraInfo.CameraDescriptorPool));
+
+    VkDescriptorSetLayoutBinding cameraBinding = {
+    .binding = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,};
+    VkDescriptorSetLayoutCreateInfo descriptorLayoutInfo = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings = &cameraBinding,
+    };
+    vkCreateDescriptorSetLayout(device,&descriptorLayoutInfo,nullptr,&cameraInfo.CameraDescriptorLayout);
+
+    std::array<VkDescriptorSetLayout,MAX_FRAMES_IN_FLIGHT> descriptorSetLayouts;
+    for (uint32_t i = 0; i < swapchain.image_count; i++) {
+        descriptorSetLayouts[i] = cameraInfo.CameraDescriptorLayout;
+    }
+    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = cameraInfo.CameraDescriptorPool,
+    .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+    .pSetLayouts = descriptorSetLayouts.data(),};
+    check_vk_result(vkAllocateDescriptorSets(device,&descriptorSetAllocateInfo,cameraInfo.CameraDescriptorSets.data()));
+}
+
 void OsmiumGLDynamicInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags,
-    VkBuffer&vk_buffer, VmaAllocation&vma_allocation,
-    const VmaMemoryUsage memory_usage, const VmaAllocationCreateFlags allocationFlags) const {
+                                           VkBuffer&vk_buffer, VmaAllocation&vma_allocation,
+                                           const VmaMemoryUsage memory_usage, const VmaAllocationCreateFlags allocationFlags) const {
     VkBufferCreateInfo bufferCreateInfo;
     uint32_t QueueFamilyIndices[] = {queueFamiliesIndices.graphicsFamily.value(), queueFamiliesIndices.transferFamily.value()};
     if (queueFamiliesIndices.graphicsFamily != queueFamiliesIndices.transferFamily) {
@@ -809,68 +755,16 @@ void OsmiumGLDynamicInstance::createAttachment(VkFormat format, VkImageUsageFlag
     // vkDestroyFence(device,fence,nullptr);
     // vkFreeCommandBuffers(device,commandPools.draw,1, &command_buffer);
 }
-void OsmiumGLDynamicInstance::createDepthResources() {
-    Attachment& att = attachments.depthSencil;
-    createImage(swapchain.extent.width,swapchain.extent.height,1,msaaFlags,
-                DepthFormat,
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                att.image, att.imageMemory);
-    attachments.depthSencil.imageView = createImageView(att.image, DepthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-    AddDebugName(reinterpret_cast<uint64_t>(att.imageView),"depth view", VK_OBJECT_TYPE_IMAGE_VIEW);
 
-    VkCommandBuffer cmdBuffer = beginSingleTimeCommands(queues.graphicsQueue);
-     //manual transition
-    VkImageSubresourceRange subResourceRange{
-        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
-        .baseMipLevel = 0,
-        .levelCount = VK_REMAINING_MIP_LEVELS,
-        .baseArrayLayer = 0,
-        .layerCount = VK_REMAINING_ARRAY_LAYERS};
-    VkImageMemoryBarrier imageMemoryBarrier {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .srcAccessMask = 0,
-    .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = att.image,
-    .subresourceRange = subResourceRange};
 
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0,
-                         nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
-    endSingleTimeCommands(cmdBuffer,queues.graphicsQueue);
-}
-
-void OsmiumGLDynamicInstance::createAttachments() {
-
-    VkFence fences[3];
-    VkCommandBuffer cmdBuffers[3];
-    createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.NormalSpread, fences[0], cmdBuffers[0]);
-    createAttachment(VK_FORMAT_R8G8B8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.Diffuse, fences[1], cmdBuffers[1]);
-    createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.Specular, fences[2], cmdBuffers[2]);
-    //shouldn't the depth stencil be created here as well ?
-
-    vkWaitForFences(device,3,fences,VK_TRUE,UINT64_MAX);
-    vkDestroyFence(device,fences[0],nullptr);
-    vkDestroyFence(device,fences[1],nullptr);
-    vkDestroyFence(device,fences[2],nullptr);
-    vkFreeCommandBuffers(device,commandPools.draw,3,cmdBuffers);
-}
 void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachment &attachment) {
     vkDestroyImageView(device,attachment.imageView,nullptr);
     vmaDestroyImage(allocator,attachment.image,attachment.imageMemory);
     attachment = {};
 }
 
-void OsmiumGLDynamicInstance::destroyAttachments() {
-    destroyAttachment(attachments.NormalSpread);
-    destroyAttachment(attachments.Diffuse);
-    destroyAttachment(attachments.Specular);
 
-}
 
 void OsmiumGLDynamicInstance::createIndexBuffer(const std::vector<unsigned> &indices, VkBuffer vk_buffer,
     VmaAllocation vma_allocation) {
@@ -923,6 +817,10 @@ void OsmiumGLDynamicInstance::createVertexAttributeBuffer(const void *vertexData
                  vma_allocation);
     copyBuffer(stagingBuffer,vk_buffer,stagingBufferCreateInfo.size);
     vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
+}
+
+VkImageView OsmiumGLDynamicInstance::GetCurrentSwapChainView() {
+    return swapchainViews[currentFrame];
 }
 
 VkCommandBuffer OsmiumGLDynamicInstance::beginSingleTimeCommands(VkQueue queue) const {
@@ -982,6 +880,22 @@ void OsmiumGLDynamicInstance::transitionImageLayoutCmd(VkCommandBuffer command_b
 
     // Put barrier inside setup command buffer
     vkCmdPipelineBarrier(command_buffer, src_stage_mask, dst_stage_mask, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
+}
+
+VkPipelineShaderStageCreateInfo OsmiumGLDynamicInstance::loadShader(const std::string &path,
+    VkShaderStageFlagBits shaderStage) const {
+    VkPipelineShaderStageCreateInfo shaderStageInfo = {};
+    shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageInfo.stage = shaderStage;
+    shaderStageInfo.module = ShaderUtils::createShaderModule(path,device);
+    shaderStageInfo.pName = "main";
+    assert(shaderStageInfo.module != VK_NULL_HANDLE);
+    return shaderStageInfo;
+}
+
+VkDescriptorSetLayout OsmiumGLDynamicInstance::GetCameraDescriptorLayout() {
+    assert(cameraInfo.CameraDescriptorLayout != VK_NULL_HANDLE);
+    return cameraInfo.CameraDescriptorLayout;
 }
 
 

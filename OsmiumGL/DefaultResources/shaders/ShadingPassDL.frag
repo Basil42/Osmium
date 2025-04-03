@@ -8,7 +8,7 @@ layout(set = 1, binding = 2)uniform AmbientLightInfo{
     vec4 AmbientLight;//could use alpha as an intensity modifier I guess
 };
 
-layout(input_attachment_index = 0,set = 1, binding = 3)uniform subpassInput NormalSpreadBuffer;
+layout(input_attachment_index = 0,set = 1, binding = 3)uniform subpassInput NormalSpreadBuffer;// i might recalculate these instead
 layout(input_attachment_index = 1,set = 1, binding = 4)uniform subpassInput DiffuseBuffer;
 layout(input_attachment_index = 2,set = 1, binding = 5)uniform subpassInput SpecularBuffer;
 

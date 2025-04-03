@@ -19,11 +19,14 @@
 #include "VertexDescriptor.h"
 #include "MeshData.h"
 #include "SyncUtils.h"
+class DefaultSceneDescriptorSets;
 enum DefaultVertexAttributeFlags : unsigned int;
 typedef unsigned long MeshHandle;
 class GLFWwindow;
+class DeferredLightingPipeline;
 
 class OsmiumGLDynamicInstance {
+    friend class DeferredLightingPipeline;
     public:
 
     void initialize(const std::string& appName);
@@ -92,9 +95,9 @@ private:
         VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
         VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME,
     };
+
     vkInitUtils::QueueFamilyIndices queueFamiliesIndices;
     VkFormat DepthFormat = VK_FORMAT_UNDEFINED;
-
 
 
     struct Attachment {
@@ -103,9 +106,7 @@ private:
         VkImageView imageView = VK_NULL_HANDLE;
         VkFormat format = VK_FORMAT_UNDEFINED;
     };
-    struct {
-       Attachment NormalSpread, Diffuse, Specular,depthSencil;
-    } attachments;
+
 
     //the three struct are used to describe blinnphong shading with deffered light
     //later I'll remove some sampler requirement and give the option to bind a compatible pipeline and descriptors on top like the non dynamic renderer
@@ -116,16 +117,26 @@ private:
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
     } scene_opaque_pass_defaults, scene_transparent_pass_defaults, composition_pass_default;
 
-
+    struct CameraUniform {
+        alignas(16) glm::mat4 view;
+        alignas(16) glm::mat4 projection;
+    };
+    struct {
+        VkDescriptorPool CameraDescriptorPool = VK_NULL_HANDLE;
+        VkDescriptorSetLayout CameraDescriptorLayout = VK_NULL_HANDLE;
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> CameraDescriptorSets {VK_NULL_HANDLE};
+        CameraUniform value;
+    } cameraInfo;
+    DeferredLightingPipeline* MainPipeline;
 
     void RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition);//I feel like I could get these syncing info there more elegantly
     void RecreateSwapChain();
 //setup functions
     void createAllocator();
-    void setupFrameBuffer();
     void setupImgui() const;
 
     //resource management functions
+    void CreateCameraDescriptorSet();
 
     void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkBuffer &vk_buffer, VmaAllocation &
                       vma_allocation,VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
@@ -149,6 +160,7 @@ private:
                                      unsigned int vertexCount, VkBuffer &vk_buffer,
                                      VmaAllocation &vma_allocation) const;
     //utility function
+    VkImageView GetCurrentSwapChainView();
     VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
     void endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue queue) const;
     void transitionImageLayoutCmd(
@@ -161,7 +173,9 @@ private:
         VkImageLayout old_layout,
         VkImageLayout new_layout,
         const VkImageSubresourceRange &subresource_range);
-
+    VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
+    //interface to other utility classes
+    VkDescriptorSetLayout GetCameraDescriptorLayout();
 //debug
     //GLFW related callbacks, maybe I could move all this in a separate class for cleaning up
     static void glfw_frameBufferResizedCallback(GLFWwindow *window, int width, int height);
