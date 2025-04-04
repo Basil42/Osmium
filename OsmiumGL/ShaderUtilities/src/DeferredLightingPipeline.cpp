@@ -9,6 +9,7 @@
 
 #include "DynamicCore.h"
 #include "ErrorChecking.h"
+#include "PointLights.h"
 
 DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* instance, VkSampleCountFlagBits mssaFlags, VkFormat swapchainFormat) {
     this->instance = instance;
@@ -89,9 +90,13 @@ void DeferredLightingPipeline::RenderDeferredFrameCmd(VkCommandBuffer& commandBu
     .offset = {0, 0},
     .extent = SCExtent};
     vkCmdSetScissor(commandBuffer,0,1,&scissor);
-    //geometry pass
-    //shaders that output to position, normals, and albedo
 
+    //normal only pass
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,NormalSpreadPass.pipeline);
+    //bind camera descriptor
+    std::array NormalDescriptorSets = {instance->cameraInfo.CameraDescriptorSets[instance->currentFrame],NormalSpreadPass.descriptorSet[instance->currentFrame]};//could do it outside fo this class
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,NormalSpreadPass.pipelineLayout,0,2,NormalDescriptorSets.data(),0,nullptr);
+    //Making the descriptor sets first
 
     //wrap frame, update current frame count
 }
@@ -332,6 +337,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
 
     //Composition passs
     std::array shadingPassDescriptorLayouts = {CameraSetLayout,ShadingPass.descriptorSetLayout};
+    pipelineLayoutInfo.setLayoutCount = 2;
     pipelineLayoutInfo.pSetLayouts = shadingPassDescriptorLayouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &ModelPushConstantRange;
@@ -467,7 +473,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
 
     //Normal and spread passs
 
-    std::array<VkPipelineColorBlendAttachmentState,4> colorBlendAttachments;//do I have to specify all attachement in the frame (I remember something like that being true)
+    std::array<VkPipelineColorBlendAttachmentState,4> colorBlendAttachments {};//do I have to specify all attachement in the frame (I remember something like that being true)
     for (auto blendState: colorBlendAttachments) {
         blendState.colorWriteMask = 0xf;//not sure what that means
         blendState.blendEnable = VK_FALSE;
@@ -504,7 +510,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
 
     //Shading pass
         //no need for normals
-    //TODO fix attachements (they must be in an incorrect order, and probably missing depth buffer
+    pipelineInfo.layout = ShadingPass.pipelineLayout;
     VertexInputState.vertexBindingDescriptionCount = 2;
     VertexInputState.vertexAttributeDescriptionCount = 2;
     colorBlending.attachmentCount = 4;
@@ -523,6 +529,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     vkDestroyShaderModule(device,shaderStages[1].module,VK_NULL_HANDLE);
     //point light pass
 
+    pipelineInfo.layout = PointLightPass.pipelineLayout;
         //position only vertex
     VertexInputState.vertexBindingDescriptionCount = 1;
     VertexInputState.vertexAttributeDescriptionCount = 1;
@@ -530,7 +537,7 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     pipelineRenderingInfo.colorAttachmentCount = 4 ;
 
     //I do need to change blend modes here to accumulate in the buffers, I don't quite understand what the sample does here
-    colorBlendAttachments[2] = {//diffuse
+    colorBlendAttachments[0] = {//diffuse
     .blendEnable = VK_TRUE,
     .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
     .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
@@ -540,7 +547,9 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     .alphaBlendOp = VK_BLEND_OP_ADD,//should replace alpha every
     .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
     };
-    colorBlendAttachments[3] = colorBlendAttachments[2];
+    colorBlendAttachments[1] = colorBlendAttachments[0];
+    colorBlendAttachments[2] = colorBlendAttachments[0];
+    colorBlendAttachments[3] = colorBlendAttachments[0];
 
     colorBlending.attachmentCount = 4;
     depthStencil.depthWriteEnable = VK_FALSE;//prevent light from writing to depth buffer

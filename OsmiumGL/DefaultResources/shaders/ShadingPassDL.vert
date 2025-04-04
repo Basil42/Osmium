@@ -14,8 +14,10 @@ layout(location = 1)in vec2 inTexCoordinates;
 //layout(location = 2)in vec3 inNormal;
 
 layout(location = 0)out vec2 TexCoordinates;
+layout(location = 1)out vec3 outViewPosition;
 
 void main() {
-    gl_Position = VP.proj * VP.view * ubo.model * vec4(inPosition,1.0);
+    outViewPosition = (VP.view * ubo.model * vec4(inPosition,1.0)).xyz;
+    gl_Position = VP.proj * vec4(outViewPosition,1.0);
     TexCoordinates = inTexCoordinates;
 }

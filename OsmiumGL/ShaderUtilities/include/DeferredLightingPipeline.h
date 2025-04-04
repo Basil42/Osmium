@@ -9,18 +9,7 @@
 
 #include "DynamicCore.h"
 
-struct PointLightPushConstants {
-    struct {
-        alignas(16) glm::mat4 model;
-        float radius;
-    }vertConstant;
-    struct {
-        alignas(16) glm::vec4 position;
-        alignas(16) glm::vec4 color;
-        float radius;
-    }fragConstant;
 
-};
 class DeferredLightingPipeline {
 public:
 
@@ -36,7 +25,7 @@ private:
 
     struct {
         VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorSet descriptorSet= VK_NULL_HANDLE;
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;
         VkPipelineLayout pipelineLayout= VK_NULL_HANDLE;
         VkPipeline pipeline= VK_NULL_HANDLE;
     }NormalSpreadPass, PointLightPass, ShadingPass;

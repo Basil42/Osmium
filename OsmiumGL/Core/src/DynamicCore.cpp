@@ -201,7 +201,9 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
 
 void OsmiumGLDynamicInstance::shutdown() {
 
+    vkDeviceWaitIdle(device);
     delete MainPipeline;
+    CleanupCameraDescriptorSet();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -343,9 +345,13 @@ void OsmiumGLDynamicInstance::UnloadMesh(MeshHandle mesh, bool immediate) {
     vmaDestroyBuffer(allocator,data.indexBuffer,data.IndexBufferAlloc);
 }
 
+bool OsmiumGLDynamicInstance::ShouldClose() const {
+    return glfwWindowShouldClose(window);
+}
+
 
 void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition,
-    const Sync::SyncBoolCondition &RenderUpdateCompleteCondition) {
+                                          const Sync::SyncBoolCondition &RenderUpdateCompleteCondition) {
     glfwPollEvents();
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -356,7 +362,7 @@ void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFr
 
     RenderUpdateCompleteCondition.waitAndLock();
 
-    //acquire next swap chain image
+    //acquire next swap chain image,
     vkWaitForFences(device,1,&drawFences[currentFrame],VK_TRUE,UINT64_MAX);
 
     uint32_t imageIndex;
@@ -406,6 +412,9 @@ void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFr
 
     MainPipeline->RenderDeferredFrameCmd(commandBuffer, swapChainImage);
     //imgui frame
+    check_vk_result(vkEndCommandBuffer(commandBuffer));
+
+
 }
 
 void OsmiumGLDynamicInstance::RecreateSwapChain() {
@@ -555,6 +564,11 @@ void OsmiumGLDynamicInstance::CreateCameraDescriptorSet() {
     .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
     .pSetLayouts = descriptorSetLayouts.data(),};
     check_vk_result(vkAllocateDescriptorSets(device,&descriptorSetAllocateInfo,cameraInfo.CameraDescriptorSets.data()));
+}
+
+void OsmiumGLDynamicInstance::CleanupCameraDescriptorSet() {
+    vkDestroyDescriptorSetLayout(device,cameraInfo.CameraDescriptorLayout,nullptr);
+    vkDestroyDescriptorPool(device,cameraInfo.CameraDescriptorPool,nullptr);
 }
 
 void OsmiumGLDynamicInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags,

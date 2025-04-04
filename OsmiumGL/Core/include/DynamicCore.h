@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <mutex>
 #include <set>
+#include <span>
 #include <vk_mem_alloc.h>
 
 #include "BlinnPhongVertex.h"
@@ -19,6 +20,8 @@
 #include "VertexDescriptor.h"
 #include "MeshData.h"
 #include "SyncUtils.h"
+struct CameraUniform;
+struct PointLightPushConstants;
 class DefaultSceneDescriptorSets;
 enum DefaultVertexAttributeFlags : unsigned int;
 typedef unsigned long MeshHandle;
@@ -32,18 +35,18 @@ class OsmiumGLDynamicInstance {
     void initialize(const std::string& appName);
     void shutdown();
 
+    //render data update functions
+    void UpdatePointLightsData(std::span<PointLightPushConstants>& Data);
+    void UpdateCameraData(CameraUniform& data, float radianVFoV);//also updates point light uniforms if fov changes
 
 
     //Mesh loading should probably take the deserialized struct directly
     MeshHandle LoadMesh(const std::filesystem::path& path);
-
-
-
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh, bool immediate);
 
-
+    bool ShouldClose() const;
 
 private:
     vkb::Instance instance;//I'll have the api actually keep a forward decalred reference to the instance instead of making everything static
@@ -137,6 +140,7 @@ private:
 
     //resource management functions
     void CreateCameraDescriptorSet();
+    void CleanupCameraDescriptorSet();
 
     void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkBuffer &vk_buffer, VmaAllocation &
                       vma_allocation,VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;

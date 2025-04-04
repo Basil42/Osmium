@@ -107,7 +107,7 @@ bool OsmiumGL::ShouldClose() {
 void OsmiumGL::TestDynamicRenderer(const std::string &str) {
     auto* dynamicInstance = new OsmiumGLDynamicInstance();
     dynamicInstance->initialize(str);
-    // while (!dynamicInstance->shouldClose) {
+    // while (!dynamicInstance->ShouldClose()) {
     //
     // }
     dynamicInstance->shutdown();
