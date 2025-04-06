@@ -9,7 +9,7 @@
 
 #include "DynamicCore.h"
 #include "ErrorChecking.h"
-#include "PointLights.h"
+#include "../include/PointLights.h"
 
 DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* instance, VkSampleCountFlagBits mssaFlags, VkFormat swapchainFormat) {
     this->instance = instance;

@@ -36,7 +36,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/DynamicCore.h
         ShaderUtilities/include/DeferredLightingPipeline.h
         DebugUtils/ErrorChecking.h
-        Common/include/PointLights.h
+        ShaderUtilities/include/PointLights.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_EXECUTABLE_HEADERS}
