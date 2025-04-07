@@ -10,9 +10,10 @@
 #include "RenderedObject.h"
 #include "VertexDescriptor.h"
 #include <filesystem>
+#include <span>
 #include <glm/fwd.hpp>
 
-#include "ResourceArray.h"
+#include "SyncUtils.h"
 
 
 struct PointLightPushConstants;
@@ -25,18 +26,21 @@ namespace xg {
 }
 namespace  OsmiumGL {
 
+#ifdef DYNAMIC_RENDERING
+    inline OsmiumGLDynamicInstance* instance;
+#else
     inline OsmiumGLInstance* instance;
-    inline OsmiumGLDynamicInstance* instanceDyn;
+    #endif
     inline std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors = std::map<RenderedObject,std::vector<std::byte>>();
     void Init(const std::string &appName);
 
     void test();
-    void StartFrame();
 
     void SubmitPushConstantBuffers();
 
     //run imgui in between;
-    void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
+    [[deprecated("use sync struct and single function render call")]]void StartFrame();
+    [[deprecated("use sync struct and single function render call")]]void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
     void Shutdown();
 
     MaterialHandle GetBlinnPhongHandle();
@@ -86,7 +90,11 @@ namespace  OsmiumGL {
 
     void UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
 
-    void UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50>& pointLightData);
+    void UpdateDynamicPointLights(const std::span<PointLightPushConstants>& pointLightData);
+
+    void RenderFrame(Sync::SyncBoolCondition &imgui_update_sync);
+
+    MaterialHandle GetDefaultMaterial();
 };
 
 

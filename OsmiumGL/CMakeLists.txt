@@ -37,6 +37,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/DeferredLightingPipeline.h
         DebugUtils/ErrorChecking.h
         ShaderUtilities/include/PointLights.h
+        ShaderUtilities/include/DirectionalLight.h
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_EXECUTABLE_HEADERS}
@@ -48,6 +49,7 @@ target_compile_features(OsmiumGL PUBLIC cxx_std_20)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     target_compile_definitions(OsmiumGL PUBLIC -DVk_VALIDATION_LAYER)
 endif ()
+target_compile_definitions(OsmiumGL PUBLIC -DDYNAMIC_RENDERING)
 #I should have an interface class to not require all these public header and only use one public entry point
 
 target_include_directories(OsmiumGL PRIVATE

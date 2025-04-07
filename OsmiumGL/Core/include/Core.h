@@ -18,11 +18,13 @@
 #include <InitUtilVk.h>
 #include <filesystem>
 #include <set>
+#include <span>
 
 #include "RenderedObject.h"
 #include "MaterialData.h"
 #include "MeshData.h"
 #include "ResourceArray.h"
+#include "SyncUtils.h"
 #include "VkBootstrap.h"
 
 
@@ -69,13 +71,14 @@ public:
 
     void UpdateDirectionalLightData(glm::vec3 direction, glm::vec3 color, float intensity) const;
 
-    void UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50> resources);
+    void UpdateDynamicPointLights(const std::span<PointLightPushConstants> resources);
 
     static void StartFrame();
     void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
     static void startImGuiFrame();
     void endImgGuiFrame();
     void EndFrame(std::mutex &imGUiMutex, std::condition_variable &imGuiCV, bool &isImguiFrameReady);
+    void RenderFrame(const Sync::SyncBoolCondition& imGuiFrameReadyCondition,const Sync::SyncBoolCondition& RenderUpdateCompleteCondition);
 
 
     void Shutdown();
@@ -178,6 +181,7 @@ private:
     //Light descriptor sets
     DefaultSceneDescriptorSets* defaultSceneDescriptorSets;
     uint32_t currentFrame = 0;
+
     vkb::DispatchTable disp;//contains function pointer to non core functions
     std::vector<VkImageView_T *> swapChainImageViews;
 

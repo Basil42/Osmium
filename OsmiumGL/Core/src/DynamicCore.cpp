@@ -20,12 +20,13 @@
 #include "InitUtilVk.h"
 #include "MeshData.h"
 #include "MeshSerialization.h"
+#include "PassBindings.h"
 #include "SyncUtils.h"
 
 
 
 
-void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
+void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     vkb::InstanceBuilder instanceBuilder;
     //I could probably have a vulkan profile here to define min specs
     auto inst_builder_result = instanceBuilder.set_app_name(appName.c_str())
@@ -162,6 +163,7 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
     VkCommandPoolCreateInfo cmdPoolCreateInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
     .queueFamilyIndex = queueFamiliesIndices.graphicsFamily.value(),};
     check_vk_result(vkCreateCommandPool(device,&cmdPoolCreateInfo,nullptr,&commandPools.draw));
     //transient command pool
@@ -193,17 +195,17 @@ void OsmiumGLDynamicInstance::initialize(const std::string& appName) {
 
     //TODO: pipeline cache
 
-    CreateCameraDescriptorSet();
+    DefaultDescriptors = new DefaultSceneDescriptorSets(device,allocator,*this);
 
     MainPipeline = new DeferredLightingPipeline(this,msaaFlags,swapchain.image_format);
 
 }
 
-void OsmiumGLDynamicInstance::shutdown() {
+void OsmiumGLDynamicInstance::Shutdown() {
 
     vkDeviceWaitIdle(device);
     delete MainPipeline;
-    CleanupCameraDescriptorSet();
+    delete DefaultDescriptors;
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -227,13 +229,161 @@ void OsmiumGLDynamicInstance::shutdown() {
 
     std::cout << "shutdown successful" << std::endl;
 }
+void OsmiumGLDynamicInstance::endImgGuiFrame() {
+    ImGui::Render();
+    imgGuiDrawData = ImGui::GetDrawData();
+    if (imgGuiDrawData == nullptr) {
+        throw std::runtime_error("imgGuiDrawData is null");
+    }
+}
 
-void OsmiumGLDynamicInstance::UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50>& LightArray) {
-    const unsigned int lightCount = LightArray.GetCount();
+void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameReadyCondition) {
+    glfwPollEvents();
+    std::unique_lock imguiLock(ImGuiFrameReadyCondition.mutex);
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+
+    ImGui::NewFrame();
+
+    ImGuiFrameReadyCondition.boolean = true;
+    imguiLock.unlock();
+    ImGuiFrameReadyCondition.cv.notify_one();//let's assume there is only one waiter
+
+    // std::unique_lock RenderLock(RenderUpdateCompleteCondition.mutex);
+    // RenderUpdateCompleteCondition.cv.wait(RenderLock,[&RenderUpdateCompleteCondition](){return RenderUpdateCompleteCondition.boolean;});
+    // RenderUpdateCompleteCondition.boolean = false;
+    //acquire next swap chain image,
+    vkWaitForFences(device,1,&drawFences[currentFrame],VK_TRUE,UINT64_MAX);
+
+    uint32_t imageIndex;
+    //might want to have a fence to change swapchain more elegantly?
+    VkResult result = vkAcquireNextImageKHR(device,swapchain,UINT64_MAX,semaphores.aquiredImageReady,VK_NULL_HANDLE,&imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        RecreateSwapChain();
+    }
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swapchain image");
+    }
+    vkResetFences(device, 1, &drawFences[currentFrame]);
+    vkResetCommandBuffer(drawCommandBuffers[currentFrame], 0);//i coudl also apparently reset the command pool here
+
+    std::scoped_lock resourcesLock(meshDataMutex);//seems premature
+    //recording command buffer here,
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &drawCommandBuffers[currentFrame];
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,};
+    //clear color
+    VkClearValue clear_values[5]{};
+    clear_values[0].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//swapchainimage clear
+    clear_values[1].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//positiondepth
+    clear_values[2].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//normal
+    clear_values[3].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//albedo
+    clear_values[4].depthStencil = {0.0f, 0};//depth stencil
+
+    VkCommandBuffer commandBuffer = drawCommandBuffers[currentFrame];
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    VkImageSubresourceRange subresourceRangeColor = {};
+    subresourceRangeColor.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRangeColor.levelCount = VK_REMAINING_MIP_LEVELS;
+    subresourceRangeColor.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    VkImageSubresourceRange subresourceRangeDepth{};
+    subresourceRangeDepth.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    subresourceRangeDepth.levelCount = VK_REMAINING_MIP_LEVELS;
+    subresourceRangeDepth.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    //transition the images we'll use, I don't think I need to do this every frame
+    VkImage swapChainImage =  swapchain.get_images().value()[currentFrame];//doesn't seem to allocat the way the view getter does (hopefully)
+    transitionImageLayoutCmd(commandBuffer,swapChainImage,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,0,VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, subresourceRangeColor);
+
+
+
+    MainPipeline->RenderDeferredFrameCmd(commandBuffer, swapChainImage);
+    //imgui frame
+    imguiLock.lock();
+    ImGuiFrameReadyCondition.cv.wait(imguiLock,[&ImGuiFrameReadyCondition](){return ImGuiFrameReadyCondition.boolean == false;});
+    if (imgGuiDrawData != nullptr) {
+        //in the first version I had imgui as part of the pass
+        ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
+    }
+    imguiLock.unlock();
+    check_vk_result(vkEndCommandBuffer(commandBuffer));
+    //submit buffer
+    vkQueueSubmit(queues.graphicsQueue,1,&submitInfo,drawFences[currentFrame]);
+
+    //present
+    VkPresentInfoKHR presentInfo = {
+    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    .waitSemaphoreCount = 1,
+    .pWaitSemaphores = &semaphores.renderComplete,
+    .swapchainCount = 1,
+    .pSwapchains = &swapchain.swapchain,
+    .pImageIndices = &imageIndex,
+    .pResults = nullptr};
+    result = vkQueuePresentKHR(queues.presentQueue,&presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        RecreateSwapChain();
+    }
+
+
+
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+}
+
+void OsmiumGLDynamicInstance::UpdateDynamicPointLights(const std::span<PointLightPushConstants> &LightArray) {
+    const unsigned int lightCount = LightArray.size();
     pointLightPushConstants[currentFrame].resize(lightCount);
     memcpy(pointLightPushConstants[currentFrame].data(),LightArray.data(),lightCount*sizeof(PointLightPushConstants));
 }
 
+void OsmiumGLDynamicInstance::UpdateDirectionalLightData(const glm::vec3 direction, const glm::vec3 color, const float intensity) {
+    DefaultDescriptors->UpdateDirectionalLight(direction,color,intensity, currentFrame);
+
+}
+
+void OsmiumGLDynamicInstance::UpdateCameraData(const glm::mat4 &updatedViewMatrix, float radianVFOV) {
+    //projection is relatively stable and could be cached but this is relatively cheap
+    auto proj = glm::perspective(radianVFOV,static_cast<float>(swapchain.extent.width) / static_cast<float>(swapchain.extent.height),0.1f,10.0f);
+    proj[1][1] = -1.0f;//correction for orientation convention
+    const CameraUniformValue cameraUniform {.view = updatedViewMatrix, .projection = proj};
+    DefaultDescriptors->UpdateCamera(cameraUniform,currentFrame);
+}
+
+
+void OsmiumGLDynamicInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) const {
+    //these are fairly slow structures but should not be accessed too many times
+    for (auto& buffer: pushMap) {
+        MaterialBindings* matBinding = nullptr;
+        for (auto& binding: passTree->Materials) {
+            if (binding.materialHandle == buffer.first.material) {
+                matBinding = &binding;
+                break;
+            }
+        }
+        assert(matBinding != nullptr);
+        MaterialInstanceBindings* matInstanceBinding = nullptr;
+        for (auto& binding: matBinding->matInstances) {
+            if (binding.matInstanceHandle == buffer.first.matInstance) {
+                matInstanceBinding = &binding;
+                break;
+            }
+        }
+        assert(matInstanceBinding != nullptr);
+        for (auto& binding : matInstanceBinding->meshes) {
+            if (binding.MeshHandle == buffer.first.mesh) {
+                std::vector<std::byte>& destBuffer = binding.ObjectPushConstantData[currentFrame];
+                auto totalDataSize = binding.objectCount * getMaterialData(buffer.first.material).NormalPushConstantStride;
+                assert(buffer.second.size() == totalDataSize);//checking the data is sized properly
+                binding.ObjectPushConstantData[currentFrame].clear();
+                binding.ObjectPushConstantData[currentFrame].insert(destBuffer.begin(),buffer.second.begin(),buffer.second.end());
+
+            }
+        }
+    }
+}
 
 MeshHandle OsmiumGLDynamicInstance::LoadMesh(const std::filesystem::path &path) {
     Serialization::MeshSerializationData data;
@@ -354,73 +504,14 @@ bool OsmiumGLDynamicInstance::ShouldClose() const {
     return glfwWindowShouldClose(window);
 }
 
-
-void OsmiumGLDynamicInstance::RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition,
-                                          const Sync::SyncBoolCondition &RenderUpdateCompleteCondition) {
-    glfwPollEvents();
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-
-    ImGui::NewFrame();
-
-    ImGuiFrameReadyCondition.cv.notify_one();//let's assume there is only one waiter
-
-    RenderUpdateCompleteCondition.waitAndLock();
-
-    //acquire next swap chain image,
-    vkWaitForFences(device,1,&drawFences[currentFrame],VK_TRUE,UINT64_MAX);
-
-    uint32_t imageIndex;
-    //might want to have a fence to change swapchain more elegantly?
-    VkResult result = vkAcquireNextImageKHR(device,swapchain,UINT64_MAX,semaphores.aquiredImageReady,VK_NULL_HANDLE,&imageIndex);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        RecreateSwapChain();
-    }
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        throw std::runtime_error("failed to acquire swapchain image");
-    }
-    vkResetFences(device, 1, &drawFences[currentFrame]);
-    vkResetCommandBuffer(drawCommandBuffers[currentFrame], 0);//i coudl also apparently reset the command pool here
-
-    std::scoped_lock resourcesLock(meshDataMutex);//seems premature
-    //recording command buffer here,
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &drawCommandBuffers[currentFrame];
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,};
-    //clear color
-    VkClearValue clear_values[5]{};
-    clear_values[0].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//swapchainimage clear
-    clear_values[1].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//positiondepth
-    clear_values[2].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//normal
-    clear_values[3].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//albedo
-    clear_values[4].depthStencil = {0.0f, 0};//depth stencil
-
-    VkCommandBuffer commandBuffer = drawCommandBuffers[currentFrame];
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-    VkImageSubresourceRange subresourceRangeColor = {};
-    subresourceRangeColor.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresourceRangeColor.levelCount = VK_REMAINING_MIP_LEVELS;
-    subresourceRangeColor.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-    VkImageSubresourceRange subresourceRangeDepth{};
-    subresourceRangeDepth.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    subresourceRangeDepth.levelCount = VK_REMAINING_MIP_LEVELS;
-    subresourceRangeDepth.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-    //transition the images we'll use, I don't think I need to do this every frame
-    VkImage swapChainImage =  swapchain.get_images().value()[currentFrame];//doesn't seem to allocat the way the view getter does (hopefully)
-    transitionImageLayoutCmd(commandBuffer,swapChainImage,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,0,VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, subresourceRangeColor);
-
-
-
-    MainPipeline->RenderDeferredFrameCmd(commandBuffer, swapChainImage);
-    //imgui frame
-    check_vk_result(vkEndCommandBuffer(commandBuffer));
-
-
+VkDescriptorSetLayout& OsmiumGLDynamicInstance::GetPointLightSetLayout() {
+    return DefaultDescriptors->GetPointLightSetLayout();
 }
+
+VkPipelineLayout OsmiumGLDynamicInstance::GetGlobalPipelineLayout() {
+    return DefaultDescriptors->GetCameraPipelineLayout();
+}
+
 
 void OsmiumGLDynamicInstance::RecreateSwapChain() {
     int width = 0, height = 0;
@@ -535,46 +626,53 @@ void OsmiumGLDynamicInstance::setupImgui() const {
 
 }
 
-void OsmiumGLDynamicInstance::CreateCameraDescriptorSet() {
-    VkDescriptorPoolSize poolSize = {
-    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = MAX_FRAMES_IN_FLIGHT,};
+// void OsmiumGLDynamicInstance::CreateCameraDescriptorSet() {
+//     VkDescriptorPoolSize poolSize = {
+//     .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+//     .descriptorCount = MAX_FRAMES_IN_FLIGHT,};
+//
+//     VkDescriptorPoolCreateInfo poolInfo= {
+//     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+//     .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+//     .poolSizeCount = 1,
+//     .pPoolSizes = &poolSize};
+//     check_vk_result(vkCreateDescriptorPool(device,&poolInfo,nullptr,&cameraInfo.CameraDescriptorPool));
+//
+//     VkDescriptorSetLayoutBinding cameraBinding = {
+//     .binding = 0,
+//     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+//     .descriptorCount = 1,
+//     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,};
+//     VkDescriptorSetLayoutCreateInfo descriptorLayoutInfo = {
+//     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+//     .bindingCount = 1,
+//     .pBindings = &cameraBinding,
+//     };
+//     vkCreateDescriptorSetLayout(device,&descriptorLayoutInfo,nullptr,&cameraInfo.CameraDescriptorLayout);
+//
+//     std::array<VkDescriptorSetLayout,MAX_FRAMES_IN_FLIGHT> descriptorSetLayouts;
+//     for (uint32_t i = 0; i < swapchain.image_count; i++) {
+//         descriptorSetLayouts[i] = cameraInfo.CameraDescriptorLayout;
+//     }
+//     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+//     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+//     .descriptorPool = cameraInfo.CameraDescriptorPool,
+//     .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+//     .pSetLayouts = descriptorSetLayouts.data(),};
+//
+//     std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> sets;
+//     check_vk_result(vkAllocateDescriptorSets(device,&descriptorSetAllocateInfo,sets.data()));
+//
+//     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+//         cameraInfo.CameraDescriptorSets[i].Set = sets[i];
+//     }
+//
+// }
 
-    VkDescriptorPoolCreateInfo poolInfo= {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-    .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
-    .poolSizeCount = 1,
-    .pPoolSizes = &poolSize};
-    check_vk_result(vkCreateDescriptorPool(device,&poolInfo,nullptr,&cameraInfo.CameraDescriptorPool));
-
-    VkDescriptorSetLayoutBinding cameraBinding = {
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,};
-    VkDescriptorSetLayoutCreateInfo descriptorLayoutInfo = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 1,
-    .pBindings = &cameraBinding,
-    };
-    vkCreateDescriptorSetLayout(device,&descriptorLayoutInfo,nullptr,&cameraInfo.CameraDescriptorLayout);
-
-    std::array<VkDescriptorSetLayout,MAX_FRAMES_IN_FLIGHT> descriptorSetLayouts;
-    for (uint32_t i = 0; i < swapchain.image_count; i++) {
-        descriptorSetLayouts[i] = cameraInfo.CameraDescriptorLayout;
-    }
-    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .descriptorPool = cameraInfo.CameraDescriptorPool,
-    .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
-    .pSetLayouts = descriptorSetLayouts.data(),};
-    check_vk_result(vkAllocateDescriptorSets(device,&descriptorSetAllocateInfo,cameraInfo.CameraDescriptorSets.data()));
-}
-
-void OsmiumGLDynamicInstance::CleanupCameraDescriptorSet() {
-    vkDestroyDescriptorSetLayout(device,cameraInfo.CameraDescriptorLayout,nullptr);
-    vkDestroyDescriptorPool(device,cameraInfo.CameraDescriptorPool,nullptr);
-}
+// void OsmiumGLDynamicInstance::CleanupCameraDescriptorSet() {
+//     vkDestroyDescriptorSetLayout(device,cameraInfo.CameraDescriptorLayout,nullptr);
+//     vkDestroyDescriptorPool(device,cameraInfo.CameraDescriptorPool,nullptr);
+// }
 
 void OsmiumGLDynamicInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags,
                                            VkBuffer&vk_buffer, VmaAllocation&vma_allocation,
@@ -914,9 +1012,100 @@ VkPipelineShaderStageCreateInfo OsmiumGLDynamicInstance::loadShader(const std::s
     return shaderStageInfo;
 }
 
-VkDescriptorSetLayout OsmiumGLDynamicInstance::GetCameraDescriptorLayout() {
-    assert(cameraInfo.CameraDescriptorLayout != VK_NULL_HANDLE);
-    return cameraInfo.CameraDescriptorLayout;
+MatInstanceHandle OsmiumGLDynamicInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) const {
+    return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
+}
+
+MaterialData OsmiumGLDynamicInstance::getMaterialData(MaterialHandle material_handle) const {
+    return LoadedMaterials->get(material_handle);
+}
+
+MaterialInstanceData OsmiumGLDynamicInstance::getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const {
+    return LoadedMaterialInstances->get(mat_instance_handle);
+}
+
+bool OsmiumGLDynamicInstance::AddRenderedObject(RenderedObject rendered_object) const {
+    //materials
+    MaterialBindings* material_binding = nullptr;
+    bool found = false;
+    for (auto& mat: passTree->Materials) {
+        if (mat.materialHandle == rendered_object.material) {
+            material_binding = &mat;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        if (!LoadedMaterials->contains(rendered_object.material)) {
+            std::cout << "attempted to register a rendered object with an unloaded material";
+        }
+        passTree->Materials.push_back(MaterialBindings(rendered_object.material));
+        material_binding = &passTree->Materials.back();
+    }
+    //material instances
+    MaterialInstanceBindings* mat_instance_binding = nullptr;
+    found = false;
+    for (auto& matInstance : material_binding->matInstances) {
+        if (matInstance.matInstanceHandle == rendered_object.matInstance) {
+            mat_instance_binding = &matInstance;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        if (!LoadedMaterialInstances->contains(rendered_object.matInstance)) {
+            std::cout << "attempted to register a rendered object with an unloaded material instance";
+            return false;
+        }
+        material_binding->matInstances.push_back(MaterialInstanceBindings(rendered_object.material));
+        mat_instance_binding = &material_binding->matInstances.back();
+    }
+    for (auto& mesh : mat_instance_binding->meshes) {
+        if (mesh.MeshHandle == rendered_object.mesh) {
+            mesh.objectCount++;
+            return true;
+        }
+    }
+    if (!LoadedMeshes->contains(rendered_object.mesh)) {
+        std::cout << "attempted to register a rendered object with an unloaded mesh";
+        return false;
+    }
+    mat_instance_binding->meshes.push_back(MeshBindings(rendered_object.mesh));
+    return true;
+}
+
+void OsmiumGLDynamicInstance::RemoveRenderedObject(RenderedObject rendered_object) const {
+    auto matIt = passTree->Materials.begin();
+    while (matIt != passTree->Materials.end()) {
+        if (matIt->materialHandle == rendered_object.material) {
+            auto insanceIt = matIt->matInstances.begin();
+            while (insanceIt != matIt->matInstances.end()) {
+                if (insanceIt->matInstanceHandle == rendered_object.matInstance) {
+                    auto meshIt = insanceIt->meshes.begin();
+                    while (meshIt != insanceIt->meshes.end()) {
+                        if (meshIt->MeshHandle == rendered_object.mesh) {
+                            meshIt->objectCount--;
+                            if (meshIt->objectCount == 0) insanceIt->meshes.erase(meshIt);
+                            break;
+                        }
+                    }
+                    if (insanceIt->meshes.empty()) matIt->matInstances.erase(insanceIt);
+                    break;
+                }
+            }
+            //remove the material instance from the tree if no more object are using it
+            if(matIt->matInstances.empty()) passTree->Materials.erase(matIt);
+            break;
+        }
+    }
+}
+
+VkDescriptorSetLayout OsmiumGLDynamicInstance::GetCameraDescriptorLayout() const {
+    return DefaultDescriptors->GetCameraDescriptorSetLayout();
+}
+
+VkDescriptorSet OsmiumGLDynamicInstance::GetCameraDescriptorSet(uint32_t currentFrame) {
+    return DefaultDescriptors->GetCameraDescriptorSet(currentFrame);
 }
 
 

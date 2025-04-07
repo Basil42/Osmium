@@ -8,15 +8,9 @@
 #include <condition_variable>
 namespace Sync {
     struct SyncBoolCondition {
-        std::mutex& mutex;
-        bool& boolean;
-        std::condition_variable& cv;
-        SyncBoolCondition(std::mutex &mut, bool &b, std::condition_variable &cv) : mutex(mut), boolean(b), cv(cv) {}
-
-        void waitAndLock() const {
-            std::unique_lock<std::mutex> lock(mutex);
-            cv.wait(lock,[&](){return boolean;});
-        }
+        std::mutex mutex;
+        bool boolean = false;
+        std::condition_variable cv;
     };
 }
 #endif //SYNCUTILS_H

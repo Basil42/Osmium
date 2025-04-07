@@ -27,7 +27,7 @@ void EditorGUI::Run() {
     inspectorWindow = new InspectorWindow(OsmiumInstance, selectedGameObject);
 
     RenderImGuiFrameTask(*SyncStruct->imGuiMutex,*SyncStruct->ImGuiShouldShutoff,*SyncStruct->imGuiNewFrameConditionVariable,
-        *SyncStruct->isImguiNewFrameReady,*SyncStruct->isImguiUpdateOver,*SyncStruct->ImguiUpdateConditionVariable);
+                         *SyncStruct->isImguiNewFrameReady);
 
     delete inspectorWindow;
     delete hierarchyWindow;
@@ -72,8 +72,7 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
 
 void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiShouldShutoff,
                                      std::condition_variable &ImguiNewFrameConditionVariable,
-                                     bool &isImguiNewFrameReady, bool
-                                     &isImguiUpdateOver, std::condition_variable &ImguiUpdateConditionVariable) {
+                                     bool &isImguiNewFrameReady) {
 
 
     std::unique_lock<std::mutex> startFrameLock{ ImguiMutex, std::defer_lock };
@@ -99,7 +98,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
     while (!ImGuiShouldShutoff) {
         startFrameLock.lock();
         ImguiNewFrameConditionVariable.wait(startFrameLock,[this, &isImguiNewFrameReady]() {return isImguiNewFrameReady;});
-        isImguiNewFrameReady = false;
+
 
         ImGuiIO io = ImGui::GetIO();
 
@@ -186,9 +185,10 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
         if (ShowInspector)inspectorWindow->Render(io);
         OsmiumGL::ImguiEndImGuiFrame();
         //sync
-        isImguiUpdateOver = true;
+        //not conviced I actually need that one
+        isImguiNewFrameReady = false;
         startFrameLock.unlock();
-        ImguiUpdateConditionVariable.notify_all();
+        ImguiNewFrameConditionVariable.notify_all();
     }
 }
 

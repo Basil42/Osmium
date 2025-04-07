@@ -37,9 +37,7 @@ public:
     void CameraControls(ImGuiIO& io);
 
     void RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiShouldShutoff,
-                              std::condition_variable &ImguiNewFrameConditionVariable, bool &isImguiNewFrameReady, bool &isImguiUpdateOver, std::
-                              condition_variable
-                              &ImguiUpdateConditionVariable);
+                              std::condition_variable &ImguiNewFrameConditionVariable, bool &isImguiNewFrameReady);
 
 
     ImVec4 ImgGuiClearColor;

@@ -22,11 +22,11 @@ void GameInstance::GameLoop() {
     //double lastFrameTime = glfwGetTime();
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
-        std::unique_lock<std::mutex> ImGuiLock(ImguiMutex);
-        ImguiUpdateConditionVariable.wait(ImGuiLock, [this] { return isImguiUpdateOver; });
+        std::unique_lock<std::mutex> ImGuiLock(ImguiUpdateSync.mutex);
+        ImguiUpdateConditionVariable.wait(ImGuiLock, [this] { return ImguiUpdateSync.boolean == false; });
 
-        isSimOver = false;
-        std::unique_lock<std::mutex> SimulationLock(SimulationCompletionMutex);
+        SimulationSync.boolean = false;//bool was previously "sim is over"
+        std::unique_lock<std::mutex> SimulationLock(SimulationSync.mutex);
         AssetManager::ProcessCallbacks();
         //game object creation
         while (!gameObjectsCreationQueue.empty()) {
@@ -89,18 +89,20 @@ void GameInstance::run(const std::string &appName) {
     auto LoadingThread = std::thread(&GameInstance::LoadingRoutine,this);//maybe I need some kind of staging method here
     auto UnloadingThread = std::thread(&GameInstance::UnloadingRoutine,this);
 
-    std::unique_lock<std::mutex> ImGuiLock(ImguiMutex,std::defer_lock);
+    //std::unique_lock<std::mutex> ImGuiLock(ImguiMutex,std::defer_lock);
     std::unique_lock<std::mutex> RenderDataLock(renderDataMutex, std::defer_lock);
     //initialize imGuiFrame
     while(!OsmiumGL::ShouldClose()) {
-        ImGuiLock.lock();
-        OsmiumGL::StartFrame();//poll glfw events and start imGui frame
+
+        OsmiumGL::RenderFrame(ImguiUpdateSync);
+        //ImGuiLock.lock();
+        //OsmiumGL::StartFrame();//poll glfw events and start imGui frame
         //imgui update is free to start if simulation is done
-        isImguiNewFrameReady = true;
-        ImGuiLock.unlock();
-        ImguiNewFrameConditionVariable.notify_one();
+        //isImguiNewFrameReady = true;
+        //ImGuiLock.unlock();
+        //ImguiNewFrameConditionVariable.notify_one();
         //the function will wait until as late as possible to hold execution for imGui
-        OsmiumGL::EndFrame(ImguiMutex,ImguiUpdateConditionVariable,isImguiUpdateOver);
+        //OsmiumGL::EndFrame(ImguiMutex,ImguiUpdateConditionVariable,isImguiUpdateOver);
         RenderDataLock.lock();
         SimulationConditionVariable.wait(RenderDataLock,[this]() {return isSimOver;});
 
@@ -110,10 +112,10 @@ void GameInstance::run(const std::string &appName) {
         renderDataUpdateConditionVariable.notify_one();//probably notify all
 
     }
-
-    OsmiumGL::StartFrame();//misnamed method, this is called to flush the Imgui thread and force it to exit
-    isImguiNewFrameReady = true;
-    ImguiNewFrameConditionVariable.notify_one();
+    //TODO flush imgui if needed
+    //OsmiumGL::StartFrame();
+    ImguiUpdateSync.boolean = true;// isImguiNewFrameReady = true;
+    ImguiUpdateSync.cv.notify_one();// ImguiNewFrameConditionVariable.notify_one();
     //message the sim and imgui to shut off, these are technically nor thread safe but it might not matter here
     simShouldShutoff = true;
     ImGuiShouldShutoff = true;
@@ -135,12 +137,10 @@ void GameInstance::run(const std::string &appName) {
 }
 
 void GameInstance::getImGuiSyncInfo(ImGuiSyncStruct& syncData) {
-    syncData.imGuiMutex = &ImguiMutex;
-    syncData.imGuiNewFrameConditionVariable = &ImguiNewFrameConditionVariable;
-    syncData.isImguiNewFrameReady = &isImguiNewFrameReady;
-    syncData.isImguiUpdateOver = &isImguiUpdateOver;
+    syncData.imGuiMutex = &ImguiUpdateSync.mutex;
+    syncData.imGuiNewFrameConditionVariable = &ImguiUpdateSync.cv;// ImguiNewFrameConditionVariable;
+    syncData.isImguiNewFrameReady = &ImguiUpdateSync.boolean;
     syncData.ImGuiShouldShutoff = &ImGuiShouldShutoff;
-    syncData.ImguiUpdateConditionVariable = &ImguiUpdateConditionVariable;
 }
 
 void GameInstance::SetMainCamera(GameObjectHandle editor_camera) {//might do an override that takes a GOC_Camera pointer directly

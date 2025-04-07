@@ -22,9 +22,9 @@ public:
 
     static void GORenderUpdate();;
 
-    void Update() override;
+    void Update() override{};//TODO add a changelist to resolve during update
 
-    void RenderUpdate() override;
+    void RenderUpdate() override{};//might need to just get rid of this one
 
     GOC_PointLight(GameObject * parent);
     ~GOC_PointLight() override;

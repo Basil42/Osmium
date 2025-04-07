@@ -16,13 +16,13 @@ void GOC_PointLight::GORenderUpdate() {
 
 GOC_PointLight::GOC_PointLight(GameObject *parent): GameObjectComponent(parent) {
     constexpr PointLightPushConstants value = {
-    .vertConstant = {
-    .model = glm::mat4(1.0f),
-    .radius = 50.0f},
-    .fragConstant = {
-    .position = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
-    .color = glm::vec4(1.0f,1.0f,1.0f,1.0f),
-    .radius = 50.0f}};
+        .vertConstant = {
+            .model = glm::mat4(1.0f),},
+        .radius = 50.0f,
+        .fragConstant = {
+            .position = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
+            .color = glm::vec4(1.0f,1.0f,1.0f,1.0f),
+    }};
     lightHandle = constants.Add(value);
 
 }

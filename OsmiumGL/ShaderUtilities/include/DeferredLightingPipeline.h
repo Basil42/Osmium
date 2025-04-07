@@ -25,7 +25,7 @@ private:
 
     struct {
         VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;//normal doesn't have pass wide uniforms
         VkPipelineLayout pipelineLayout= VK_NULL_HANDLE;
         VkPipeline pipeline= VK_NULL_HANDLE;
     }NormalSpreadPass, PointLightPass, ShadingPass;

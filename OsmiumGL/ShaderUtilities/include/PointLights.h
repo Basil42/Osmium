@@ -8,17 +8,16 @@
 
 struct PointLightPushConstants {
     struct {
-        alignas(16) glm::mat4 model;
-        float radius;
+        alignas(16)glm::mat4 model;
     }vertConstant;
+        float radius;//TODO move it inside the parent struct, it can be shared by both stage(align it to 16, I imagine everything must be in there)
     struct {
-        alignas(16) glm::vec4 position;
-        alignas(16) glm::vec4 color;
-        float radius;
+        glm::vec4 position;
+        glm::vec4 color;
     }fragConstant;
 
 };
-struct PointLightUniform{
+struct PointLightUniformValue{
     //used in the vertex shader
     struct ClipInfo {
         glm::vec2 ScreenSize;
@@ -28,6 +27,6 @@ struct PointLightUniform{
     struct PositionReconstructionData {
         glm::mat4 Projection;
         glm::vec2 depthRange;
-    };
+    }reconstructUniform;
   };
 #endif //POINTLIGHTS_H

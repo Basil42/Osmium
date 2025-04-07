@@ -248,20 +248,20 @@ void DefaultShaders::CreateBlinnPhongPipeline(VkDevice device, VkSampleCountFlag
 
     //TODO register to loaded materials
     MaterialData materialData {
-    .pipeline = blinnPhongPipeline,
-    .pipelineLayout = blinnPhongPipelineLayout,
-    .descriptorSetLayout = blinnPhongInstanceDescriptorSetLayout,
-    .PushConstantStride = sizeof(Descriptors::UniformBufferObject),
-    .VertexAttributeCount = 3,
-    .VertexInputAttributes = POSITION | NORMAL|TEXCOORD0,
-    .CustomVertexInputAttributes = 0};
-    materialData.pipeline = blinnPhongPipeline;
-    materialData.pipelineLayout = blinnPhongPipelineLayout;
-    materialData.descriptorSetLayout = blinnPhongInstanceDescriptorSetLayout;
-    materialData.CustomVertexInputAttributes = 0;
+    .NormalPipeline = blinnPhongPipeline,
+    .NormalPipelineLayout = blinnPhongPipelineLayout,
+    .NormalDescriptorSetLayout = blinnPhongInstanceDescriptorSetLayout,
+    .NormalPushConstantStride = sizeof(Descriptors::UniformBufferObject),
+    .NormalVertexAttributeCount = 3,
+    .NormalVertexInputAttributes = POSITION | NORMAL|TEXCOORD0,
+    .NormalCustomVertexInputAttributes = 0};
+    materialData.NormalPipeline = blinnPhongPipeline;
+    materialData.NormalPipelineLayout = blinnPhongPipelineLayout;
+    materialData.NormalDescriptorSetLayout = blinnPhongInstanceDescriptorSetLayout;
+    materialData.NormalCustomVertexInputAttributes = 0;
     //I will need some kind of parser to automate finding these for custom shaders
-    materialData.VertexInputAttributes = POSITION | NORMAL | TEXCOORD0;
-    materialData.CustomVertexInputAttributes = 0;
+    materialData.NormalVertexInputAttributes = POSITION | NORMAL | TEXCOORD0;
+    materialData.NormalCustomVertexInputAttributes = 0;
 
     //I'm going to assume the directional light is ALWAYS binding 0 for the main pass and have the data manage by a node up the tree
     //The texture sampler should be per instance in this case

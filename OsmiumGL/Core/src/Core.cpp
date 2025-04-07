@@ -269,7 +269,7 @@ VkDescriptorSetLayout OsmiumGLInstance::GetCameraDescriptorLayout() const {
     return defaultSceneDescriptorSets->GetCameraDescriptorSetLayout();
 }
 
-
+#ifndef DYNAMIC_RENDERING
 void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) const {
     //these are fairly slow structures but should not be accessed too many times
     for (auto& buffer: pushMap) {
@@ -292,7 +292,7 @@ void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std:
         for (auto& binding : matInstanceBinding->meshes) {
             if (binding.MeshHandle == buffer.first.mesh) {
                 std::vector<std::byte>& destBuffer = binding.ObjectPushConstantData[currentFrame];
-                auto totalDataSize = binding.objectCount * getMaterialData(buffer.first.material).PushConstantStride;
+                auto totalDataSize = binding.objectCount * getMaterialData(buffer.first.material).NormalPushConstantStride;
                 assert(buffer.second.size() == totalDataSize);//checking the data is sized properly
                 binding.ObjectPushConstantData[currentFrame].clear();
                 binding.ObjectPushConstantData[currentFrame].insert(destBuffer.begin(),buffer.second.begin(),buffer.second.end());
@@ -301,7 +301,7 @@ void OsmiumGLInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std:
         }
     }
 }
-
+#endif
 
 
 MatInstanceHandle OsmiumGLInstance::GetLoadedMaterialDefaultInstance(const MaterialHandle material) const {
@@ -396,7 +396,7 @@ void OsmiumGLInstance::UpdateCameraData(const glm::mat4& viewMat, const float ra
         //projection is relatively stable and could be cached but this is relatively cheap
         auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChain.extent.width) / static_cast<float>(swapChain.extent.height),0.1f,10.0f);
         proj[1][1] = -1.0f;//correction for orientation convention
-        const CameraUniform cameraUniform {.view = viewMat, .projection = proj};
+        const CameraUniformValue cameraUniform {.view = viewMat, .projection = proj};
         defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
 }
 
@@ -617,7 +617,6 @@ void OsmiumGLInstance::createCommandBuffers() {
  }
 
 void OsmiumGLInstance::RecordImGuiDrawCommand(const VkCommandBuffer commandBuffer, ImDrawData *imgGuiDrawData) const {
-    //
     ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
 }
 
@@ -629,18 +628,18 @@ MaterialInstanceData OsmiumGLInstance::getMaterialInstanceData(const MatInstance
     return LoadedMaterialInstances->get(mat_instance_handle);
 }
 
-
+#ifndef DYNAMIC_RENDERING
 void OsmiumGLInstance::DrawCommands(const VkCommandBuffer commandBuffer,
                                     const VkRenderPassBeginInfo &renderPassBeginIno,
                                     const PassBindings &passBindings) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
     //camera descriptor
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, defaultSceneDescriptorSets->GetCameraPipelineLayout(), 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, defaultSceneDescriptorSets->GetCameraPipelineLayout(), 0, 1,&defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
     //lit pass (I'll add other later and get them throus the pass binding object)
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,defaultSceneDescriptorSets->GetLitPipelineLayout(),1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
     for (auto const &matBinding: passBindings.Materials) {
         const MaterialData matData = LoadedMaterials->get(matBinding.materialHandle);// getMaterialData(matBinding.materialHandle);
-        vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipeline);
+        vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.NormalPipeline);
         for (auto const & matInstanceBinding : matBinding.matInstances) {
             MaterialInstanceData matInstanceData = getMaterialInstanceData(matInstanceBinding.matInstanceHandle);
             //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pipelineLayout, 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
@@ -649,7 +648,7 @@ void OsmiumGLInstance::DrawCommands(const VkCommandBuffer commandBuffer,
             //keeping some things default here
             vkCmdBindDescriptorSets(commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
-                matData.pipelineLayout,
+                matData.NormalPipelineLayout,
                 2,
                 matInstanceData.descriptorSets[currentFrame].size(),
                 matInstanceData.descriptorSets[currentFrame].data(),
@@ -663,7 +662,7 @@ void OsmiumGLInstance::DrawCommands(const VkCommandBuffer commandBuffer,
                 auto defaultAttribute = static_cast<DefaultVertexAttributeFlags>(1);
                 while (defaultAttribute <= MAX_BUILTIN_VERTEX_ATTRIBUTE_FLAGS) {
                     try {
-                        if (defaultAttribute & matData.VertexInputAttributes) {
+                        if (defaultAttribute & matData.NormalVertexInputAttributes) {
                         vertexBuffers.push_back(data.VertexAttributeBuffers.at(defaultAttribute).first);//This is not a good spot for a vector, acceptable for now
                         vertexBuffersOffsets.push_back(0);//I don't think I really need offsets without interleaving
                         }
@@ -679,16 +678,16 @@ void OsmiumGLInstance::DrawCommands(const VkCommandBuffer commandBuffer,
                     }
 
                 }
-                vkCmdBindVertexBuffers(commandBuffer,0,matData.VertexAttributeCount,vertexBuffers.data(),vertexBuffersOffsets.data());
+                vkCmdBindVertexBuffers(commandBuffer,0,matData.NormalVertexAttributeCount,vertexBuffers.data(),vertexBuffersOffsets.data());
                 vkCmdBindIndexBuffer(commandBuffer,data.indexBuffer,0,VK_INDEX_TYPE_UINT32);
 
                 for(int i = 0; i < mesh.objectCount;i++) {
                     vkCmdPushConstants(commandBuffer,
-                        matData.pipelineLayout,
+                        matData.NormalPipelineLayout,
                         VK_SHADER_STAGE_VERTEX_BIT,
                         0,
-                        matData.PushConstantStride,
-                        mesh.ObjectPushConstantData[currentFrame].data()+(i*matData.PushConstantStride));
+                        matData.NormalPushConstantStride,
+                        mesh.ObjectPushConstantData[currentFrame].data()+(i*matData.NormalPushConstantStride));
                     vkCmdDrawIndexed(commandBuffer,data.numIndices,1,0,0,0);
                     //Here it is possible to replace the push constant with some kind of buffer and implement instanced rendering with a single draw call
                     //can apparently be done with a buffer binding in the shader of input rate instance (the buffer steps per instance instead of per vertex)
@@ -700,7 +699,7 @@ void OsmiumGLInstance::DrawCommands(const VkCommandBuffer commandBuffer,
 
     }
 }
-
+#endif
 void OsmiumGLInstance::recordCommandBuffer(const VkCommandBuffer commandBuffer, const uint32_t imageIndex,std::mutex& imGuiMutex,std::condition_variable &imGuiUpdateCV,bool &isImGuiFrameComplete) const {
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -1601,8 +1600,12 @@ void OsmiumGLInstance::initVulkan(const std::string& appName) {
 
     setupImGui();
     passTree = new PassBindings();
+#ifdef DYNAMIC_RENDERING
+    assert(false);
+#else
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
-    DirLightUniform defaultLight = {.VLightDirection = glm::vec3(1.0f,-1.0f,1.0f), .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 0.2f};
+#endif
+    DirLightUniformValue defaultLight = {.VLightDirection = glm::vec3(1.0f,-1.0f,1.0f), .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 0.2f};
     defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame);
     defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame+1);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
@@ -1780,4 +1783,7 @@ void OsmiumGLInstance::recreateSwapChain() {
 
 void OsmiumGLInstance::UpdateDirectionalLightData(const glm::vec3 direction, const glm::vec3 color, const float intensity) const {
     defaultSceneDescriptorSets->UpdateDirectionalLight(direction,color,intensity, currentFrame);
+}
+
+void OsmiumGLInstance::UpdateDynamicPointLights(const std::span<PointLightPushConstants> resources) {
 }

@@ -9,7 +9,7 @@
 namespace Descriptors {
     struct UniformBufferObject {
         glm::mat4 model;
-        glm::mat4 normal;
+        //glm::mat4 normal;
     };
 }
 #endif //UNIFORMBUFFEROBJECT_H

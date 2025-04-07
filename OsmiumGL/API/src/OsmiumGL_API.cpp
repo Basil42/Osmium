@@ -7,6 +7,8 @@
 #include <mutex>
 #include <filesystem>
 #include <Core.h>
+
+#include "DefaultSceneDescriptorSets.h"
 #include "DefaultShaders.h"
 #include "DynamicCore.h"
 #include "../../../OsmiumCore/Base/config.h"
@@ -14,19 +16,21 @@
 
 
 void OsmiumGL::Init(const std::string &appName) {
-    instance = new OsmiumGLInstance();
-    instance->initialize(appName);
+    instance = new OsmiumGLDynamicInstance();
+    instance->Initialize(appName);
 }
 
 
 
-void OsmiumGL::StartFrame() {
 
-    OsmiumGLInstance::StartFrame();
-}
 
 void OsmiumGL::SubmitPushConstantBuffers() {
     instance->SubmitPushDataBuffers(pushConstantStagingVectors);
+}
+#ifndef DYNAMIC_RENDERING
+void OsmiumGL::StartFrame() {
+
+    OsmiumGLInstance::StartFrame();
 }
 
 void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,bool& isImgGuiFrameRendered) {
@@ -34,6 +38,7 @@ void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,
     instance->EndFrame(ImGuiMutex,imGuiCV,isImgGuiFrameRendered);
     ClearGOPushConstantBuffers();
 }
+#endif
 
 void OsmiumGL::Shutdown() {
     instance->Shutdown();
@@ -106,17 +111,27 @@ bool OsmiumGL::ShouldClose() {
 
 void OsmiumGL::TestDynamicRenderer(const std::string &str) {
     auto* dynamicInstance = new OsmiumGLDynamicInstance();
-    dynamicInstance->initialize(str);
+    dynamicInstance->Initialize(str);
     // while (!dynamicInstance->ShouldClose()) {
     //
     // }
-    dynamicInstance->shutdown();
+    dynamicInstance->Shutdown();
 }
 
 void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {
     instance->UpdateDirectionalLightData(direction,color,intensity);
 }
 
-void OsmiumGL::UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50> &pointLightData) {
+void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants> &pointLightData) {
     instance->UpdateDynamicPointLights(pointLightData);
 }
+
+void OsmiumGL::RenderFrame(Sync::SyncBoolCondition &imgui_update_sync) {
+    instance->RenderFrame(imgui_update_sync);
+}
+
+MaterialHandle OsmiumGL::GetDefaultMaterial() {
+    instance->GetDefaultMaterialHandle();
+}
+
+

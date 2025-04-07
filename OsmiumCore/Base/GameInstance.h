@@ -15,27 +15,27 @@
 #include "config.h"
 #include "GameObject.h"
 #include "GameObjectCreation.h"
+#include "SyncUtils.h"
 #include "GOComponents/GOC_DirectionalLight.h"
 
 struct ImGuiSyncStruct {
     std::mutex* imGuiMutex;
     std::condition_variable* imGuiNewFrameConditionVariable;
     bool* isImguiNewFrameReady;
-    bool* isImguiUpdateOver;
     bool* ImGuiShouldShutoff;
-    std::condition_variable* ImguiUpdateConditionVariable;
 };
 
 template <typename T,size_t Max_Capacity>class ResourceArray;
 class GOC_Camera;
 class GameInstance {
     //syncing stuff
-    std::mutex SimulationCompletionMutex;
+    Sync::SyncBoolCondition SimulationSync, RenderDataUpdateSync,ImguiUpdateSync;//might need two imgui sync objects
     bool isSimOver = false;
     std::condition_variable SimulationConditionVariable;
     std::mutex renderDataMutex;
     std::condition_variable renderDataUpdateConditionVariable;
     bool isRenderUpdateOver = false;
+
     std::mutex ImguiMutex;
     std::condition_variable ImguiNewFrameConditionVariable;
     bool isImguiNewFrameReady = false;

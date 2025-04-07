@@ -18,6 +18,13 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     createAttachments();
     createDepthResources();
     CreatePipelines(instance->device, mssaFlags, swapchainFormat);
+    //create global descriptor sets
+    //none for normal pass
+
+    MaterialData materialData;//TODO create material data and load it
+
+    MaterialInstanceData materialInstanceData;
+    //1x1 default texture instance for normal pass
     //setupFrameBuffer();
 }
 
@@ -56,7 +63,7 @@ void DeferredLightingPipeline::RenderDeferredFrameCmd(VkCommandBuffer& commandBu
     VkRenderingAttachmentInfo depthAttachmentsInfo = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .imageView = attachments.depthSencil.imageView,
-    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -94,11 +101,12 @@ void DeferredLightingPipeline::RenderDeferredFrameCmd(VkCommandBuffer& commandBu
     //normal only pass
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,NormalSpreadPass.pipeline);
     //bind camera descriptor
-    std::array NormalDescriptorSets = {instance->cameraInfo.CameraDescriptorSets[instance->currentFrame],NormalSpreadPass.descriptorSet[instance->currentFrame]};//could do it outside fo this class
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,NormalSpreadPass.pipelineLayout,0,2,NormalDescriptorSets.data(),0,nullptr);
+    std::array CameraDescriptor = {instance->GetCameraDescriptorSet(instance->currentFrame)};//could do it outside fo this class
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,instance->GetGlobalPipelineLayout(),0,1,CameraDescriptor.data(),0,nullptr);
     //Making the descriptor sets first
 
-    //wrap frame, update current frame count
+    //I need to remember to transition the color attachement into a presentation layout at the end
+    vkCmdEndRendering(commandBuffer);
 }
 void DeferredLightingPipeline::setupFrameBuffer() {
     //input info for using these as uniforms for defered lights
@@ -218,36 +226,7 @@ void DeferredLightingPipeline::CreateDescriptors() {
     check_vk_result(vkCreateDescriptorSetLayout(instance->device,&normalPassDescriptorLayoutInfo,nullptr,&NormalSpreadPass.descriptorSetLayout));
 
     //Point light pass
-    VkDescriptorSetLayoutBinding ClipSpaceInfoLayoutBinding = {
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT};
 
-
-    VkDescriptorSetLayoutBinding DepthBufferBinding = {
-    .binding = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT};
-    VkDescriptorSetLayoutBinding normalSpreadBinding = {
-        .binding = 2,
-        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT};
-    //projmat and depthRange
-    VkDescriptorSetLayoutBinding ReconstructionDataBinding = {
-        .binding = 3,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
-    };
-    std::array pointLightBidings{ClipSpaceInfoLayoutBinding,DepthBufferBinding,normalSpreadBinding,ReconstructionDataBinding};
-    VkDescriptorSetLayoutCreateInfo pointLightDescriptorSetLayoutInfo = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 4,
-    .pBindings = pointLightBidings.data()};
-    check_vk_result(vkCreateDescriptorSetLayout(instance->device,&pointLightDescriptorSetLayoutInfo,nullptr,&PointLightPass.descriptorSetLayout));
 
     //Shading layout
     //vert as only the camera layout
@@ -292,7 +271,7 @@ void DeferredLightingPipeline::CreateDescriptors() {
 }
 
 void DeferredLightingPipeline::CleanupDescriptors() {
-    vkDestroyDescriptorSetLayout(instance->device,PointLightPass.descriptorSetLayout,nullptr);
+    //vkDestroyDescriptorSetLayout(instance->device,PointLightPass.descriptorSetLayout,nullptr);
     vkDestroyDescriptorSetLayout(instance->device,ShadingPass.descriptorSetLayout,nullptr);
     vkDestroyDescriptorSetLayout(instance->device,NormalSpreadPass.descriptorSetLayout,nullptr);
 }
@@ -322,13 +301,13 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     VkPushConstantRange PointLightPushConstantRange[2];
     PointLightPushConstantRange[0] = {
     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-    .size = sizeof(PointLightPushConstants::vertConstant)};
+    .size = sizeof(PointLightPushConstants::vertConstant) + sizeof(float)};
 
     PointLightPushConstantRange[1] = {
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .size = sizeof(PointLightPushConstants::fragConstant)};
-
-    std::array pointLightDescriptorLayouts{CameraSetLayout,PointLightPass.descriptorSetLayout};
+    .size = sizeof(PointLightPushConstants::fragConstant) + 16};
+    PointLightPushConstantRange[1].offset = offsetof(PointLightPushConstants,PointLightPushConstants::radius);
+    std::array pointLightDescriptorLayouts{CameraSetLayout,instance->GetPointLightSetLayout()};
     pipelineLayoutInfo.setLayoutCount = 2;
     pipelineLayoutInfo.pSetLayouts = pointLightDescriptorLayouts.data();//might have to have severa to get the camera set
     pipelineLayoutInfo.pushConstantRangeCount = 2;
