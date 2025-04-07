@@ -94,7 +94,7 @@ void DeferredLightingPipeline::RenderDeferredFrameCmd(VkCommandBuffer& commandBu
     //normal only pass
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,NormalSpreadPass.pipeline);
     //bind camera descriptor
-    std::array NormalDescriptorSets = {instance->cameraInfo.CameraDescriptorSets[instance->currentFrame],NormalSpreadPass.descriptorSet[instance->currentFrame]};//could do it outside fo this class
+    std::array NormalDescriptorSets = {instance->GetCameraDescriptorSet(instance->currentFrame),NormalSpreadPass.descriptorSet[instance->currentFrame]};//could do it outside fo this class
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,NormalSpreadPass.pipelineLayout,0,2,NormalDescriptorSets.data(),0,nullptr);
     //Making the descriptor sets first
 
@@ -218,36 +218,7 @@ void DeferredLightingPipeline::CreateDescriptors() {
     check_vk_result(vkCreateDescriptorSetLayout(instance->device,&normalPassDescriptorLayoutInfo,nullptr,&NormalSpreadPass.descriptorSetLayout));
 
     //Point light pass
-    VkDescriptorSetLayoutBinding ClipSpaceInfoLayoutBinding = {
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT};
 
-
-    VkDescriptorSetLayoutBinding DepthBufferBinding = {
-    .binding = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT};
-    VkDescriptorSetLayoutBinding normalSpreadBinding = {
-        .binding = 2,
-        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT};
-    //projmat and depthRange
-    VkDescriptorSetLayoutBinding ReconstructionDataBinding = {
-        .binding = 3,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
-    };
-    std::array pointLightBidings{ClipSpaceInfoLayoutBinding,DepthBufferBinding,normalSpreadBinding,ReconstructionDataBinding};
-    VkDescriptorSetLayoutCreateInfo pointLightDescriptorSetLayoutInfo = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 4,
-    .pBindings = pointLightBidings.data()};
-    check_vk_result(vkCreateDescriptorSetLayout(instance->device,&pointLightDescriptorSetLayoutInfo,nullptr,&PointLightPass.descriptorSetLayout));
 
     //Shading layout
     //vert as only the camera layout
@@ -292,7 +263,7 @@ void DeferredLightingPipeline::CreateDescriptors() {
 }
 
 void DeferredLightingPipeline::CleanupDescriptors() {
-    vkDestroyDescriptorSetLayout(instance->device,PointLightPass.descriptorSetLayout,nullptr);
+    //vkDestroyDescriptorSetLayout(instance->device,PointLightPass.descriptorSetLayout,nullptr);
     vkDestroyDescriptorSetLayout(instance->device,ShadingPass.descriptorSetLayout,nullptr);
     vkDestroyDescriptorSetLayout(instance->device,NormalSpreadPass.descriptorSetLayout,nullptr);
 }
@@ -327,8 +298,8 @@ void DeferredLightingPipeline::CreatePipelines(VkDevice device, VkSampleCountFla
     PointLightPushConstantRange[1] = {
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .size = sizeof(PointLightPushConstants::fragConstant)};
-
-    std::array pointLightDescriptorLayouts{CameraSetLayout,PointLightPass.descriptorSetLayout};
+    PointLightPushConstantRange[1].offset = offsetof(PointLightPushConstants,PointLightPushConstants::fragConstant);
+    std::array pointLightDescriptorLayouts{CameraSetLayout,instance->GetPointLightSetLayout()};
     pipelineLayoutInfo.setLayoutCount = 2;
     pipelineLayoutInfo.pSetLayouts = pointLightDescriptorLayouts.data();//might have to have severa to get the camera set
     pipelineLayoutInfo.pushConstantRangeCount = 2;

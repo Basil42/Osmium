@@ -396,7 +396,7 @@ void OsmiumGLInstance::UpdateCameraData(const glm::mat4& viewMat, const float ra
         //projection is relatively stable and could be cached but this is relatively cheap
         auto proj = glm::perspective(radianVFOV,static_cast<float>(swapChain.extent.width) / static_cast<float>(swapChain.extent.height),0.1f,10.0f);
         proj[1][1] = -1.0f;//correction for orientation convention
-        const CameraUniform cameraUniform {.view = viewMat, .projection = proj};
+        const CameraUniformValue cameraUniform {.view = viewMat, .projection = proj};
         defaultSceneDescriptorSets->UpdateCamera(cameraUniform,currentFrame);
 }
 
@@ -635,7 +635,7 @@ void OsmiumGLInstance::DrawCommands(const VkCommandBuffer commandBuffer,
                                     const PassBindings &passBindings) const {
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginIno, VK_SUBPASS_CONTENTS_INLINE);
     //camera descriptor
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, defaultSceneDescriptorSets->GetCameraPipelineLayout(), 0, 1,defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, defaultSceneDescriptorSets->GetCameraPipelineLayout(), 0, 1,&defaultSceneDescriptorSets->GetCameraDescriptorSet(currentFrame),0,nullptr);
     //lit pass (I'll add other later and get them throus the pass binding object)
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,defaultSceneDescriptorSets->GetLitPipelineLayout(),1, 1,defaultSceneDescriptorSets->GetLitDescriptorSet(currentFrame),0,nullptr);
     for (auto const &matBinding: passBindings.Materials) {
@@ -1601,8 +1601,12 @@ void OsmiumGLInstance::initVulkan(const std::string& appName) {
 
     setupImGui();
     passTree = new PassBindings();
+#ifdef DYNAMIC_RENDERING
+    assert(false);
+#else
     defaultSceneDescriptorSets = new DefaultSceneDescriptorSets(device,allocator,*this);
-    DirLightUniform defaultLight = {.VLightDirection = glm::vec3(1.0f,-1.0f,1.0f), .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 0.2f};
+#endif
+    DirLightUniformValue defaultLight = {.VLightDirection = glm::vec3(1.0f,-1.0f,1.0f), .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 0.2f};
     defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame);
     defaultSceneDescriptorSets->UpdateDirectionalLight(defaultLight,currentFrame+1);
     DefaultShaders::InitializeDefaultPipelines(device,msaaFlags,renderPass,LoadedMaterials, *this, LoadedMaterialInstances);
@@ -1780,4 +1784,7 @@ void OsmiumGLInstance::recreateSwapChain() {
 
 void OsmiumGLInstance::UpdateDirectionalLightData(const glm::vec3 direction, const glm::vec3 color, const float intensity) const {
     defaultSceneDescriptorSets->UpdateDirectionalLight(direction,color,intensity, currentFrame);
+}
+
+void OsmiumGLInstance::UpdateDynamicPointLights(const std::span<PointLightPushConstants> resources) {
 }

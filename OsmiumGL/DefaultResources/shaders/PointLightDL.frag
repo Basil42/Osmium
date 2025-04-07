@@ -10,9 +10,9 @@ layout(set = 1,binding = 3)uniform UBO{
     vec2 depthRange;//min max
 };
 layout(push_constant)uniform PointLight {
+    float radius;//unfortunatly need it a second time for attenuation
     vec4 position;//probably simple to have in view space
     vec4 color;//alpha is intensity
-    float radius;//unfortunatly need it a second time for attenuation
 } Light;
 
 

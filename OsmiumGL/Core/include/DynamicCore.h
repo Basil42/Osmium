@@ -8,6 +8,7 @@
 #include <VkBootstrap.h>
 #include <string>
 #include <filesystem>
+#include <imgui.h>
 #include <mutex>
 #include <set>
 #include <span>
@@ -15,13 +16,17 @@
 
 #include "BlinnPhongVertex.h"
 #include "config.h"
+#include "DirectionalLight.h"
 #include "InitUtilVk.h"
+#include "MaterialData.h"
 #include "ResourceArray.h"
 #include "VertexDescriptor.h"
 #include "MeshData.h"
 #include "PointLights.h"
+#include "RenderedObject.h"
 #include "SyncUtils.h"
-struct CameraUniform;
+struct PassBindings;
+struct CameraUniformValue;
 struct PointLightPushConstants;
 class DefaultSceneDescriptorSets;
 enum DefaultVertexAttributeFlags : unsigned int;
@@ -31,16 +36,31 @@ class DeferredLightingPipeline;
 
 class OsmiumGLDynamicInstance {
     friend class DeferredLightingPipeline;
+    friend class DefaultSceneDescriptorSets;
     public:
 
-    void initialize(const std::string& appName);
-    void shutdown();
+    void Initialize(const std::string& appName);
+    void Shutdown();
+
+    void endImgGuiFrame();
+
+    void RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition);//I feel like I could get these syncing info there more elegantly
 
     //render data update functions
-    void UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50> &LightArray);
-    void UpdateCameraData(CameraUniform& data, float radianVFoV);//also updates point light uniforms if fov changes
+    void UpdateDynamicPointLights(const std::span<PointLightPushConstants> &LightArray);
+    void UpdateDirectionalLightData(glm::vec3 direction, glm::vec3 color, float intensity);
 
+    void UpdateCameraData(const glm::mat4 &updatedViewMatrix,float radianFoV);
+    void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
 
+    //material functions
+    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material) const;
+    [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
+    [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
+
+    //objhect management
+    bool AddRenderedObject(RenderedObject rendered_object) const;
+    void RemoveRenderedObject(RenderedObject rendered_object) const;
     //Mesh loading should probably take the deserialized struct directly
     MeshHandle LoadMesh(const std::filesystem::path& path);
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
@@ -48,6 +68,8 @@ class OsmiumGLDynamicInstance {
     void UnloadMesh(MeshHandle mesh, bool immediate);
 
     bool ShouldClose() const;
+
+    VkDescriptorSetLayout& GetPointLightSetLayout();
 
 private:
     vkb::Instance instance;//I'll have the api actually keep a forward decalred reference to the instance instead of making everything static
@@ -102,6 +124,8 @@ private:
 
     vkInitUtils::QueueFamilyIndices queueFamiliesIndices;
     VkFormat DepthFormat = VK_FORMAT_UNDEFINED;
+    ImDrawData * imgGuiDrawData;
+    DefaultSceneDescriptorSets * DefaultDescriptors;
 
 
     struct Attachment {
@@ -111,47 +135,25 @@ private:
         VkFormat format = VK_FORMAT_UNDEFINED;
     };
 
-
-    //the three struct are used to describe blinnphong shading with deffered light
-    //later I'll remove some sampler requirement and give the option to bind a compatible pipeline and descriptors on top like the non dynamic renderer
-    struct PassDefaults{
-        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-        VkPipeline pipeline = VK_NULL_HANDLE;
-        VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-    } scene_opaque_pass_defaults, scene_transparent_pass_defaults, composition_pass_default;
-
-    struct CameraUniform {
-        alignas(16) glm::mat4 view;
-        alignas(16) glm::mat4 projection;
-    };
-    struct {
-        VkDescriptorPool CameraDescriptorPool = VK_NULL_HANDLE;
-        VkDescriptorSetLayout CameraDescriptorLayout = VK_NULL_HANDLE;
-        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> CameraDescriptorSets {VK_NULL_HANDLE};
-        CameraUniform value;
-    } cameraInfo;
-
-    //point light uniform data
-    struct {
-        VkDescriptorPool pointLightDescriptorPool = VK_NULL_HANDLE;
-        VkDescriptorSetLayout pointLightDescriptorLayout = VK_NULL_HANDLE;
-        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> pointLightDescriptorSets {};
-        PointLightUniform value;
-    }pointLightInfo;
-
-    std::array<std::vector<PointLightPushConstants>,MAX_FRAMES_IN_FLIGHT> pointLightPushConstants;
     DeferredLightingPipeline* MainPipeline;
 
-    void RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition);//I feel like I could get these syncing info there more elegantly
+    std::array<std::vector<PointLightPushConstants>,MAX_FRAMES_IN_FLIGHT> pointLightPushConstants;
+    //old material system data
+    PassBindings*passTree = nullptr ;
+    std::mutex MaterialDataMutex;
+    ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
+    std::mutex MatInstanceMutex;
+    ResourceArray<MaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* LoadedMaterialInstances= new ResourceArray<MaterialInstanceData, MAX_LOADED_MATERIAL_INSTANCES>();
+
     void RecreateSwapChain();
 //setup functions
     void createAllocator();
     void setupImgui() const;
 
     //resource management functions
-    void CreateCameraDescriptorSet();
-    void CleanupCameraDescriptorSet();
+
+    //[[deprecated]] void CreateCameraDescriptorSet();
+    //[[deprecated]]void CleanupCameraDescriptorSet();
 
     void createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags, VkBuffer &vk_buffer, VmaAllocation &
                       vma_allocation,VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
@@ -189,8 +191,11 @@ private:
         VkImageLayout new_layout,
         const VkImageSubresourceRange &subresource_range);
     VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
+
+
     //interface to other utility classes
-    VkDescriptorSetLayout GetCameraDescriptorLayout();
+    VkDescriptorSetLayout GetCameraDescriptorLayout() const;
+    VkDescriptorSet GetCameraDescriptorSet(uint32_t currentFrame);
 //debug
     //GLFW related callbacks, maybe I could move all this in a separate class for cleaning up
     static void glfw_frameBufferResizedCallback(GLFWwindow *window, int width, int height);
