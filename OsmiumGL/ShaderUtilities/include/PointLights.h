@@ -4,6 +4,8 @@
 
 #ifndef POINTLIGHTS_H
 #define POINTLIGHTS_H
+#include <glm/glm.hpp>
+
 struct PointLightPushConstants {
     struct {
         alignas(16) glm::mat4 model;

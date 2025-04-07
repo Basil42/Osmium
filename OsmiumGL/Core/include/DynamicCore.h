@@ -19,6 +19,7 @@
 #include "ResourceArray.h"
 #include "VertexDescriptor.h"
 #include "MeshData.h"
+#include "PointLights.h"
 #include "SyncUtils.h"
 struct CameraUniform;
 struct PointLightPushConstants;
@@ -36,7 +37,7 @@ class OsmiumGLDynamicInstance {
     void shutdown();
 
     //render data update functions
-    void UpdatePointLightsData(std::span<PointLightPushConstants>& Data);
+    void UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50> &LightArray);
     void UpdateCameraData(CameraUniform& data, float radianVFoV);//also updates point light uniforms if fov changes
 
 
@@ -130,6 +131,16 @@ private:
         std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> CameraDescriptorSets {VK_NULL_HANDLE};
         CameraUniform value;
     } cameraInfo;
+
+    //point light uniform data
+    struct {
+        VkDescriptorPool pointLightDescriptorPool = VK_NULL_HANDLE;
+        VkDescriptorSetLayout pointLightDescriptorLayout = VK_NULL_HANDLE;
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> pointLightDescriptorSets {};
+        PointLightUniform value;
+    }pointLightInfo;
+
+    std::array<std::vector<PointLightPushConstants>,MAX_FRAMES_IN_FLIGHT> pointLightPushConstants;
     DeferredLightingPipeline* MainPipeline;
 
     void RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition);//I feel like I could get these syncing info there more elegantly

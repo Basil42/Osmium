@@ -20,6 +20,7 @@ private:
 public:
     virtual const std::string&  Name() = 0;
     virtual void Update() {};//used for a more classical loop based update
+    //all render updates should probably be static members
     virtual void RenderUpdate() {}
     [[nodiscard]] GameObject* GetGameObject() const {return parent;}
     [[nodiscard]] GOC_Handle GetObjectHandle() const {return handle;}

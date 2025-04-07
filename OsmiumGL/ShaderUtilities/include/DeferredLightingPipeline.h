@@ -32,6 +32,8 @@ private:
     struct {
         OsmiumGLDynamicInstance::Attachment NormalSpread, Diffuse, Specular,depthSencil;
     } attachments;
+
+
     OsmiumGLDynamicInstance * instance;
     void setupFrameBuffer();
     void CleanupFrameBuffer();

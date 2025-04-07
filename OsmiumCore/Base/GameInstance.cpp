@@ -15,6 +15,7 @@
 #include "../GOComponents/GOC_Transform.h"
 #include "../GOComponents/GOC_Camera.h"
 #include "ResourceArray.h"
+#include "GOComponents/GOC_PointLight.h"
 
 GameInstance* GameInstance::instance = nullptr;
 void GameInstance::GameLoop() {
@@ -62,10 +63,12 @@ void GameInstance::GameLoop() {
 
 void GameInstance::RenderDataUpdate() {
     if (mainCamera == nullptr) return;
+    //this is quite janky and annoying to extend
     mainCamera->RenderUpdate();
 
     directionLight->RenderUpdate();
     GOC_MeshRenderer::GORenderUpdate();
+    GOC_PointLight::GORenderUpdate();
 
 }
 

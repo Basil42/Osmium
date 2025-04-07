@@ -228,6 +228,11 @@ void OsmiumGLDynamicInstance::shutdown() {
     std::cout << "shutdown successful" << std::endl;
 }
 
+void OsmiumGLDynamicInstance::UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50>& LightArray) {
+    const unsigned int lightCount = LightArray.GetCount();
+    pointLightPushConstants[currentFrame].resize(lightCount);
+    memcpy(pointLightPushConstants[currentFrame].data(),LightArray.data(),lightCount*sizeof(PointLightPushConstants));
+}
 
 
 MeshHandle OsmiumGLDynamicInstance::LoadMesh(const std::filesystem::path &path) {

@@ -30,7 +30,7 @@ class  ResourceArray {
 
   T& operator[](unsigned int handle);
 
-  unsigned int GetCount() {
+  unsigned int GetCount() const{
     return resourceVector.size();
   }
   //enabling range loop on this struct
@@ -55,6 +55,8 @@ class  ResourceArray {
 
 
   unsigned int emplace_new(T*& newEntryPtr);
+
+  const void * data() const;
 };
 
 template<typename T, size_t MAX_Capacity>
@@ -147,5 +149,10 @@ unsigned int ResourceArray<T, MAX_Capacity>::emplace_new(T *&newEntryPtr) {//to 
   backingArray[newHandle] = resourceVector.size() -1;
   newEntryPtr = &resourceVector[backingArray[newHandle]];
   return newHandle;
+}
+
+template<typename T, size_t MAX_Capacity>
+const void * ResourceArray<T, MAX_Capacity>::data() const {
+  return resourceVector.data();
 }
 #endif //RESOURCEARRAY_H

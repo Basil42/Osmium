@@ -116,3 +116,7 @@ void OsmiumGL::TestDynamicRenderer(const std::string &str) {
 void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {
     instance->UpdateDirectionalLightData(direction,color,intensity);
 }
+
+void OsmiumGL::UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50> &pointLightData) {
+    instance->UpdateDynamicPointLights(pointLightData);
+}

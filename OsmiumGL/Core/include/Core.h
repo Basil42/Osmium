@@ -26,6 +26,7 @@
 #include "VkBootstrap.h"
 
 
+struct PointLightPushConstants;
 class DefaultSceneDescriptorSets;
 struct GLFWwindow;
 struct PassBindings;
@@ -67,6 +68,8 @@ public:
     void UpdateCameraData(const glm::mat4& viewMat, float radianVFOV) const;
 
     void UpdateDirectionalLightData(glm::vec3 direction, glm::vec3 color, float intensity) const;
+
+    void UpdateDynamicPointLights(const ResourceArray<PointLightPushConstants, 50> resources);
 
     static void StartFrame();
     void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;

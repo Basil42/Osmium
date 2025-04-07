@@ -14,10 +14,13 @@
 class GOC_PointLight : public GameObjectComponent{
     const std::string name = "PointLight";
 
+
     unsigned int lightHandle;
     static ResourceArray<PointLightPushConstants,50> constants;//let's say 50 for demo purposes
 public:
-    const std::string & Name() override { return name; };
+    const std::string & Name() override { return name; }
+
+    static void GORenderUpdate();;
 
     void Update() override;
 
