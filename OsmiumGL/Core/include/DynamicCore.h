@@ -46,6 +46,7 @@ class OsmiumGLDynamicInstance {
     void endImgGuiFrame();
 
     void RenderFrame(Sync::SyncBoolCondition &ImGuiFrameReadyCondition);//I feel like I could get these syncing info there more elegantly
+    void RenderFrame(const Sync::SyncBoolCondition &ImGuiFrameReadyCondition, const Sync::SyncBoolCondition &RenderUpdateCompleteCondition);//I feel like I could get these syncing info there more elegantly
 
     //render data update functions
     void UpdateDynamicPointLights(const std::span<PointLightPushConstants> &LightArray);
