@@ -65,7 +65,7 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(pare
     transform = parent->GetComponent<GOC_Transform>();
     mesh = -1;//empty by default
     material = OsmiumGL::GetDefaultMaterial();//OsmiumGL::GetBlinnPhongHandle();//maybe blinn phong by default
-    materialInstance = OsmiumGL::GetBlinnPhongDefaultInstance();
+    materialInstance = OsmiumGL::GetDefaultMaterialInstance(material);
     renderers.push_back(this);
 }
 

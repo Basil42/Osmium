@@ -10,11 +10,13 @@
 #include <GLFW/glfw3.h>
 
 #include <VkBootstrap.h>
+#define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 #include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
+#include <glm/ext/matrix_clip_space.hpp>
 
 #include "DefaultSceneDescriptorSets.h"
-#include "DefaultShaders.h"
 #include "DeferredLightingPipeline.h"
 #include "ErrorChecking.h"
 #include "InitUtilVk.h"
@@ -141,23 +143,19 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     if (DepthFormat == VK_FORMAT_UNDEFINED) {
         throw std::runtime_error("failed to find depth format");
     }
-    //sync, the sample project doesn't use one semaphore per swapchain image
-    VkSemaphoreCreateInfo semaphoreCreateInfo{
-    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-    };
-    check_vk_result(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.aquiredImageReady));
+    //sync, the sample project doesn't use one semaphore per swapchain image, because it has a single frame in flight at a time
+    semaphores.aquiredImageReady.resize(swapchainViews.size());
+    semaphores.renderComplete.resize(swapchainViews.size());
+    for (uint32_t i = 0; i < swapchainViews.size(); ++i) {
+        VkSemaphoreCreateInfo semaphoreCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            };
+        check_vk_result(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.aquiredImageReady[i]));
 
-    check_vk_result(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.renderComplete));
+        check_vk_result(vkCreateSemaphore(device,&semaphoreCreateInfo,nullptr,&semaphores.renderComplete[i]));
+    }
 
-    //that is probably not the actual best place to do this
-    constexpr VkPipelineStageFlags submitPipelineFlag = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    submitInfo = VkSubmitInfo{
-    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &semaphores.aquiredImageReady,
-    .pWaitDstStageMask = &submitPipelineFlag,
-    .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &semaphores.renderComplete};
+
 
     //draw command pool
     queueFamiliesIndices = vkInitUtils::findQueueFamilies(physicalDevice,surface);
@@ -183,7 +181,9 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     VkFenceCreateInfo fenceCreateInfo{
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
     .flags = VK_FENCE_CREATE_SIGNALED_BIT,};
+    pointLightPushConstants.resize(swapchainViews.size());
     drawFences.resize(drawCommandBuffers.size());
+
     for (auto& fence : drawFences) {
         check_vk_result(vkCreateFence(device,&fenceCreateInfo,nullptr,&fence));
     }
@@ -212,8 +212,11 @@ void OsmiumGLDynamicInstance::Shutdown() {
     //deallocate command buffer
     vkDestroyCommandPool(device,commandPools.draw,nullptr);
     vkDestroyCommandPool(device,commandPools.transient,nullptr);
-    vkDestroySemaphore(device,semaphores.renderComplete,nullptr);
-    vkDestroySemaphore(device,semaphores.aquiredImageReady,nullptr);
+    for (uint32_t i = 0; i < swapchainViews.size(); ++i) {
+        vkDestroySemaphore(device,semaphores.renderComplete[i],nullptr);
+        vkDestroySemaphore(device,semaphores.aquiredImageReady[i],nullptr);
+    }
+
 
     for (const auto fence : drawFences) {
         vkDestroyFence(device,fence,nullptr);
@@ -257,7 +260,7 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
 
     uint32_t imageIndex;
     //might want to have a fence to change swapchain more elegantly?
-    VkResult result = vkAcquireNextImageKHR(device,swapchain,UINT64_MAX,semaphores.aquiredImageReady,VK_NULL_HANDLE,&imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device,swapchain,UINT64_MAX,semaphores.aquiredImageReady[currentFrame],VK_NULL_HANDLE,&imageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         RecreateSwapChain();
     }
@@ -269,8 +272,7 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
 
     std::scoped_lock resourcesLock(meshDataMutex);//seems premature
     //recording command buffer here,
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &drawCommandBuffers[currentFrame];
+
 
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,};
@@ -305,31 +307,69 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
     imguiLock.lock();
     ImGuiFrameReadyCondition.cv.wait(imguiLock,[&ImGuiFrameReadyCondition](){return ImGuiFrameReadyCondition.boolean == false;});
     if (imgGuiDrawData != nullptr) {
+        VkRenderingAttachmentInfo colorAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchainViews[currentFrame],
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .resolveMode = VK_RESOLVE_MODE_NONE,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = {1.0f,0.0f,0.0f,1.0f}};
+        VkRenderingInfo imguiRenderInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea = {0,0,swapchain.extent.width,swapchain.extent.height},
+        .layerCount = 1,
+        .viewMask = 0,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorAttachmentInfo,
+        };
         //in the first version I had imgui as part of the pass
+        vkCmdBeginRendering(commandBuffer,&imguiRenderInfo);
         ImGui_ImplVulkan_RenderDrawData(imgGuiDrawData,commandBuffer);
+        vkCmdEndRendering(commandBuffer);
     }
     imguiLock.unlock();
+
+    //transitionning the colro attachement to a present layout
+    transitionImageLayoutCmd(commandBuffer,swapChainImage,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,subresourceRangeColor);
     check_vk_result(vkEndCommandBuffer(commandBuffer));
+    //that is probably not the actual best place to do this
+    constexpr VkPipelineStageFlags submitPipelineFlag = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    auto submitInfo = VkSubmitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &semaphores.aquiredImageReady[currentFrame],
+        .pWaitDstStageMask = &submitPipelineFlag,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &semaphores.renderComplete[currentFrame],};
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &drawCommandBuffers[currentFrame];
+
     //submit buffer
     vkQueueSubmit(queues.graphicsQueue,1,&submitInfo,drawFences[currentFrame]);
 
+
+    
     //present
     VkPresentInfoKHR presentInfo = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &semaphores.renderComplete,
+    .pWaitSemaphores = &semaphores.renderComplete[currentFrame],
     .swapchainCount = 1,
     .pSwapchains = &swapchain.swapchain,
     .pImageIndices = &imageIndex,
     .pResults = nullptr};
+
+
+    
     result = vkQueuePresentKHR(queues.presentQueue,&presentInfo);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         RecreateSwapChain();
     }
 
 
-
-    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    IMGUI_IMPL_API
+    currentFrame = (currentFrame + 1) % swapchainViews.size();
 
 }
 
@@ -375,7 +415,7 @@ void OsmiumGLDynamicInstance::SubmitPushDataBuffers(const std::map<RenderedObjec
         for (auto& binding : matInstanceBinding->meshes) {
             if (binding.MeshHandle == buffer.first.mesh) {
                 std::vector<std::byte>& destBuffer = binding.ObjectPushConstantData[currentFrame];
-                auto totalDataSize = binding.objectCount * getMaterialData(buffer.first.material).NormalPushConstantStride;
+                auto totalDataSize = binding.objectCount * getMaterialData(buffer.first.material).NormalPass.pushconstantStride;
                 assert(buffer.second.size() == totalDataSize);//checking the data is sized properly
                 binding.ObjectPushConstantData[currentFrame].clear();
                 binding.ObjectPushConstantData[currentFrame].insert(destBuffer.begin(),buffer.second.begin(),buffer.second.end());
@@ -603,7 +643,7 @@ void OsmiumGLDynamicInstance::setupImgui() const {
         .Queue = queues.graphicsQueue,
         .DescriptorPool = VK_NULL_HANDLE,
         .RenderPass = VK_NULL_HANDLE,
-        .MinImageCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+        .MinImageCount = static_cast<uint32_t>(swapchainViews.size()),
         .ImageCount = static_cast<uint32_t>(swapchain.image_count),
         .MSAASamples = msaaFlags,
         .PipelineCache = VK_NULL_HANDLE,
@@ -626,53 +666,6 @@ void OsmiumGLDynamicInstance::setupImgui() const {
 
 }
 
-// void OsmiumGLDynamicInstance::CreateCameraDescriptorSet() {
-//     VkDescriptorPoolSize poolSize = {
-//     .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-//     .descriptorCount = MAX_FRAMES_IN_FLIGHT,};
-//
-//     VkDescriptorPoolCreateInfo poolInfo= {
-//     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-//     .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
-//     .poolSizeCount = 1,
-//     .pPoolSizes = &poolSize};
-//     check_vk_result(vkCreateDescriptorPool(device,&poolInfo,nullptr,&cameraInfo.CameraDescriptorPool));
-//
-//     VkDescriptorSetLayoutBinding cameraBinding = {
-//     .binding = 0,
-//     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-//     .descriptorCount = 1,
-//     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,};
-//     VkDescriptorSetLayoutCreateInfo descriptorLayoutInfo = {
-//     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-//     .bindingCount = 1,
-//     .pBindings = &cameraBinding,
-//     };
-//     vkCreateDescriptorSetLayout(device,&descriptorLayoutInfo,nullptr,&cameraInfo.CameraDescriptorLayout);
-//
-//     std::array<VkDescriptorSetLayout,MAX_FRAMES_IN_FLIGHT> descriptorSetLayouts;
-//     for (uint32_t i = 0; i < swapchain.image_count; i++) {
-//         descriptorSetLayouts[i] = cameraInfo.CameraDescriptorLayout;
-//     }
-//     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
-//     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-//     .descriptorPool = cameraInfo.CameraDescriptorPool,
-//     .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
-//     .pSetLayouts = descriptorSetLayouts.data(),};
-//
-//     std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> sets;
-//     check_vk_result(vkAllocateDescriptorSets(device,&descriptorSetAllocateInfo,sets.data()));
-//
-//     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-//         cameraInfo.CameraDescriptorSets[i].Set = sets[i];
-//     }
-//
-// }
-
-// void OsmiumGLDynamicInstance::CleanupCameraDescriptorSet() {
-//     vkDestroyDescriptorSetLayout(device,cameraInfo.CameraDescriptorLayout,nullptr);
-//     vkDestroyDescriptorPool(device,cameraInfo.CameraDescriptorPool,nullptr);
-// }
 
 void OsmiumGLDynamicInstance::createBuffer(uint64_t bufferSize, VkBufferUsageFlags usageFlags,
                                            VkBuffer&vk_buffer, VmaAllocation&vma_allocation,
@@ -1022,6 +1015,10 @@ MaterialData OsmiumGLDynamicInstance::getMaterialData(MaterialHandle material_ha
 
 MaterialInstanceData OsmiumGLDynamicInstance::getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const {
     return LoadedMaterialInstances->get(mat_instance_handle);
+}
+
+MaterialHandle OsmiumGLDynamicInstance::GetDefaultMaterialHandle() {
+    return MainPipeline->GetMaterialHandle();
 }
 
 bool OsmiumGLDynamicInstance::AddRenderedObject(RenderedObject rendered_object) const {

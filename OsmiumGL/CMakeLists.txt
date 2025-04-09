@@ -6,10 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 
 
 set(OSMIUMGL_SOURCES
-        Core/src/Core.cpp
         Core/src/Descriptors.cpp
         API/src/OsmiumGL_API.cpp
-        ShaderUtilities/src/DefaultShaders.cpp
         API/src/RenderedObject.cpp
         Core/src/MaterialData.cpp
         ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
@@ -20,11 +18,9 @@ set(OSMIUMGL_SOURCES
 set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/DefaultVertex.h
         Core/include/Descriptors.h
-        Core/include/Core.h
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
         Core/include/PassBindings.h
-        ShaderUtilities/include/DefaultShaders.h
         ShaderUtilities/include/BlinnPhongVertex.h
         API/include/RenderedObject.h
         Core/include/MaterialData.h

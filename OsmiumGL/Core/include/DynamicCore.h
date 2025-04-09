@@ -14,10 +14,7 @@
 #include <span>
 #include <vk_mem_alloc.h>
 
-#include "BlinnPhongVertex.h"
 #include "config.h"
-#include "DeferredLightingPipeline.h"
-#include "DirectionalLight.h"
 #include "InitUtilVk.h"
 #include "MaterialData.h"
 #include "ResourceArray.h"
@@ -56,10 +53,10 @@ class OsmiumGLDynamicInstance {
     void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
 
     //material functions
-    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material) const;
+    [[nodiscard]] MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material) const;
     [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
     [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
-    void GetDefaultMaterialHandle();
+    MaterialHandle GetDefaultMaterialHandle();
 
     //objhect management
     bool AddRenderedObject(RenderedObject rendered_object) const;
@@ -96,14 +93,13 @@ private:
     std::unique_ptr<ResourceArray<MeshData,MAX_LOADED_MESHES>> LoadedMeshes = std::make_unique<ResourceArray<MeshData,MAX_LOADED_MESHES>>();
 
     struct {
-        VkSemaphore aquiredImageReady = VK_NULL_HANDLE;
-        VkSemaphore renderComplete = VK_NULL_HANDLE;
+        std::vector<VkSemaphore> aquiredImageReady = {};
+        std::vector<VkSemaphore> renderComplete = {};
     }semaphores;
-    std::vector<VkFence> drawFences;
+    std::vector<VkFence> drawFences = {};
     //condition to be signaled when a frame is completely done on the gpu, I should be able to use the fences for this
     std::condition_variable frameCompletionCV;
     uint32_t currentFrame = 0;
-    VkSubmitInfo submitInfo = {};
     struct {
         VkQueue graphicsQueue = VK_NULL_HANDLE;
         VkQueue presentQueue = VK_NULL_HANDLE;
@@ -143,7 +139,7 @@ private:
 
     DeferredLightingPipeline* MainPipeline;
 
-    std::array<std::vector<PointLightPushConstants>,MAX_FRAMES_IN_FLIGHT> pointLightPushConstants;
+    std::vector<std::vector<PointLightPushConstants>> pointLightPushConstants;
     //old material system data
     PassBindings*passTree = nullptr ;
     std::mutex MaterialDataMutex;

@@ -7,10 +7,6 @@
 #include <stdexcept>
 
 #include "BlinnPhongVertex.h"
-#include "BlinnPhongVertex.h"
-#include "BlinnPhongVertex.h"
-#include "BlinnPhongVertex.h"
-#include "Core.h"
 #include "ErrorChecking.h"
 #include "UniformBufferObject.h"
 
@@ -166,93 +162,6 @@ void DefaultSceneDescriptorSets::CreateDescriptorSets(VkDevice device, VmaAlloca
          vkUpdateDescriptorSets(device,static_cast<uint32_t>(descriptorWrites.size()),descriptorWrites.data(),0, nullptr);
     }
 }
-
-void DefaultSceneDescriptorSets::CreateDescriptorSets(const VkDevice _device,
-                                                      const VmaAllocator allocator,
-                                                      const OsmiumGLInstance &GLInstance,
-                                                      const VkDescriptorSetLayout &
-                                                      descriptor_set_layout,
-                                                      std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> &descriptor_sets,
-                                                      std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> &uniformBuffers,
-                                                      std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> &allocations,
-                                                      std::array<void*,MAX_FRAMES_IN_FLIGHT> &mappedSource,
-                                                      const size_t uniformSize
-) {
-    std::array<VkDescriptorSetLayout, MAX_FRAMES_IN_FLIGHT> descriptorSetLayouts = {descriptor_set_layout, descriptor_set_layout};
-    //sets (these should be global values and should not require to be rebouind during a frame
-    VkDescriptorSetAllocateInfo dirLightDescriptorSetAllocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = descriptorPool,
-        .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
-        .pSetLayouts = descriptorSetLayouts.data()
-    };
-    if (vkAllocateDescriptorSets(_device,&dirLightDescriptorSetAllocateInfo,descriptor_sets.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets for directional light!");
-    }
-    //buffers
-    for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++ ) {
-        const VkDeviceSize bufferSize = uniformSize;
-
-        GLInstance.createBuffer(bufferSize,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                VMA_MEMORY_USAGE_AUTO,
-                                uniformBuffers[i],
-                                allocations[i], VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-        //not very happy that I'd need it
-        auto result = vmaMapMemory(allocator,allocations[i],&mappedSource[i]);//I'm uncomfortable with the fact that I do not allocate memory to these void pointers, but mapping might make it safe
-        assert(result == VK_SUCCESS);
-
-    }
-    //writes, maybe object should do their own ?
-     for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++ ) {
-         VkDescriptorBufferInfo descriptorBufferInfo = {
-             .buffer = uniformBuffers[i],
-             .offset = 0,
-             .range = uniformSize};
-
-         std::array<VkWriteDescriptorSet, 1> descriptorWrites = {};
-         descriptorWrites[0] = {
-             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-             .dstSet = descriptor_sets[i],
-             .dstBinding = 0,
-             .dstArrayElement = 0,
-             .descriptorCount = 1,
-             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-             .pImageInfo = nullptr,
-             .pBufferInfo = &descriptorBufferInfo,
-             .pTexelBufferView = nullptr};
-         vkUpdateDescriptorSets(_device,static_cast<uint32_t>(descriptorWrites.size()),descriptorWrites.data(),0, nullptr);
-    }
-}
-#ifndef DYNAMIC_RENDERING
-DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(const VkDevice _device,const VmaAllocator allocator,OsmiumGLInstance &GLInstance) : device(_device){
-    CreateDefaultDescriptorPool(_device);
-    CreateDefaultDescriptorLayouts(_device);
-    Allocator = allocator;
-    //directional light
-    CreateDescriptorSets(_device, allocator, GLInstance,
-                         litDescriptorSetLayout,
-                         directionalLightDescriptorSets,
-                         directionalLightUniformBuffers,
-                         directionalLightAllocations,
-                         directionalLightBufferMappedSources,
-                         sizeof(DirLightUniformValue));
-
-
-
-    //camera
-    CreateDescriptorSets(_device, allocator, GLInstance,
-                         mainCameraDescriptorSetLayout,
-                         mainCameraViewMatrixDescriptorSets,
-                         mainCameraViewMatrixUniformBuffers,
-                         mainCameraViewMatrixAllocations,
-                         mainCameraViewMatrixMappedSource,
-                         sizeof(CameraUniformValue));
-
-    CreateGlobalPipelineLayout(_device);
-    CreateLitPipelineLayout(_device);
-}
-#endif
 DefaultSceneDescriptorSets::DefaultSceneDescriptorSets(VkDevice device, VmaAllocator allocator,
     OsmiumGLDynamicInstance &GLinstance) {
     this->device = device;
@@ -349,7 +258,7 @@ const VkDescriptorSet& DefaultSceneDescriptorSets::GetCameraDescriptorSet(uint32
     return CameraUniform.DescriptorSets[currentFrame];
 }
 
-const std::array<VkDescriptorSet, 2>& DefaultSceneDescriptorSets::GetCameraDescriptorSets() const {
+const std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT>& DefaultSceneDescriptorSets::GetCameraDescriptorSets() const {
     return CameraUniform.DescriptorSets;
 }
 

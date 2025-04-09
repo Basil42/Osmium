@@ -6,6 +6,7 @@
 #include <cassert>
 #include <fstream>
 #include <MeshSerialization.h>
+#define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 #include <crossguid/guid.hpp>
 #include <glm/vec2.hpp>

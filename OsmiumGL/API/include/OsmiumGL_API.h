@@ -45,7 +45,7 @@ namespace  OsmiumGL {
 
     MaterialHandle GetBlinnPhongHandle();
 
-    MatInstanceHandle GetBlinnPhongDefaultInstance();
+    MatInstanceHandle GetDefaultMaterialInstance();
 
 
 
@@ -95,6 +95,8 @@ namespace  OsmiumGL {
     void RenderFrame(Sync::SyncBoolCondition &imgui_update_sync);
 
     MaterialHandle GetDefaultMaterial();
+
+    MatInstanceHandle GetDefaultMaterialInstance(MaterialHandle material);
 };
 
 

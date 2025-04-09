@@ -6,10 +6,8 @@
 
 #include <mutex>
 #include <filesystem>
-#include <Core.h>
 
 #include "DefaultSceneDescriptorSets.h"
-#include "DefaultShaders.h"
 #include "DynamicCore.h"
 #include "../../../OsmiumCore/Base/config.h"
 #include "crossguid/guid.hpp"
@@ -43,14 +41,6 @@ void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,
 void OsmiumGL::Shutdown() {
     instance->Shutdown();
 
-}
-
-MaterialHandle OsmiumGL::GetBlinnPhongHandle() {
-    return DefaultShaders::GetBLinnPhongMaterialHandle();
-}
-
-MatInstanceHandle OsmiumGL::GetBlinnPhongDefaultInstance() {
-    return DefaultShaders::GetBLinnPhongDefaultMaterialInstanceHandle();
 }
 
 
@@ -131,7 +121,11 @@ void OsmiumGL::RenderFrame(Sync::SyncBoolCondition &imgui_update_sync) {
 }
 
 MaterialHandle OsmiumGL::GetDefaultMaterial() {
-    instance->GetDefaultMaterialHandle();
+    return instance->GetDefaultMaterialHandle();
+}
+
+MatInstanceHandle OsmiumGL::GetDefaultMaterialInstance(MaterialHandle material) {
+    return instance->GetLoadedMaterialDefaultInstance(material);
 }
 
 

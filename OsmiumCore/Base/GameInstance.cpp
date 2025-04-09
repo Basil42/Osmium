@@ -23,7 +23,8 @@ void GameInstance::GameLoop() {
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
         std::unique_lock<std::mutex> ImGuiLock(ImguiUpdateSync.mutex);
-        ImguiUpdateConditionVariable.wait(ImGuiLock, [this] { return ImguiUpdateSync.boolean == false; });
+        ImguiUpdateSync.cv.wait(ImGuiLock, [this] { return ImguiUpdateSync.boolean == false; });
+
 
         SimulationSync.boolean = false;//bool was previously "sim is over"
         std::unique_lock<std::mutex> SimulationLock(SimulationSync.mutex);
@@ -56,7 +57,7 @@ void GameInstance::GameLoop() {
 
         std::unique_lock<std::mutex> renderDataUpdateLock(renderDataMutex);
         renderDataUpdateConditionVariable.wait(renderDataUpdateLock, [this]() {return isRenderUpdateOver;});
-
+        isRenderUpdateOver = false;
 
     }
 }

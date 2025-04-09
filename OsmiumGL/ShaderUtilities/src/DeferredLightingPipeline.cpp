@@ -58,7 +58,7 @@ void DeferredLightingPipeline::RenderDeferredFrameCmd(VkCommandBuffer& commandBu
     }
     colorAttachmentsInfos[0].imageView = instance->GetCurrentSwapChainView();
     for (auto i = 1; i < 4; i++) {
-        colorAttachmentsInfos[i].imageView = attachmentVector[i].imageView;
+        colorAttachmentsInfos[i].imageView = attachmentVector[i-1].imageView;
     }
     VkRenderingAttachmentInfo depthAttachmentsInfo = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -108,7 +108,12 @@ void DeferredLightingPipeline::RenderDeferredFrameCmd(VkCommandBuffer& commandBu
     //I need to remember to transition the color attachement into a presentation layout at the end
     vkCmdEndRendering(commandBuffer);
 }
-void DeferredLightingPipeline::setupFrameBuffer() {
+
+MaterialHandle DeferredLightingPipeline::GetMaterialHandle() const {
+    return material;
+}
+
+void DeferredLightingPipeline::setupFrameBuffer() const {
     //input info for using these as uniforms for defered lights
     const VkImageLayout layout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
     std::vector<VkDescriptorImageInfo> descriptor_image_infos(3);

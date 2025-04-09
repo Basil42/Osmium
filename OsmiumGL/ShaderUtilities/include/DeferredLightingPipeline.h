@@ -10,6 +10,7 @@
 #include "DynamicCore.h"
 
 
+
 class DeferredLightingPipeline {
 public:
 
@@ -20,22 +21,24 @@ public:
 
   void RenderDeferredFrameCmd(VkCommandBuffer &commandBuffer, VkImage swapChainImage);
 
+  MaterialHandle GetMaterialHandle() const;
 
 private:
 
     struct {
         VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet;//normal doesn't have pass wide uniforms
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> descriptorSet{};//normal doesn't have pass wide uniforms
         VkPipelineLayout pipelineLayout= VK_NULL_HANDLE;
         VkPipeline pipeline= VK_NULL_HANDLE;
     }NormalSpreadPass, PointLightPass, ShadingPass;
     struct {
         OsmiumGLDynamicInstance::Attachment NormalSpread, Diffuse, Specular,depthSencil;
     } attachments;
-
+    MaterialHandle material;
+    //maybe keep the material data here ?
 
     OsmiumGLDynamicInstance * instance;
-    void setupFrameBuffer();
+    void setupFrameBuffer() const;
     void CleanupFrameBuffer();
 
     void createAttachments();

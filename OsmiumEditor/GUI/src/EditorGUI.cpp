@@ -99,7 +99,11 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
         startFrameLock.lock();
         ImguiNewFrameConditionVariable.wait(startFrameLock,[this, &isImguiNewFrameReady]() {return isImguiNewFrameReady;});
 
-
+        if (*SyncStruct->ImGuiShouldShutoff == true) {
+            isImguiNewFrameReady = false;
+            ImguiNewFrameConditionVariable.notify_all();
+            break;
+        }
         ImGuiIO io = ImGui::GetIO();
 
         CameraControls(io);
@@ -151,7 +155,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
                 OsmiumInstance->CreateNewGameObject(defaultObjectInfo,[](GameObject* gameObject) {
                     gameObject->Addcomponent<GOC_Transform>();
                     gameObject->Addcomponent<GOC_MeshRenderer>([](GOC_MeshRenderer* renderer) {
-                        renderer->SetMaterial(OsmiumGL::GetBlinnPhongHandle(),true);
+                        renderer->SetMaterial(OsmiumGL::GetDefaultMaterial(),true);
                         renderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/models/monkey.obj"));
                     });
                 });

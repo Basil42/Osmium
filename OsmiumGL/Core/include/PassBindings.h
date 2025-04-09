@@ -4,7 +4,6 @@
 
 #ifndef PASSTREE_H
 #define PASSTREE_H
-#include "Core.h"
 
 
 struct MeshBindings {
