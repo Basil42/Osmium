@@ -1011,7 +1011,7 @@ MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo &m
     .PointLightPass = material_create_info.PointLightPass,
     .ShadingPass = material_create_info.ShadingPass,};
     const MaterialInstanceData instanceData{
-    .NormalDescriptorSets = material_create_info.NormalInstanceSet,
+    .NormalDescriptorSets = material_create_info.DefaultNormalInstanceSet,
     .PointlightDescriptorSets = material_create_info.PointLightInstanceSet,
     .ShadingDescriptorSets = material_create_info.ShadingInstanceSet};
     //create default instance

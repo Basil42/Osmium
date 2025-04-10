@@ -97,6 +97,27 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
         vkUpdateDescriptorSets(instance->device,1,&AmbientLightWriteInfo,0,nullptr);
     }
     //instance base descriptor sets
+    //creating instance descriptorPool
+    constexpr unsigned int instancePoolSizeCount = 2;
+    std::array<VkDescriptorPoolSize, instancePoolSizeCount> instancePoolSizes = {};
+    //smoothness
+    instancePoolSizes[0] = {
+    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1};
+    //albedo and specular samplers
+    instancePoolSizes[1] = {
+    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 2};
+
+    VkDescriptorPoolCreateInfo instancePoolCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .maxSets = 5,
+    .poolSizeCount = instancePoolSizeCount,
+    .pPoolSizes = instancePoolSizes.data(),};
+    check_vk_result(vkCreateDescriptorPool(instance->device,&instancePoolCreateInfo,nullptr,&GlobalDescriptorPool));
+
+    //allocation will be for the defautl instance
+
 
     MaterialData materialData;//TODO create material data and load it
 
@@ -112,6 +133,17 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     .vertexAttributeCount = 3,
     .vertexAttributes = POSITION | TEXCOORD0 | NORMAL,
     .CustomVertexInputAttributes = 0};
+    for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        const VkDescriptorSetAllocateInfo allocationInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = instanceDescriptorPool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &NormalSpreadPass.descriptorSetLayout};
+        vkAllocateDescriptorSets(instance->device,&allocationInfo,materialCreateInfo.DefaultNormalInstanceSet[i].data());
+
+        materialCreateInfo.DefaultNormalInstanceSet[i];
+
+    }
     //creating the per instance descriptors
     //normal pass, smoothness map sampler
 

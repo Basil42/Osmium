@@ -34,6 +34,7 @@ private:
         OsmiumGLDynamicInstance::Attachment NormalSpread, Diffuse, Specular,depthSencil;
     } attachments;
     VkDescriptorPool GlobalDescriptorPool = VK_NULL_HANDLE;//used for descriptors shared by all instance of the material
+    VkDescriptorPool instanceDescriptorPool = VK_NULL_HANDLE;//used for descriptor that define material instances
     struct UniformBufferDescriptorSet {
         std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> sets;
         std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> buffers;
@@ -51,7 +52,7 @@ private:
     };
     UniformBufferDescriptorSet ClipSpaceDescriptorSets;
     UniformBufferDescriptorSet AmbientLightDescriptorSets;
-    VkDescriptorPool instanceDescriptorPool = VK_NULL_HANDLE;//used for descriptor that define material instances
+    SamplerDescriptorSet SmoothnessMapSamplerDescriptoirSets;
     MaterialHandle material;
     //maybe keep the material data here ?
 
