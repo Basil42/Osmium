@@ -55,30 +55,48 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     vkAllocateDescriptorSets(instance->device,&ClipDescriptorInfo,ClipSpaceDescriptorSets.sets.data());
     //buffer
     for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        instance->createBuffer(sizeof(PointLightUniformValue::ClipInfo),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,ClipSpaceDescriptorSets.buffers[i],ClipSpaceDescriptorSets.bufferAllocs[i]);
+        instance->createBuffer(sizeof(PointLightUniformValue),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,ClipSpaceDescriptorSets.buffers[i],ClipSpaceDescriptorSets.bufferAllocs[i]);
 
-        VkDescriptorBufferInfo bufferInfo{
+        VkDescriptorBufferInfo ClipbufferInfo{// I need to remember to use the same buffer here
         .buffer = ClipSpaceDescriptorSets.buffers[i],
         .offset = 0,
-        .range = sizeof(PointLightUniformValue::clipUniform)
+        .range = sizeof(PointLightUniformValue)
         };
         const VkWriteDescriptorSet ClipWriteInfo{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstSet = ClipSpaceDescriptorSets.sets[i],
             .dstBinding = 0,
-            .descriptorCount = 1,
+            .descriptorCount = 2,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pBufferInfo = &bufferInfo,
+            .pBufferInfo = &ClipbufferInfo,
         };
+
         vkUpdateDescriptorSets(instance->device,1,&ClipWriteInfo,0,nullptr);
     }
     //ambient light, assuming the attachement are managed down stream
     VkDescriptorSetAllocateInfo ambientLightDescAllocInfo {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
     .descriptorPool = GlobalDescriptorPool,
-    .descriptorSetCount = 1,
-    .pSetLayouts = &ShadingPass.descriptorSetLayout,};//almost certainly wrong
-    
+    .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    .pSetLayouts = &ShadingPass.descriptorSetLayout,};
+    vkAllocateDescriptorSets(instance->device,&ambientLightDescAllocInfo,AmbientLightDescriptorSets.sets.data());
+    //buffers
+    for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        instance->createBuffer(sizeof(glm::vec4),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,AmbientLightDescriptorSets.buffers[i],AmbientLightDescriptorSets.bufferAllocs[i]);
+        VkDescriptorBufferInfo AmbientLightBufferInfo{
+        .buffer = AmbientLightDescriptorSets.buffers[i],
+        .offset = 0,
+        .range = sizeof(glm::vec4)};
+        VkWriteDescriptorSet AmbientLightWriteInfo{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = AmbientLightDescriptorSets.sets[i],
+        .dstBinding = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = &AmbientLightBufferInfo,};
+        vkUpdateDescriptorSets(instance->device,1,&AmbientLightWriteInfo,0,nullptr);
+    }
+    //instance base descriptor sets
 
     MaterialData materialData;//TODO create material data and load it
 

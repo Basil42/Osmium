@@ -50,6 +50,7 @@ private:
         //might need something else here
     };
     UniformBufferDescriptorSet ClipSpaceDescriptorSets;
+    UniformBufferDescriptorSet AmbientLightDescriptorSets;
     VkDescriptorPool instanceDescriptorPool = VK_NULL_HANDLE;//used for descriptor that define material instances
     MaterialHandle material;
     //maybe keep the material data here ?
