@@ -14,14 +14,13 @@
 class DeferredLightingPipeline {
 public:
 
-  DeferredLightingPipeline(OsmiumGLDynamicInstance* instance, VkSampleCountFlagBits mssaFlags, VkFormat swapchainFormat);
 
+    DeferredLightingPipeline(OsmiumGLDynamicInstance* instance, VkSampleCountFlagBits mssaFlags, VkFormat swapchainFormat);
+    ~DeferredLightingPipeline();
 
-  ~DeferredLightingPipeline();
-
-  void RenderDeferredFrameCmd(VkCommandBuffer &commandBuffer, VkImage swapChainImage);
-
-  [[nodiscard]] MaterialHandle GetMaterialHandle() const;
+    void RenderDeferredFrameCmd(VkCommandBuffer &commandBuffer, VkImage swapChainImage);
+    void UpdateClipInfo(PointLightUniformValue value);
+    [[nodiscard]] MaterialHandle GetMaterialHandle() const;
 
 private:
 
@@ -36,29 +35,29 @@ private:
     } attachments;
     VkDescriptorPool GlobalDescriptorPool = VK_NULL_HANDLE;//used for descriptors shared by all instance of the material
     struct UniformBufferDescriptorSet {
-        VkDescriptorSet set;
-        VkBuffer buffer;
-        VmaAllocation bufferMemory;
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> sets;
+        std::array<VkBuffer,MAX_FRAMES_IN_FLIGHT> buffers;
+        std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> bufferAllocs;
     };
     struct AttachmentDescriptorSet {
-        VkDescriptorSet set;
-        VkImage image;//maybe attachment
-        VmaAllocation imageMemory;
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> sets;
+        std::array<VkImage,MAX_FRAMES_IN_FLIGHT> images;//maybe attachment
+        std::array<VmaAllocation,MAX_FRAMES_IN_FLIGHT> imageAllocs;
     };
     struct SamplerDescriptorSet {
-        VkDescriptorSet set;
-        VkSampler sampler;
+        std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> sets;
+        std::array<VkSampler,MAX_FRAMES_IN_FLIGHT> samplers;
         //might need something else here
     };
-    UniformBufferDescriptorSet ClipSpaceDescriptorSet;
+    UniformBufferDescriptorSet ClipSpaceDescriptorSets;
     VkDescriptorPool instanceDescriptorPool = VK_NULL_HANDLE;//used for descriptor that define material instances
     MaterialHandle material;
     //maybe keep the material data here ?
 
     OsmiumGLDynamicInstance * instance;
 
-  void setupFrameBuffer() const;
-    void CleanupFrameBuffer();
+    void setupFrameBuffer() const;
+    //void CleanupFrameBuffer();
 
     void createAttachments();
     void destroyAttachments();

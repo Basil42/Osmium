@@ -21,7 +21,6 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
         Core/include/PassBindings.h
-        ShaderUtilities/include/BlinnPhongVertex.h
         API/include/RenderedObject.h
         Core/include/MaterialData.h
         Core/include/config.h

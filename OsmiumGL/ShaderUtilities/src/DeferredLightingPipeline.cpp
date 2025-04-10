@@ -52,9 +52,33 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     .descriptorPool = GlobalDescriptorPool,
     .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
     .pSetLayouts = &PointLightPass.descriptorSetLayout};
-    vkAllocateDescriptorSets(instance->device,&ClipDescriptorInfo,&ClipSpaceDescriptorSet.set);
+    vkAllocateDescriptorSets(instance->device,&ClipDescriptorInfo,ClipSpaceDescriptorSets.sets.data());
     //buffer
-    //instance->createBuffer(sizeof(Cl))
+    for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        instance->createBuffer(sizeof(PointLightUniformValue::ClipInfo),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,ClipSpaceDescriptorSets.buffers[i],ClipSpaceDescriptorSets.bufferAllocs[i]);
+
+        VkDescriptorBufferInfo bufferInfo{
+        .buffer = ClipSpaceDescriptorSets.buffers[i],
+        .offset = 0,
+        .range = sizeof(PointLightUniformValue::clipUniform)
+        };
+        const VkWriteDescriptorSet ClipWriteInfo{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = ClipSpaceDescriptorSets.sets[i],
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pBufferInfo = &bufferInfo,
+        };
+        vkUpdateDescriptorSets(instance->device,1,&ClipWriteInfo,0,nullptr);
+    }
+    //ambient light, assuming the attachement are managed down stream
+    VkDescriptorSetAllocateInfo ambientLightDescAllocInfo {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = GlobalDescriptorPool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &ShadingPass.descriptorSetLayout,};//almost certainly wrong
+    
 
     MaterialData materialData;//TODO create material data and load it
 
@@ -73,11 +97,11 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     //creating the per instance descriptors
     //normal pass, smoothness map sampler
 
-    VkDescriptorSetAllocateInfo smoothnessSamplerallocInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = ,};
-    vkAllocateDescriptorSets(instance->device,&smoothnessSamplerallocInfo,materialCreateInfo.NormalInstanceSet.data());
-    material = instance->LoadMaterial(materialCreateInfo);
+    // VkDescriptorSetAllocateInfo smoothnessSamplerallocInfo{
+    //     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    //     .descriptorPool = ,};
+    // vkAllocateDescriptorSets(instance->device,&smoothnessSamplerallocInfo,materialCreateInfo.NormalInstanceSet.data());
+    // material = instance->LoadMaterial(materialCreateInfo);
 
 }
 
