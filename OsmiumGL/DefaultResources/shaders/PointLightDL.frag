@@ -2,13 +2,14 @@
 
 layout(location = 0)in vec3 inViewDir;
 layout(location = 1)in vec2 inUV;//might not need that with subpass input
-layout(input_attachment_index = 0,set = 1, binding = 1)uniform subpassInput depthBuffer;//wondering how ok is it to read from all these draw calls
-layout(input_attachment_index = 1,set = 1, binding = 2)uniform subpassInput normalAndSpreadBuffer;
 //could probably wrap this in a set
-layout(set = 1,binding = 3)uniform UBO{
+layout(set = 1,binding = 1)uniform UBO{
     mat4 ProjMat;
     vec2 depthRange;//min max
 };
+//might need to be a separate set
+layout(input_attachment_index = 0,set = 1, binding = 2)uniform subpassInput depthBuffer;//wondering how ok is it to read from all these draw calls
+layout(input_attachment_index = 1,set = 1, binding = 3)uniform subpassInput normalAndSpreadBuffer;
 layout(push_constant)uniform PointLight {
     layout(offset = 64)float radius;
     vec4 position;//view
