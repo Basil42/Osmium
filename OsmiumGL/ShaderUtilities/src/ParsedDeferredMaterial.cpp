@@ -37,7 +37,13 @@ ParsedDeferredMaterial::ParsedDeferredMaterial(std::span<std::filesystem::path> 
         std::vector<SpvReflectDescriptorSet*> vertexDescriptorSets(vertexStageDescriptorSetCount);
         result = spvReflectEnumerateDescriptorSets(&vertexModule,&vertexStageDescriptorSetCount,vertexDescriptorSets.data());
         assert(result == SPV_REFLECT_RESULT_SUCCESS);
-        std::vector<DescriptorSetLayoutData> vertexStageDescLayouts(vertexDescriptorSets.size(),DescriptorSetLayoutData{});
+        std::vector<DescriptorSetLayoutData> vertexStageDescLayouts(vertexDescriptorSets.size());
+        for (uint32_t i = 0; i < vertexDescriptorSets.size(); i++) {
+            const SpvReflectDescriptorSet& reflectedSet = *(vertexDescriptorSets[i]);
+            DescriptorSetLayoutData& layout = vertexStageDescLayouts[i];
+            layout.bindings.resize(vertexDescriptorSets.size());
+
+        }
 
 
         //pipeline layout
