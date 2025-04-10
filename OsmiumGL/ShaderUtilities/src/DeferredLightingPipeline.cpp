@@ -5,79 +5,97 @@
 #include "DeferredLightingPipeline.h"
 
 #include <array>
+#include <ShaderUtilities.h>
 #include <glm/mat4x4.hpp>
 
 #include "DynamicCore.h"
 #include "ErrorChecking.h"
 #include "../include/PointLights.h"
+#include "spirv_reflect.h"
 
 DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* instance, VkSampleCountFlagBits mssaFlags, VkFormat swapchainFormat) {
     this->instance = instance;
 
-    CreateDescriptorLayouts();
-    createAttachments();
-    createDepthResources();
-    CreatePipelines(instance->device, mssaFlags, swapchainFormat);
-    //createglobal descriptor pool
-    constexpr unsigned int PoolSizeCount = 4;
-    std::array<VkDescriptorPoolSize, PoolSizeCount> poolSizes = {};
-    //Clip space info for light pass
-    poolSizes[0] = {
-    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
-    //depth and normal spread,diffuse and specular  attachment, not sure that's how I use it
-    poolSizes[1] = {
-    .type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 4};
-    //position reconstruction data
-    poolSizes[2] = {
-    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
-    //ambientLight uniform
-    poolSizes[3] = {
-    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+    //get reflection info from shader files
+    std::vector<char> normalPassSprvCode = ShaderUtils::readfile("../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDL.vert.spv");
+    SpvReflectShaderModule normalPassVertexModule;
+    SpvReflectResult result = spvReflectCreateShaderModule(normalPassSprvCode.size(),normalPassSprvCode.data(),&normalPassVertexModule);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+    //input variable
+    uint32_t variableCount = 0;
+    result = spvReflectEnumerateInputVariables(&normalPassVertexModule,&variableCount, nullptr);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-    VkDescriptorPoolCreateInfo PoolInfo;
-    PoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    PoolInfo.poolSizeCount = PoolSizeCount;
-    PoolInfo.pPoolSizes = poolSizes.data();
-    PoolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    check_vk_result(vkCreateDescriptorPool(instance->device,&PoolInfo, nullptr,&GlobalDescriptorPool));
-    //create global descriptor sets
-    //none for normal pass
-    //clip space info
-    VkDescriptorSetAllocateInfo ClipDescriptorInfo{
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .descriptorPool = GlobalDescriptorPool,
-    .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
-    .pSetLayouts = &PointLightPass.descriptorSetLayout};
-    vkAllocateDescriptorSets(instance->device,&ClipDescriptorInfo,&ClipSpaceDescriptorSet.set);
-    //buffer
-    //instance->createBuffer(sizeof(Cl))
+    std::vector<SpvReflectInterfaceVariable*> inputVariables(variableCount);
+    result = spvReflectEnumerateInputVariables(&normalPassVertexModule,&variableCount,inputVariables.data());
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-    MaterialData materialData;//TODO create material data and load it
 
-    MaterialInstanceData materialInstanceData;
-    //1x1 default texture instance for normal pass
-    //setupFrameBuffer();
-    MaterialCreateInfo materialCreateInfo;
-    materialCreateInfo.NormalPass = {
-    .pipeline = NormalSpreadPass.pipeline,
-    .pipelineLayout = NormalSpreadPass.pipelineLayout,
-    .descriptorSetLayout = NormalSpreadPass.descriptorSetLayout,
-    .pushconstantStride = sizeof(glm::mat4),
-    .vertexAttributeCount = 3,
-    .vertexAttributes = POSITION | TEXCOORD0 | NORMAL,
-    .CustomVertexInputAttributes = 0};
-    //creating the per instance descriptors
-    //normal pass, smoothness map sampler
 
-    VkDescriptorSetAllocateInfo smoothnessSamplerallocInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = ,};
-    vkAllocateDescriptorSets(instance->device,&smoothnessSamplerallocInfo,materialCreateInfo.NormalInstanceSet.data());
-    material = instance->LoadMaterial(materialCreateInfo);
+    // CreateDescriptorLayouts();
+    // createAttachments();
+    // createDepthResources();
+    // CreatePipelines(instance->device, mssaFlags, swapchainFormat);
+    // //createglobal descriptor pool
+    // constexpr unsigned int PoolSizeCount = 4;
+    // std::array<VkDescriptorPoolSize, PoolSizeCount> poolSizes = {};
+    // //Clip space info for light pass
+    // poolSizes[0] = {
+    // .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    // .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+    // //depth and normal spread,diffuse and specular  attachment, not sure that's how I use it
+    // poolSizes[1] = {
+    // .type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+    // .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 4};
+    // //position reconstruction data
+    // poolSizes[2] = {
+    // .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    // .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+    // //ambientLight uniform
+    // poolSizes[3] = {
+    // .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    // .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+    //
+    // VkDescriptorPoolCreateInfo PoolInfo;
+    // PoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    // PoolInfo.poolSizeCount = PoolSizeCount;
+    // PoolInfo.pPoolSizes = poolSizes.data();
+    // PoolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    // check_vk_result(vkCreateDescriptorPool(instance->device,&PoolInfo, nullptr,&GlobalDescriptorPool));
+    // //create global descriptor sets
+    // //none for normal pass
+    // //clip space info
+    // VkDescriptorSetAllocateInfo ClipDescriptorInfo{
+    // .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    // .descriptorPool = GlobalDescriptorPool,
+    // .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    // .pSetLayouts = &PointLightPass.descriptorSetLayout};
+    // vkAllocateDescriptorSets(instance->device,&ClipDescriptorInfo,&ClipSpaceDescriptorSet.set);
+    // //buffer
+    // //instance->createBuffer(sizeof(Cl))
+    //
+    // MaterialData materialData;//TODO create material data and load it
+    //
+    // MaterialInstanceData materialInstanceData;
+    // //1x1 default texture instance for normal pass
+    // //setupFrameBuffer();
+    // MaterialCreateInfo materialCreateInfo;
+    // materialCreateInfo.NormalPass = {
+    // .pipeline = NormalSpreadPass.pipeline,
+    // .pipelineLayout = NormalSpreadPass.pipelineLayout,
+    // .descriptorSetLayout = NormalSpreadPass.descriptorSetLayout,
+    // .pushconstantStride = sizeof(glm::mat4),
+    // .vertexAttributeCount = 3,
+    // .vertexAttributes = POSITION | TEXCOORD0 | NORMAL,
+    // .CustomVertexInputAttributes = 0};
+    // //creating the per instance descriptors
+    // //normal pass, smoothness map sampler
+    //
+    // VkDescriptorSetAllocateInfo smoothnessSamplerallocInfo{
+    //     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    //     .descriptorPool = ,};
+    // vkAllocateDescriptorSets(instance->device,&smoothnessSamplerallocInfo,materialCreateInfo.NormalInstanceSet.data());
+    // material = instance->LoadMaterial(materialCreateInfo);
 
 }
 
