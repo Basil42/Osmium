@@ -13,6 +13,9 @@ set(OSMIUMGL_SOURCES
         ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
         Core/src/DynamicCore.cpp
         ShaderUtilities/src/DeferredLightingPipeline.cpp
+        ShaderUtilities/src/MainPipeline.cpp
+        ShaderUtilities/src/spirv_reflect.c
+        ShaderUtilities/src/spirv_reflect.cpp
 )
 #this is here for the IDE
 set(OSMIUMGL_EXECUTABLE_HEADERS
@@ -33,6 +36,11 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         DebugUtils/ErrorChecking.h
         ShaderUtilities/include/PointLights.h
         ShaderUtilities/include/DirectionalLight.h
+        ShaderUtilities/include/MainPipeline.h
+        ShaderUtilities/include/spirv.h
+        ShaderUtilities/include/spirv_reflect.h
+        Common/include/Texture.h
+
 )
 add_library(OsmiumGL STATIC
         ${OSMIUMGL_EXECUTABLE_HEADERS}

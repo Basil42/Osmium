@@ -740,9 +740,9 @@ void OsmiumGLDynamicInstance::createImage(uint32_t Width, uint32_t Height, uint3
     }
 }
 
-VkImageView OsmiumGLDynamicInstance::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
-    uint32_t mipLevels) const {
-    VkImageViewCreateInfo viewInfo{
+VkImageView OsmiumGLDynamicInstance::createImageView(const VkImage image, const VkFormat format, const VkImageAspectFlags aspectFlags,
+    const uint32_t mipLevels) const {
+    const VkImageViewCreateInfo viewInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -758,6 +758,33 @@ VkImageView OsmiumGLDynamicInstance::createImageView(VkImage image, VkFormat for
         throw std::runtime_error("failed to create image view");
     }
     return imageView;
+}
+
+void OsmiumGLDynamicInstance::CreateSampler(VkSampler&sampler,float texWidth,float texHeight) {
+    VkPhysicalDeviceProperties &prop = physicalDevice.properties;
+    VkSamplerCreateInfo samplerCreateInfo = {
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .mipLodBias = 0.0f,
+    .anisotropyEnable = VK_TRUE,
+    .maxAnisotropy = prop.limits.maxSamplerAnisotropy,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_ALWAYS,
+    .minLod = 0.0f,
+    .maxLod = std::floor(std::log2(std::max(texWidth, texHeight))) + 1.0f,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE};
+    check_vk_result(vkCreateSampler(device,&samplerCreateInfo,nullptr,&sampler));
+}
+
+void OsmiumGLDynamicInstance::destroySampler(VkSampler& sampler) const {
+    vkDestroySampler(device,sampler,nullptr);
+    sampler = VK_NULL_HANDLE;
 }
 
 
@@ -1004,20 +1031,7 @@ VkPipelineShaderStageCreateInfo OsmiumGLDynamicInstance::loadShader(const std::s
     assert(shaderStageInfo.module != VK_NULL_HANDLE);
     return shaderStageInfo;
 }
-//doesn't really do any loading currently as everything needs to be preprocessed, I'd probably use data from a reflection system here
-MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo &material_create_info) {
-    MaterialData material_data{
-    .NormalPass = material_create_info.NormalPass,
-    .PointLightPass = material_create_info.PointLightPass,
-    .ShadingPass = material_create_info.ShadingPass,};
-    const MaterialInstanceData instanceData{
-    .NormalDescriptorSets = material_create_info.DefaultNormalInstanceSet,
-    .PointlightDescriptorSets = material_create_info.PointLightInstanceSet,
-    .ShadingDescriptorSets = material_create_info.ShadingInstanceSet};
-    //create default instance
-    material_data.instances.push_back(LoadedMaterialInstances->Add(instanceData));
-    return LoadedMaterials->Add(material_data);
-}
+
 
 MatInstanceHandle OsmiumGLDynamicInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) const {
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed

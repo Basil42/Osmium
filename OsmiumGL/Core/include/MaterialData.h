@@ -19,7 +19,9 @@ struct MaterialInstanceData {
 struct PassData{
   VkPipeline pipeline = VK_NULL_HANDLE;
   VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-  VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+  VkDescriptorSetLayout globalDescriptorSetLayout = VK_NULL_HANDLE;
+  std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> globalDescriptorSets;
+  VkDescriptorSetLayout instanceDescriptorSetLayout = VK_NULL_HANDLE;
   uint32_t pushconstantStride = 0;
   uint32_t vertexAttributeCount = 0;
   DefaultVertexAttributeFlags vertexAttributes = NONE;
@@ -44,7 +46,8 @@ struct MaterialData {
 
 struct MaterialCreateInfo{
   PassData NormalPass,PointLightPass,ShadingPass;
-  std::array<std::vector<VkDescriptorSet>,MAX_FRAMES_IN_FLIGHT> DefaultNormalInstanceSet,PointLightInstanceSet,ShadingInstanceSet;
 };
-
+struct MaterialInstanceCreateInfo {
+  std::span<VkDescriptorSet> NormalSets,PointlightSets,ShadingSets;
+};
 #endif //MATERIALDATA_H

@@ -31,10 +31,12 @@ enum DefaultVertexAttributeFlags : unsigned int;
 typedef unsigned long MeshHandle;
 class GLFWwindow;
 class DeferredLightingPipeline;
+class MainPipeline;
 
 class OsmiumGLDynamicInstance {
     friend class DeferredLightingPipeline;
     friend class DefaultSceneDescriptorSets;
+    friend class MainPipeline;
     public:
 
     void Initialize(const std::string& appName);
@@ -165,6 +167,9 @@ private:
                      tiling, VkImageUsageFlags usage, VkImage
                      &image, VmaAllocation &imageAllocation) const;
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
+    void CreateSampler(VkSampler &sampler, float texWidth, float texHeight);
+
+    void destroySampler(VkSampler &sampler) const;
 
     void createAttachment(VkFormat format, VkImageUsageFlags usage, OsmiumGLDynamicInstance::Attachment &attachment, VkFence &fence, VkCommandBuffer
                           &command_buffer);
@@ -193,7 +198,8 @@ private:
         VkImageLayout new_layout,
         const VkImageSubresourceRange &subresource_range);
     VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
-    MaterialHandle LoadMaterial(const MaterialCreateInfo & material_create_info);
+    MaterialHandle LoadMaterial(const MaterialCreateInfo* material_create_info,MaterialInstanceCreateInfo* defaultInstanceCreateinfo,MatInstanceHandle* defaultInstance);//also load a default instance
+    MatInstanceHandle LoadMaterialInstance(MaterialHandle material_handle, MaterialInstanceCreateInfo * material_instance_create_info);
 
 
     //interface to other utility classes

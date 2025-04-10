@@ -114,12 +114,12 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     .maxSets = 5,
     .poolSizeCount = instancePoolSizeCount,
     .pPoolSizes = instancePoolSizes.data(),};
-    check_vk_result(vkCreateDescriptorPool(instance->device,&instancePoolCreateInfo,nullptr,&GlobalDescriptorPool));
+    check_vk_result(vkCreateDescriptorPool(instance->device,&instancePoolCreateInfo,nullptr,&instanceDescriptorPool));
 
     //allocation will be for the defautl instance
 
 
-    MaterialData materialData;//TODO create material data and load it
+    MaterialData materialData{};//TODO create material data and load it
 
     MaterialInstanceData materialInstanceData;
     //1x1 default texture instance for normal pass
@@ -128,7 +128,7 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     materialCreateInfo.NormalPass = {
     .pipeline = NormalSpreadPass.pipeline,
     .pipelineLayout = NormalSpreadPass.pipelineLayout,
-    .descriptorSetLayout = NormalSpreadPass.descriptorSetLayout,
+    .globalDescriptorSetLayout = NormalSpreadPass.descriptorSetLayout,
     .pushconstantStride = sizeof(glm::mat4),
     .vertexAttributeCount = 3,
     .vertexAttributes = POSITION | TEXCOORD0 | NORMAL,
@@ -139,11 +139,20 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
         .descriptorPool = instanceDescriptorPool,
         .descriptorSetCount = 1,
         .pSetLayouts = &NormalSpreadPass.descriptorSetLayout};
-        vkAllocateDescriptorSets(instance->device,&allocationInfo,materialCreateInfo.DefaultNormalInstanceSet[i].data());
-
-        materialCreateInfo.DefaultNormalInstanceSet[i];
+        //vkAllocateDescriptorSets(instance->device,&allocationInfo,materialCreateInfo.DefaultNormalInstanceSet[i].data());
 
     }
+    materialCreateInfo.PointLightPass = {
+
+        .pipeline = PointLightPass.pipeline,
+        .pipelineLayout = PointLightPass.pipelineLayout,
+        .globalDescriptorSetLayout = PointLightPass.descriptorSetLayout,
+        .pushconstantStride = sizeof(PointLightPushConstants),
+        .vertexAttributeCount = 1,
+        .vertexAttributes = POSITION,
+        .CustomVertexInputAttributes = 0
+    };
+
     //creating the per instance descriptors
     //normal pass, smoothness map sampler
 

@@ -10,8 +10,8 @@ layout(input_attachment_index = 0,set = 1, binding = 1)uniform subpassInput Norm
 layout(input_attachment_index = 1,set = 1, binding = 2)uniform subpassInput DiffuseBuffer;
 layout(input_attachment_index = 2,set = 1, binding = 3)uniform subpassInput SpecularBuffer;
 
-layout(set = 1, binding = 4)uniform sampler2D alebedoMap;
-layout(set = 1, binding = 5)uniform sampler2D specularMap;
+layout(set = 2, binding = 0)uniform sampler2D alebedoMap;
+layout(set = 2, binding = 1)uniform sampler2D specularMap;
 
 layout(location = 0)out vec4 outColor;
 void main() {
