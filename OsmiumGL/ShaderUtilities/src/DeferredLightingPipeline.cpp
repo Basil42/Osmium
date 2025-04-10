@@ -14,18 +14,71 @@
 DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* instance, VkSampleCountFlagBits mssaFlags, VkFormat swapchainFormat) {
     this->instance = instance;
 
-    CreateDescriptors();
+    CreateDescriptorLayouts();
     createAttachments();
     createDepthResources();
     CreatePipelines(instance->device, mssaFlags, swapchainFormat);
+    //createglobal descriptor pool
+    constexpr unsigned int PoolSizeCount = 4;
+    std::array<VkDescriptorPoolSize, PoolSizeCount> poolSizes = {};
+    //Clip space info for light pass
+    poolSizes[0] = {
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+    //depth and normal spread,diffuse and specular  attachment, not sure that's how I use it
+    poolSizes[1] = {
+    .type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 4};
+    //position reconstruction data
+    poolSizes[2] = {
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+    //ambientLight uniform
+    poolSizes[3] = {
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT)};
+
+    VkDescriptorPoolCreateInfo PoolInfo;
+    PoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    PoolInfo.poolSizeCount = PoolSizeCount;
+    PoolInfo.pPoolSizes = poolSizes.data();
+    PoolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    check_vk_result(vkCreateDescriptorPool(instance->device,&PoolInfo, nullptr,&GlobalDescriptorPool));
     //create global descriptor sets
     //none for normal pass
+    //clip space info
+    VkDescriptorSetAllocateInfo ClipDescriptorInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = GlobalDescriptorPool,
+    .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    .pSetLayouts = &PointLightPass.descriptorSetLayout};
+    vkAllocateDescriptorSets(instance->device,&ClipDescriptorInfo,&ClipSpaceDescriptorSet.set);
+    //buffer
+    //instance->createBuffer(sizeof(Cl))
 
     MaterialData materialData;//TODO create material data and load it
 
     MaterialInstanceData materialInstanceData;
     //1x1 default texture instance for normal pass
     //setupFrameBuffer();
+    MaterialCreateInfo materialCreateInfo;
+    materialCreateInfo.NormalPass = {
+    .pipeline = NormalSpreadPass.pipeline,
+    .pipelineLayout = NormalSpreadPass.pipelineLayout,
+    .descriptorSetLayout = NormalSpreadPass.descriptorSetLayout,
+    .pushconstantStride = sizeof(glm::mat4),
+    .vertexAttributeCount = 3,
+    .vertexAttributes = POSITION | TEXCOORD0 | NORMAL,
+    .CustomVertexInputAttributes = 0};
+    //creating the per instance descriptors
+    //normal pass, smoothness map sampler
+
+    VkDescriptorSetAllocateInfo smoothnessSamplerallocInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = ,};
+    vkAllocateDescriptorSets(instance->device,&smoothnessSamplerallocInfo,materialCreateInfo.NormalInstanceSet.data());
+    material = instance->LoadMaterial(materialCreateInfo);
+
 }
 
 DeferredLightingPipeline::~DeferredLightingPipeline() {
@@ -112,7 +165,7 @@ void DeferredLightingPipeline::RenderDeferredFrameCmd(VkCommandBuffer& commandBu
 MaterialHandle DeferredLightingPipeline::GetMaterialHandle() const {
     return material;
 }
-
+//not used, probably can be reconverted to update the descriptors
 void DeferredLightingPipeline::setupFrameBuffer() const {
     //input info for using these as uniforms for defered lights
     const VkImageLayout layout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
@@ -207,7 +260,7 @@ void DeferredLightingPipeline::createDepthResources() {
 
     instance->endSingleTimeCommands(cmdBuffer,instance->queues.graphicsQueue);
 }
-void DeferredLightingPipeline::CreateDescriptors() {
+void DeferredLightingPipeline::CreateDescriptorLayouts() {
 
 
     //camera uniform is a separate layout
@@ -231,6 +284,30 @@ void DeferredLightingPipeline::CreateDescriptors() {
     check_vk_result(vkCreateDescriptorSetLayout(instance->device,&normalPassDescriptorLayoutInfo,nullptr,&NormalSpreadPass.descriptorSetLayout));
 
     //Point light pass
+    VkDescriptorSetLayoutBinding clipInfoBinding = {
+    .binding = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,};
+
+    VkDescriptorSetLayoutBinding depthandnormalSpreadBinding = {
+    .binding = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+    .descriptorCount = 2,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,};
+    VkDescriptorSetLayoutBinding ReconstructBinding = {
+    .binding = 3,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,};
+
+    std::array pointLightBidings {clipInfoBinding,depthandnormalSpreadBinding,ReconstructBinding};
+    VkDescriptorSetLayoutCreateInfo pointLightDescriptorSetLayoutInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = pointLightBidings.size(),
+        .pBindings = pointLightBidings.data()};
+    assert(PointLightPass.descriptorSetLayout == VK_NULL_HANDLE);
+    check_vk_result(vkCreateDescriptorSetLayout(instance->device,&pointLightDescriptorSetLayoutInfo,nullptr,&PointLightPass.descriptorSetLayout));
 
 
     //Shading layout

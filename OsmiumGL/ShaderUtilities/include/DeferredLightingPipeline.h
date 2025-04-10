@@ -21,7 +21,7 @@ public:
 
   void RenderDeferredFrameCmd(VkCommandBuffer &commandBuffer, VkImage swapChainImage);
 
-  MaterialHandle GetMaterialHandle() const;
+  [[nodiscard]] MaterialHandle GetMaterialHandle() const;
 
 private:
 
@@ -34,11 +34,30 @@ private:
     struct {
         OsmiumGLDynamicInstance::Attachment NormalSpread, Diffuse, Specular,depthSencil;
     } attachments;
+    VkDescriptorPool GlobalDescriptorPool = VK_NULL_HANDLE;//used for descriptors shared by all instance of the material
+    struct UniformBufferDescriptorSet {
+        VkDescriptorSet set;
+        VkBuffer buffer;
+        VmaAllocation bufferMemory;
+    };
+    struct AttachmentDescriptorSet {
+        VkDescriptorSet set;
+        VkImage image;//maybe attachment
+        VmaAllocation imageMemory;
+    };
+    struct SamplerDescriptorSet {
+        VkDescriptorSet set;
+        VkSampler sampler;
+        //might need something else here
+    };
+    UniformBufferDescriptorSet ClipSpaceDescriptorSet;
+    VkDescriptorPool instanceDescriptorPool = VK_NULL_HANDLE;//used for descriptor that define material instances
     MaterialHandle material;
     //maybe keep the material data here ?
 
     OsmiumGLDynamicInstance * instance;
-    void setupFrameBuffer() const;
+
+  void setupFrameBuffer() const;
     void CleanupFrameBuffer();
 
     void createAttachments();
@@ -48,7 +67,7 @@ private:
     void createDepthResources();
 
 
-    void CreateDescriptors();
+    void CreateDescriptorLayouts();
     void CleanupDescriptors();
 
     void CreatePipelines(VkDevice device, VkSampleCountFlagBits mssaFlags, VkFormat swapchainFormat);

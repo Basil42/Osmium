@@ -193,6 +193,7 @@ private:
         VkImageLayout new_layout,
         const VkImageSubresourceRange &subresource_range);
     VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
+    MaterialHandle LoadMaterial(const MaterialCreateInfo & material_create_info);
 
 
     //interface to other utility classes

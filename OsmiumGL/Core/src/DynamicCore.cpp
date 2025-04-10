@@ -1004,6 +1004,20 @@ VkPipelineShaderStageCreateInfo OsmiumGLDynamicInstance::loadShader(const std::s
     assert(shaderStageInfo.module != VK_NULL_HANDLE);
     return shaderStageInfo;
 }
+//doesn't really do any loading currently as everything needs to be preprocessed, I'd probably use data from a reflection system here
+MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo &material_create_info) {
+    MaterialData material_data{
+    .NormalPass = material_create_info.NormalPass,
+    .PointLightPass = material_create_info.PointLightPass,
+    .ShadingPass = material_create_info.ShadingPass,};
+    const MaterialInstanceData instanceData{
+    .NormalDescriptorSets = material_create_info.NormalInstanceSet,
+    .PointlightDescriptorSets = material_create_info.PointLightInstanceSet,
+    .ShadingDescriptorSets = material_create_info.ShadingInstanceSet};
+    //create default instance
+    material_data.instances.push_back(LoadedMaterialInstances->Add(instanceData));
+    return LoadedMaterials->Add(material_data);
+}
 
 MatInstanceHandle OsmiumGLDynamicInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) const {
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
