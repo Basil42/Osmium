@@ -8,7 +8,7 @@
 #include "ErrorChecking.h"
 
 void MainPipeline::CreateNormalPassDescriptorLayouts() {
-    //camera would be the global set but it is managed by the instance
+    //camera would be the global set, but it is managed by the instance
     VkDescriptorSetLayoutBinding smoothnessSampler = {
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -48,14 +48,20 @@ void MainPipeline::CreatePointLightDecriptorLayouts() {
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     };
 
-    VkDescriptorSetLayoutBinding depthandnormalSpreadBinding = {
-        .binding = 2, //and 3
+    VkDescriptorSetLayoutBinding depthBinding = {
+        .binding = 2,
         .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        .descriptorCount = 2,
+        .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     };
+    VkDescriptorSetLayoutBinding NormalSpreadBinding = {
+    .binding = 3,
+    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    };
 
-    std::array pointLightBidings{clipInfoBinding, ReconstructBinding, depthandnormalSpreadBinding};
+    std::array pointLightBidings{clipInfoBinding, ReconstructBinding, depthBinding, NormalSpreadBinding};
     VkDescriptorSetLayoutCreateInfo pointLightDescriptorSetLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = pointLightBidings.size(),
@@ -510,7 +516,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     vkDestroyShaderModule(device, shaderStages[1].module,VK_NULL_HANDLE);
 }
 
-void MainPipeline::DestroyPipelines() {
+void MainPipeline::DestroyPipelines() const {
     vkDestroyPipeline(device, NormalSpreadPass.pipeline,VK_NULL_HANDLE);
     vkDestroyPipeline(device, PointLightPass.pipeline,VK_NULL_HANDLE);
     vkDestroyPipeline(device, ShadingPass.pipeline,VK_NULL_HANDLE);
@@ -521,28 +527,28 @@ void MainPipeline::CreateDescriptorPools() {
     std::array<VkDescriptorPoolSize, GlobalPoolSizeCount> GlobalPoolSizes = {};
     GlobalPoolSizes[0] = {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT
     };
     //depth and normal spread,diffuse and specular  attachment, not sure that's how I use it
     GlobalPoolSizes[1] = {
         .type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        .descriptorCount = 4
+        .descriptorCount = 4 * MAX_FRAMES_IN_FLIGHT//I dount I need to actually duplicate these
     };
     //position reconstruction data
     GlobalPoolSizes[2] = {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1
+        .descriptorCount = 1 * MAX_FRAMES_IN_FLIGHT
     };
     //ambientLight uniform
     GlobalPoolSizes[3] = {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1
+        .descriptorCount = 1 * MAX_FRAMES_IN_FLIGHT
     };
-    VkDescriptorPoolCreateInfo PoolInfo;
+    VkDescriptorPoolCreateInfo PoolInfo{};
     PoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     PoolInfo.poolSizeCount = GlobalPoolSizeCount;
     PoolInfo.pPoolSizes = GlobalPoolSizes.data();
-    PoolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    PoolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * GlobalPoolSizeCount;
     check_vk_result(vkCreateDescriptorPool(instance->device, &PoolInfo, nullptr, &GlobalDescriptorPool));
 
     constexpr unsigned int instancePoolSizeCount = 2;
@@ -550,17 +556,18 @@ void MainPipeline::CreateDescriptorPools() {
     //smoothness
     instancePoolSizes[0] = {
         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = 1
+        .descriptorCount = 1 * MAX_FRAMES_IN_FLIGHT
     };
     //albedo and specular samplers
     instancePoolSizes[1] = {
         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = 2
+        .descriptorCount = 2 * MAX_FRAMES_IN_FLIGHT
     };
 
     const VkDescriptorPoolCreateInfo instancePoolCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .maxSets = 5,//arbitrary for now
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+        .maxSets = MAX_FRAMES_IN_FLIGHT * 3 * 5,//arbitrary for now
         .poolSizeCount = instancePoolSizeCount,
         .pPoolSizes = instancePoolSizes.data(),
     };
@@ -591,7 +598,7 @@ void MainPipeline::CreateGlobalDescriptorSets() {
         UniformBufferStruct& clipUniform = UniformPointLightCameraInfo[i];
 
         clipUniform.binding= 0;
-        instance->createBuffer(sizeof(PointLightUniformValue),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,clipUniform.buffer,clipUniform.allocation);
+        instance->createBuffer(sizeof(PointLightUniformValue),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,clipUniform.buffer,clipUniform.allocation,VMA_MEMORY_USAGE_AUTO,VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
         vmaMapMemory(instance->allocator,clipUniform.allocation,&clipUniform.mappedMemory);
     }
 
@@ -602,7 +609,7 @@ void MainPipeline::CreateGlobalDescriptorSets() {
     for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         UniformBufferStruct& ambientUniform = UniformShadingAmbientLight[i];
         ambientUniform.binding = 0;
-        instance->createBuffer(sizeof(glm::vec4),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,ambientUniform.buffer,ambientUniform.allocation);
+        instance->createBuffer(sizeof(glm::vec4),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,ambientUniform.buffer,ambientUniform.allocation,VMA_MEMORY_USAGE_AUTO,VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
         vmaMapMemory(instance->allocator,ambientUniform.allocation,&ambientUniform.mappedMemory);
     }
 }
@@ -612,12 +619,13 @@ void MainPipeline::DestroyGlobalDescriptorSets() {
         UniformBufferStruct& ambientuniform  = UniformShadingAmbientLight[i];
         vmaUnmapMemory(instance->allocator,ambientuniform.allocation);
         vmaDestroyBuffer(instance->allocator,ambientuniform.buffer,ambientuniform.allocation);
-        vkFreeDescriptorSets(device,GlobalDescriptorPool,1,&ambientuniform.descriptorSet);
+        //vkFreeDescriptorSets(device,GlobalDescriptorPool,1,&ambientuniform.descriptorSet);
 
         UniformBufferStruct& lightUniform = UniformPointLightCameraInfo[i];
         vmaUnmapMemory(instance->allocator,lightUniform.allocation);
         vmaDestroyBuffer(instance->allocator,lightUniform.buffer,lightUniform.allocation);
-        vkFreeDescriptorSets(device,GlobalDescriptorPool,1,&lightUniform.descriptorSet);
+        //vkFreeDescriptorSets(device,GlobalDescriptorPool,1,&lightUniform.descriptorSet);
+        //the descriptor sets will go twith the pools
     }
 }
 
@@ -630,20 +638,49 @@ void MainPipeline::CreateDefaultInstanceDescriptorSets() {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
     .descriptorPool = InstanceDescriptorPool,
     .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
-    .pSetLayouts = &NormalSpreadPass.instanceDescriptorLayout};
+    .pSetLayouts = layouts.data()};
     check_vk_result(vkAllocateDescriptorSets(device,&allocationInfo,NormalSpreadPass.instanceDescriptorSets[0].data()));
+        SamplerNormalSmoothness.push_back({});
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        SamplerNormalSmoothness[0][i] = {
+        .descriptorSet = NormalSpreadPass.instanceDescriptorSets[0][i],
+            .binding = 0
+        };
+    }
 
     for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) layouts[i] = ShadingPass.instanceDescriptorLayout;
     ShadingPass.instanceDescriptorSets.resize(1);
     allocationInfo.pSetLayouts = layouts.data();
     check_vk_result(vkAllocateDescriptorSets(device,&allocationInfo,ShadingPass.instanceDescriptorSets[0].data()));
 
+    SamplerShadingAlbedo.push_back({});
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        SamplerShadingAlbedo[0][i] = {
+        .descriptorSet = ShadingPass.instanceDescriptorSets[0][i],
+        .binding = 0};
+
+    }
+    SamplerShadingSpecular.push_back({});
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        SamplerShadingSpecular[0][i] = {
+        .descriptorSet = ShadingPass.instanceDescriptorSets[0][i],
+        .binding = 1};
+    }
+
+
+}
+
+void MainPipeline::DestroyDefaultInstanceDescriptorSets() {
+    instance->destroySampler(DefaultTexture.sampler);
+    vkDestroyImageView(device,DefaultTexture.imageView, nullptr);
+    vmaDestroyImage(instance->allocator,DefaultTexture.image,DefaultTexture.imageAlloc);
 }
 
 void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
     instance->CreateSampler(DefaultTexture.sampler,1,1);
     instance->createImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_B8G8R8A8_UINT,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
     DefaultTexture.imageView = instance->createImageView(DefaultTexture.image,VK_FORMAT_B8G8R8A8_UINT,VK_IMAGE_ASPECT_COLOR_BIT,1);
+
 
     const VkDescriptorImageInfo imageInfo{
         .sampler = DefaultTexture.sampler,
@@ -670,7 +707,7 @@ void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
             };
         writeOperations[writeIndex++] = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = SamplerNormalSmoothness[0][i].descriptorSet,
+            .dstSet = SamplerShadingSpecular[0][i].descriptorSet,
             .dstBinding = 1,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -696,7 +733,7 @@ MainPipeline::MainPipeline(OsmiumGLDynamicInstance *instance, VkDevice device, V
 
     CreateGlobalDescriptorSets();
 
-    MaterialCreateInfo materialCreateInfo;
+    MaterialCreateInfo materialCreateInfo{};
     materialCreateInfo.NormalPass = {
         .pipeline = NormalSpreadPass.pipeline,
         .pipelineLayout = NormalSpreadPass.pipelineLayout,
@@ -732,17 +769,95 @@ MainPipeline::MainPipeline(OsmiumGLDynamicInstance *instance, VkDevice device, V
 
 
 
-    MaterialInstanceCreateInfo materialInstanceCreateInfo = {
-    .NormalSets = NormalSpreadPass.instanceDescriptorSets[0],
-    .PointlightSets = PointLightPass.instanceDescriptorSets[0],
-    .ShadingSets = ShadingPass.instanceDescriptorSets[0],};
+    MaterialInstanceCreateInfo materialInstanceCreateInfo{};
+    materialInstanceCreateInfo.NormalSets = NormalSpreadPass.instanceDescriptorSets[0];
+    //materialInstanceCreateInfo.PointlightSets = PointLightPass.instanceDescriptorSets[0];//no instance data in light pass
+    materialInstanceCreateInfo.ShadingSets = ShadingPass.instanceDescriptorSets[0];//Not sure why it segfaults here
     materialHandle = instance->LoadMaterial(&materialCreateInfo,&materialInstanceCreateInfo,&defaultMatInstanceHandle);
 }
 
 MainPipeline::~MainPipeline() {
+
+    DestroyGlobalDescriptorSets();
+    DestroyDefaultInstanceDescriptorSets();
+    DestroyDescriptorPools();
     DestroyPipelines();
     DestroyPipelineLayouts();
     instance->destroyAttachment(attachments.depthSencil);
     DestroyAttachments();
     DestroyDescriptorLayouts();
+}
+
+void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage vk_image) const {
+    assert(attachments.depthSencil.image != VK_NULL_HANDLE);
+
+    std::vector<OsmiumGLDynamicInstance::Attachment> attachmentVector = {attachments.NormalSpread,attachments.Diffuse,attachments.Specular};
+
+
+    //depthstencil is already transitioned
+    VkRenderingAttachmentInfo colorAttachmentsInfos[4];//non depth stencil attachement
+    for (auto i = 0; i < 4; i++) {
+        colorAttachmentsInfos[i] = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,
+        .resolveMode = VK_RESOLVE_MODE_NONE,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = {0.0f,0.0f,0.0f,0.0f},};
+    }
+    colorAttachmentsInfos[0].imageView = instance->GetCurrentSwapChainView();
+    for (auto i = 1; i < 4; i++) {
+        colorAttachmentsInfos[i].imageView = attachmentVector[i-1].imageView;
+    }
+    VkRenderingAttachmentInfo depthAttachmentsInfo = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+    .imageView = attachments.depthSencil.imageView,
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .resolveMode = VK_RESOLVE_MODE_NONE,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .clearValue = {0.0f,0.0f,0.0f,0.0f}};//might not be the correct clear value
+
+    VkExtent2D SCExtent= instance->swapchain.extent;
+    VkRenderingInfo rendering_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+    .flags = 0,
+    .renderArea = {0,0,SCExtent.width,SCExtent.height},
+    .layerCount = 1,
+    .viewMask = 0,
+    .colorAttachmentCount = 4,
+    .pColorAttachments = &colorAttachmentsInfos[0],
+    .pDepthAttachment = &depthAttachmentsInfo,
+    .pStencilAttachment = &depthAttachmentsInfo,};
+
+    //Beginning rendering
+    vkCmdBeginRendering(commandBuffer,&rendering_info);
+
+    //viewport and scissor stuff
+    VkViewport viewport = {
+    .x = 0.0f,
+    .y = 0.0f,
+    .width = static_cast<float>(SCExtent.width),
+    .height = static_cast<float>(SCExtent.height),
+    .minDepth = 0.0f,
+    .maxDepth = 1.0f};
+    vkCmdSetViewport(commandBuffer,0,1,&viewport);
+    VkRect2D scissor = {
+    .offset = {0, 0},
+    .extent = SCExtent};
+    vkCmdSetScissor(commandBuffer,0,1,&scissor);
+
+    //normal only pass
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,NormalSpreadPass.pipeline);
+    //bind camera descriptor
+    std::array CameraDescriptor = {instance->GetCameraDescriptorSet(instance->currentFrame)};//could do it outside fo this class
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,instance->GetGlobalPipelineLayout(),0,1,CameraDescriptor.data(),0,nullptr);
+    //Making the descriptor sets first
+
+    //I need to remember to transition the color attachement into a presentation layout at the end
+    vkCmdEndRendering(commandBuffer);
+}
+
+MaterialHandle MainPipeline::GetMaterialHandle() const {
+    return materialHandle;
 }

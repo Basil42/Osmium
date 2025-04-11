@@ -20,10 +20,12 @@
 #include "DeferredLightingPipeline.h"
 #include "ErrorChecking.h"
 #include "InitUtilVk.h"
+#include "MainPipeline.h"
 #include "MeshData.h"
 #include "MeshSerialization.h"
 #include "PassBindings.h"
 #include "SyncUtils.h"
+#include "Capabilities/DeviceCapabilities.h"
 
 
 
@@ -188,7 +190,7 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
         check_vk_result(vkCreateFence(device,&fenceCreateInfo,nullptr,&fence));
     }
 
-
+    msaaFlags = DeviceCapabilities::GetMaxMultiSamplingCapabilities(physicalDevice);
     //TODO loading meshes and sending push constant
     //TODO light buffers
     setupImgui();
@@ -197,14 +199,14 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
 
     DefaultDescriptors = new DefaultSceneDescriptorSets(device,allocator,*this);
 
-    MainPipeline = new DeferredLightingPipeline(this,msaaFlags,swapchain.image_format);
+    MainPipelineInstance = new MainPipeline(this,device,msaaFlags,swapchain.image_format);
 
 }
 
 void OsmiumGLDynamicInstance::Shutdown() {
 
     vkDeviceWaitIdle(device);
-    delete MainPipeline;
+    delete MainPipelineInstance;
     delete DefaultDescriptors;
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -302,7 +304,7 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
 
 
 
-    MainPipeline->RenderDeferredFrameCmd(commandBuffer, swapChainImage);
+    MainPipelineInstance->RenderDeferredFrameCmd(commandBuffer, swapChainImage);
     //imgui frame
     imguiLock.lock();
     ImGuiFrameReadyCondition.cv.wait(imguiLock,[&ImGuiFrameReadyCondition](){return ImGuiFrameReadyCondition.boolean == false;});
@@ -1032,6 +1034,31 @@ VkPipelineShaderStageCreateInfo OsmiumGLDynamicInstance::loadShader(const std::s
     return shaderStageInfo;
 }
 
+MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo *material_create_info,
+    MaterialInstanceCreateInfo *defaultInstanceCreateinfo, MatInstanceHandle *defaultInstance) {
+
+    const auto materialHandle =  LoadedMaterials->Add({});
+    MaterialData* data = LoadedMaterials->getRef(materialHandle);
+    data->NormalPass = material_create_info->NormalPass;
+    data->PointLightPass = material_create_info->PointLightPass;
+    data->ShadingPass = material_create_info->ShadingPass;
+    data->instances = std::vector<MatInstanceHandle>(0);
+
+    //load a default instance
+    *defaultInstance = LoadMaterialInstance(materialHandle,defaultInstanceCreateinfo);
+    return materialHandle;
+}
+
+MatInstanceHandle OsmiumGLDynamicInstance::LoadMaterialInstance(MaterialHandle material_handle,
+    const MaterialInstanceCreateInfo *material_instance_create_info) const {
+    MaterialData* data = LoadedMaterials->getRef(material_handle);
+    return LoadedMaterialInstances->Add({
+    .NormalDescriptorSets = material_instance_create_info->NormalSets,
+    .PointlightDescriptorSets = material_instance_create_info->PointlightSets,
+    .ShadingDescriptorSets = material_instance_create_info->ShadingSets});
+
+}
+
 
 MatInstanceHandle OsmiumGLDynamicInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) const {
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
@@ -1046,7 +1073,7 @@ MaterialInstanceData OsmiumGLDynamicInstance::getMaterialInstanceData(MatInstanc
 }
 
 MaterialHandle OsmiumGLDynamicInstance::GetDefaultMaterialHandle() {
-    return MainPipeline->GetMaterialHandle();
+    return MainPipelineInstance->GetMaterialHandle();
 }
 
 bool OsmiumGLDynamicInstance::AddRenderedObject(RenderedObject rendered_object) const {

@@ -5,13 +5,10 @@
 #ifndef MAINPIPELINE_H
 #define MAINPIPELINE_H
 #include <vk_mem_alloc.h>
-#include <glm/vec4.hpp>
 
 #include "DynamicCore.h"
 #include "OsmiumGL_API.h"
-#include "ResourceArray.h"
 #include "Texture.h"
-#include "vulkan/vulkan.h"
 
 struct PointLightUniformValue;
 
@@ -24,7 +21,9 @@ struct UniformBufferStruct {
 };
 struct UniformSamplerStruct {
     VkDescriptorSet descriptorSet;
-    VkSampler sampler;
+    unsigned short binding;
+    //not including sampler and alloc for now, as responsability for freeing them is somewhere else
+    //VkSampler sampler;
     //probably an allocation
 };
 //maybe attachements
@@ -34,10 +33,10 @@ class MainPipeline {
 
     //global
     VkDescriptorPool GlobalDescriptorPool;//small size pool to allocate unique blobabl descriptors
-    std::array<UniformBufferStruct,MAX_FRAMES_IN_FLIGHT> UniformPointLightCameraInfo, UniformShadingAmbientLight;
+    std::array<UniformBufferStruct,MAX_FRAMES_IN_FLIGHT> UniformPointLightCameraInfo{}, UniformShadingAmbientLight{};
     //instance descriptors, index should line up with the ones in the pass bindings
     VkDescriptorPool InstanceDescriptorPool;//larger pool to accomodate instances of the "material"
-    std::vector<std::array<UniformSamplerStruct,MAX_FRAMES_IN_FLIGHT>> SamplerNormalSmoothness, SamplerShadingAlbedo, SamplerShadingSpecular;
+    std::vector<std::array<UniformSamplerStruct,MAX_FRAMES_IN_FLIGHT>> SamplerNormalSmoothness{}, SamplerShadingAlbedo{}, SamplerShadingSpecular{};
 
     Texture DefaultTexture{
     .sampler = VK_NULL_HANDLE,
@@ -79,7 +78,7 @@ class MainPipeline {
     void DestroyPipelineLayouts() const;
 
     void CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBits mssaFlags);
-    void DestroyPipelines();
+    void DestroyPipelines() const;
 
     void CreateDescriptorPools();
     void DestroyDescriptorPools() const;
@@ -103,7 +102,11 @@ public:
     void UpdatePointLightUniform(const PointLightUniformValue& value);
     void UpdateAmbientLightUniform(const glm::vec4& value);
 
-    //methods to register instance textures
+    void RenderDeferredFrameCmd(VkCommandBuffer command_buffer, VkImage vk_image) const;
+
+    MaterialHandle GetMaterialHandle() const;
+
+
 
 };
 

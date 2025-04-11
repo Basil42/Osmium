@@ -6,7 +6,6 @@
 
 #include <stdexcept>
 
-#include "BlinnPhongVertex.h"
 #include "ErrorChecking.h"
 #include "UniformBufferObject.h"
 

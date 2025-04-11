@@ -40,6 +40,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/spirv.h
         ShaderUtilities/include/spirv_reflect.h
         Common/include/Texture.h
+        Initialization/Capabilities/DeviceCapabilities.h
 
 )
 add_library(OsmiumGL STATIC

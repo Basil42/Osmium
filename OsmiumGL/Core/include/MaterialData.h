@@ -10,10 +10,13 @@
 #include "VertexDescriptor.h"
 #include <array>
 #include <vector>
+#include <span>
+
+#include "RenderedObject.h"
 
 struct MaterialInstanceData {
   //
-  std::array<std::vector<VkDescriptorSet>,MAX_FRAMES_IN_FLIGHT> NormalDescriptorSets, PointlightDescriptorSets, ShadingDescriptorSets;
+  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> NormalDescriptorSets, PointlightDescriptorSets, ShadingDescriptorSets;
 
 };
 struct PassData{
@@ -41,13 +44,13 @@ struct MaterialData {
   unsigned int NormalCustomVertexInputAttributes = 0;
 #endif
 
-  std::vector<unsigned int> instances;//vector of handles for material instances
+  std::vector<MatInstanceHandle> instances;//vector of handles for material instances
 };
 
 struct MaterialCreateInfo{
   PassData NormalPass,PointLightPass,ShadingPass;
 };
 struct MaterialInstanceCreateInfo {
-  std::span<VkDescriptorSet> NormalSets,PointlightSets,ShadingSets;
+  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> NormalSets,PointlightSets,ShadingSets;
 };
 #endif //MATERIALDATA_H

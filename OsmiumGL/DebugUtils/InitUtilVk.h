@@ -86,7 +86,7 @@ public:
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &graphicsFamilyCount, nullptr);
         std::vector<VkQueueFamilyProperties> queueFamilies(graphicsFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &graphicsFamilyCount, queueFamilies.data());
-        int i = 0;
+        unsigned int i = 0;
         for(const auto& queueFamily : queueFamilies) {
             if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphicsFamily = i;

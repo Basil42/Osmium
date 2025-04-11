@@ -139,7 +139,7 @@ private:
         VkFormat format = VK_FORMAT_UNDEFINED;
     };
 
-    DeferredLightingPipeline* MainPipeline;
+    MainPipeline* MainPipelineInstance;
 
     std::vector<std::vector<PointLightPushConstants>> pointLightPushConstants;
     //old material system data
@@ -199,7 +199,7 @@ private:
         const VkImageSubresourceRange &subresource_range);
     VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
     MaterialHandle LoadMaterial(const MaterialCreateInfo* material_create_info,MaterialInstanceCreateInfo* defaultInstanceCreateinfo,MatInstanceHandle* defaultInstance);//also load a default instance
-    MatInstanceHandle LoadMaterialInstance(MaterialHandle material_handle, MaterialInstanceCreateInfo * material_instance_create_info);
+    MatInstanceHandle LoadMaterialInstance(MaterialHandle material_handle, const MaterialInstanceCreateInfo * material_instance_create_info) const;
 
 
     //interface to other utility classes
