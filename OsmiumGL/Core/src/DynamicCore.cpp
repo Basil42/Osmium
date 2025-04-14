@@ -1052,11 +1052,13 @@ MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo *m
 MatInstanceHandle OsmiumGLDynamicInstance::LoadMaterialInstance(MaterialHandle material_handle,
     const MaterialInstanceCreateInfo *material_instance_create_info) const {
     MaterialData* data = LoadedMaterials->getRef(material_handle);
-    return LoadedMaterialInstances->Add({
-    .NormalDescriptorSets = material_instance_create_info->NormalSets,
-    .PointlightDescriptorSets = material_instance_create_info->PointlightSets,
-    .ShadingDescriptorSets = material_instance_create_info->ShadingSets});
-
+    MatInstanceHandle handle = LoadedMaterialInstances->Add({
+        .NormalDescriptorSets = material_instance_create_info->NormalSets,
+        .PointlightDescriptorSets = material_instance_create_info->PointlightSets,
+        .ShadingDescriptorSets = material_instance_create_info->ShadingSets
+    });
+    data->instances.push_back(handle);
+    return handle;
 }
 
 
@@ -1179,4 +1181,5 @@ void OsmiumGLDynamicInstance::AddDebugName(uint64_t handle, const char *name, Vk
     //instance.fp_vkGetInstanceProcAddr(instance,"v")
     disp.fp_vkSetDebugUtilsObjectNameEXT(device,&debugUtilsObjectNameInfo);
 }
+
 
