@@ -52,7 +52,8 @@ class OsmiumGLDynamicInstance {
     void UpdateDirectionalLightData(glm::vec3 direction, glm::vec3 color, float intensity);
 
     void UpdateCameraData(const glm::mat4 &updatedViewMatrix,float radianFoV);
-    void SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
+    void SubmitObjectPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
+    void SubmitPointLightsPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> & map) const;
 
     //material functions
     [[nodiscard]] MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material) const;
@@ -138,12 +139,12 @@ private:
         VkImageView imageView = VK_NULL_HANDLE;
         VkFormat format = VK_FORMAT_UNDEFINED;
     };
-
+    Attachment colorResolveAttachment;
     MainPipeline* MainPipelineInstance;
 
     std::vector<std::vector<PointLightPushConstants>> pointLightPushConstants;
     //old material system data
-    PassBindings*passTree = nullptr ;
+    PassBindings*passTree = nullptr;
     std::mutex MaterialDataMutex;
     ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
     std::mutex MatInstanceMutex;
@@ -174,17 +175,19 @@ private:
     void createAttachment(VkFormat format, VkImageUsageFlags usage, OsmiumGLDynamicInstance::Attachment &attachment, VkFence &fence, VkCommandBuffer
                           &command_buffer);
 
+    void createColorResolveResource();
     void createDepthResources();
 
     void createAttachments();
     void destroyAttachment(Attachment &attachment);
     void destroyAttachments();
-    void createIndexBuffer(const std::vector<unsigned> & indices, VkBuffer vk_buffer, VmaAllocation vma_allocation);
+    void createIndexBuffer(const std::vector<unsigned int> &indices, VkBuffer &vk_buffer, VmaAllocation &vma_allocation) const;
     void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor,
                                      unsigned int vertexCount, VkBuffer &vk_buffer,
                                      VmaAllocation &vma_allocation) const;
     //utility function
     VkImageView GetCurrentSwapChainView();
+    Attachment  GetColorResolveAttachment() const;
     VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
     void endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue queue) const;
     void transitionImageLayoutCmd(

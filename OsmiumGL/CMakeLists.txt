@@ -41,6 +41,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/spirv_reflect.h
         Common/include/Texture.h
         Initialization/Capabilities/DeviceCapabilities.h
+        Core/include/vk_mem_alloc.h
 
 )
 add_library(OsmiumGL STATIC
@@ -74,9 +75,8 @@ find_package(Vulkan REQUIRED)
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
 find_package(Stb REQUIRED)
 target_include_directories(OsmiumGL PRIVATE ${Stb_INCLUDE_DIR})
-find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 
-target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
+target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers)
 target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
 target_link_libraries(OsmiumGL PRIVATE vk-bootstrap)
 #target_link_libraries(OsmiumGL PRIVATE vk-bootstrap-compiler-warnings)

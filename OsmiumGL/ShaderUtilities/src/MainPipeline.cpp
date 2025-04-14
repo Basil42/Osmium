@@ -6,6 +6,7 @@
 
 #include "DynamicCore.h"
 #include "ErrorChecking.h"
+#include "PassBindings.h"
 
 void MainPipeline::CreateNormalPassDescriptorLayouts() {
     //camera would be the global set, but it is managed by the instance
@@ -212,6 +213,8 @@ void MainPipeline::CreateDepthResources() {
 
     instance->endSingleTimeCommands(cmdBuffer, instance->queues.graphicsQueue);
 }
+
+
 
 void MainPipeline::CreatePipelineLayouts(VkDevice device, VkSampleCountFlagBits mssa_flags, VkFormat vk_format) {
     VkPushConstantRange ModelPushConstantRange = {
@@ -678,8 +681,21 @@ void MainPipeline::DestroyDefaultInstanceDescriptorSets() {
 
 void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
     instance->CreateSampler(DefaultTexture.sampler,1,1);
-    instance->createImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_B8G8R8A8_UINT,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
-    DefaultTexture.imageView = instance->createImageView(DefaultTexture.image,VK_FORMAT_B8G8R8A8_UINT,VK_IMAGE_ASPECT_COLOR_BIT,1);
+    instance->createImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_R8_SNORM,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
+    VkCommandBuffer cmdBuffer = instance->beginSingleTimeCommands(instance->queues.graphicsQueue);
+    VkImageSubresourceRange subResourceRange{
+    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .baseMipLevel = 0,
+    .levelCount = VK_REMAINING_MIP_LEVELS,
+    .baseArrayLayer = 0,
+    .layerCount = VK_REMAINING_ARRAY_LAYERS,};
+    instance->transitionImageLayoutCmd(cmdBuffer, DefaultTexture.image, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                       VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subResourceRange);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(DefaultTexture.image),"defaultTextureImage",VK_OBJECT_TYPE_IMAGE);
+    instance->endSingleTimeCommands(cmdBuffer,instance->queues.graphicsQueue);
+    DefaultTexture.imageView = instance->createImageView(DefaultTexture.image,VK_FORMAT_R8_SNORM,VK_IMAGE_ASPECT_COLOR_BIT,1);
 
 
     const VkDescriptorImageInfo imageInfo{
@@ -726,6 +742,8 @@ MainPipeline::MainPipeline(OsmiumGLDynamicInstance *instance, VkDevice device, V
     CreateDescriptorLayouts();
     CreateAttachements();
     CreateDepthResources();
+    attachments.colorResolve = instance->GetColorResolveAttachment();
+
     CreatePipelineLayouts(device, mssaFlags, swapCHainFormat);
     CreatePipelines(swapCHainFormat, mssaFlags);
 
@@ -744,15 +762,16 @@ MainPipeline::MainPipeline(OsmiumGLDynamicInstance *instance, VkDevice device, V
         .vertexAttributes = POSITION | TEXCOORD0 | NORMAL,
         .CustomVertexInputAttributes = 0
     };
-    materialCreateInfo.PointLightPass = {
-    .pipeline = PointLightPass.pipeline,
-    .pipelineLayout = PointLightPass.pipelineLayout,
-    .globalDescriptorSetLayout = PointLightPass.globalDescriptorLayout,
-    .instanceDescriptorSetLayout = PointLightPass.instanceDescriptorLayout,
-    .pushconstantStride = sizeof(PointLightPushConstants),
-    .vertexAttributeCount = 1,
-    .vertexAttributes = POSITION,
-    .CustomVertexInputAttributes = 0};
+    //moving light pass out of materials
+    // materialCreateInfo.PointLightPass = {
+    // .pipeline = PointLightPass.pipeline,
+    // .pipelineLayout = PointLightPass.pipelineLayout,
+    // .globalDescriptorSetLayout = PointLightPass.globalDescriptorLayout,
+    // .instanceDescriptorSetLayout = PointLightPass.instanceDescriptorLayout,
+    // .pushconstantStride = sizeof(PointLightPushConstants),
+    // .vertexAttributeCount = 1,
+    // .vertexAttributes = POSITION,
+    // .CustomVertexInputAttributes = 0};
     materialCreateInfo.ShadingPass = {
         .pipeline = ShadingPass.pipeline,
         .pipelineLayout = ShadingPass.pipelineLayout,
@@ -795,19 +814,18 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
 
 
     //depthstencil is already transitioned
-    VkRenderingAttachmentInfo colorAttachmentsInfos[4];//non depth stencil attachement
-    for (auto i = 0; i < 4; i++) {
+    std::array<VkRenderingAttachmentInfo,3> colorAttachmentsInfos;//non depth stencil attachement
+    for (auto i = 0; i < colorAttachmentsInfos.size(); i++) {
         colorAttachmentsInfos[i] = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,
         .resolveMode = VK_RESOLVE_MODE_NONE,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,//probably shoudl be don't care as well
         .clearValue = {0.0f,0.0f,0.0f,0.0f},};
     }
-    colorAttachmentsInfos[0].imageView = instance->GetCurrentSwapChainView();
-    for (auto i = 1; i < 4; i++) {
-        colorAttachmentsInfos[i].imageView = attachmentVector[i-1].imageView;
+    for (auto i = 0; i < colorAttachmentsInfos.size(); i++) {
+        colorAttachmentsInfos[i].imageView = attachmentVector[i].imageView;
     }
     VkRenderingAttachmentInfo depthAttachmentsInfo = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -815,9 +833,20 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,//might need to actually store withotu a tiled gpu
     .clearValue = {0.0f,0.0f,0.0f,0.0f}};//might not be the correct clear value
 
+    VkRenderingAttachmentInfo resolveAttachmentInfo = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+    .imageView = attachments.colorResolve.imageView,
+    .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,//might need to transition it to a colro attachment before resolve
+    .resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
+    .resolveImageView = instance->GetCurrentSwapChainView(),
+    .resolveImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,//It's goint to be fully blited so it might not matter
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,//might need to store it, not sure
+    .clearValue = {0.0f,0.0f,0.0f,0.0f}
+    };
     VkExtent2D SCExtent= instance->swapchain.extent;
     VkRenderingInfo rendering_info = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -825,7 +854,7 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
     .renderArea = {0,0,SCExtent.width,SCExtent.height},
     .layerCount = 1,
     .viewMask = 0,
-    .colorAttachmentCount = 4,
+    .colorAttachmentCount = colorAttachmentsInfos.size(),
     .pColorAttachments = &colorAttachmentsInfos[0],
     .pDepthAttachment = &depthAttachmentsInfo,
     .pStencilAttachment = &depthAttachmentsInfo,};
@@ -852,12 +881,62 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
     //bind camera descriptor
     std::array CameraDescriptor = {instance->GetCameraDescriptorSet(instance->currentFrame)};//could do it outside fo this class
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,instance->GetGlobalPipelineLayout(),0,1,CameraDescriptor.data(),0,nullptr);
-    //Making the descriptor sets first
+    for (MaterialBindings const &matBinding: instance->passTree->Materials) {//don't really like that it doesn't happen in core, fine for now
+        const MaterialData& matData = instance->LoadedMaterials->get(matBinding.materialHandle);
+        //assuming uniaue pipeline in this case
+        for (MaterialInstanceBindings const &MatInstanceBinding: matBinding.matInstances) {
+            MaterialInstanceData& matInstanceData = instance->LoadedMaterialInstances->get(MatInstanceBinding.matInstanceHandle);
+            vkCmdBindDescriptorSets(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.NormalPass.pipelineLayout,1,1,matInstanceData.NormalDescriptorSets.data(),0,nullptr);
+            for (auto const&mesh : MatInstanceBinding.meshes ) {
+                MeshData meshData = instance->LoadedMeshes->get(mesh.MeshHandle);
+                std::array<VkBuffer,3> vertexBuffers{//using an array for now as I know exactly how many buffers I know, I might just use a bigger array in a general implementation
+                meshData.VertexAttributeBuffers.at(POSITION).first,//slow to access, it might be better to have an array with all buitl in attributes
+                meshData.VertexAttributeBuffers.at(TEXCOORD0).first,
+                meshData.VertexAttributeBuffers.at(NORMAL).first
+                };
+                std::array<VkDeviceSize,3> vertexBufferSizes{0,0,0};
+                vkCmdBindVertexBuffers(commandBuffer,0,vertexBuffers.size(),vertexBuffers.data(),vertexBufferSizes.data());
+                vkCmdBindIndexBuffer(commandBuffer,meshData.indexBuffer,0,VK_INDEX_TYPE_UINT32);
+                for (int i = 0; i < mesh.objectCount ; i++) {
+                    vkCmdPushConstants(commandBuffer,
+                        matData.NormalPass.pipelineLayout,
+                        VK_SHADER_STAGE_VERTEX_BIT,
+                        0,
+                        matData.NormalPass.pushconstantStride,
+                        mesh.ObjectPushConstantData[instance->currentFrame].data()+(i*matData.NormalPass.pushconstantStride));
+                    vkCmdDrawIndexed(commandBuffer,meshData.numIndices,1,0,0,0);
+                }
+            }
+        }
+    }
+//barrier between the two pass
+    VkMemoryBarrier2 memBarrier{
+    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+    .dstAccessMask = VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT};
+    VkDependencyInfo dependencyInfo = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+    .memoryBarrierCount = 1,
+    .pMemoryBarriers = &memBarrier,
+    };
+    vkCmdPipelineBarrier2(commandBuffer,&dependencyInfo);
+    //point lights pass, skipping for now
 
-    //I need to remember to transition the color attachement into a presentation layout at the end
+    //composition
+
+    //resolve the color attachment into the swapchain image
     vkCmdEndRendering(commandBuffer);
 }
 
 MaterialHandle MainPipeline::GetMaterialHandle() const {
     return materialHandle;
+}
+
+void MainPipeline::RecreateFrameBuffers(VkExtent2D extent) {
+    DestroyAttachments();
+    CreateAttachements();
+    attachments.colorResolve = instance->GetColorResolveAttachment();
 }

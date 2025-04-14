@@ -48,7 +48,7 @@ struct MaterialData {
 };
 
 struct MaterialCreateInfo{
-  PassData NormalPass,PointLightPass,ShadingPass;
+  PassData NormalPass,ShadingPass;
 };
 struct MaterialInstanceCreateInfo {
   std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> NormalSets,PointlightSets,ShadingSets;

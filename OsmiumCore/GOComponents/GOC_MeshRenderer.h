@@ -12,7 +12,7 @@
 #include "RenderedObject.h"
 #include "../Base/GameObjectComponent.h"
 #include "../AssetManagement/AssetManager.h"
-#define PushDataSize sizeof(glm::mat4) + sizeof(glm::mat4)
+#define PushDataSize sizeof(glm::mat4)
 class GOC_Transform;
 typedef unsigned long MeshHandle;
 typedef unsigned long MaterialHandle;

@@ -54,7 +54,7 @@ class MainPipeline {
     }NormalSpreadPass,PointLightPass,ShadingPass;
 
     struct {
-        OsmiumGLDynamicInstance::Attachment NormalSpread, Diffuse, Specular,depthSencil;
+        OsmiumGLDynamicInstance::Attachment NormalSpread, Diffuse, Specular,depthSencil,colorResolve;
     } attachments;
 
     MaterialHandle materialHandle;
@@ -106,8 +106,7 @@ public:
 
     MaterialHandle GetMaterialHandle() const;
 
-
-
+    void RecreateFrameBuffers(VkExtent2D extent);
 };
 
 

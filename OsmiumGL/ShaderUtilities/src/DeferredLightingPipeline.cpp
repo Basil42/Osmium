@@ -142,16 +142,16 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
         //vkAllocateDescriptorSets(instance->device,&allocationInfo,materialCreateInfo.DefaultNormalInstanceSet[i].data());
 
     }
-    materialCreateInfo.PointLightPass = {
-
-        .pipeline = PointLightPass.pipeline,
-        .pipelineLayout = PointLightPass.pipelineLayout,
-        .globalDescriptorSetLayout = PointLightPass.descriptorSetLayout,
-        .pushconstantStride = sizeof(PointLightPushConstants),
-        .vertexAttributeCount = 1,
-        .vertexAttributes = POSITION,
-        .CustomVertexInputAttributes = 0
-    };
+    // materialCreateInfo.PointLightPass = {
+    //
+    //     .pipeline = PointLightPass.pipeline,
+    //     .pipelineLayout = PointLightPass.pipelineLayout,
+    //     .globalDescriptorSetLayout = PointLightPass.descriptorSetLayout,
+    //     .pushconstantStride = sizeof(PointLightPushConstants),
+    //     .vertexAttributeCount = 1,
+    //     .vertexAttributes = POSITION,
+    //     .CustomVertexInputAttributes = 0
+    // };
 
     //creating the per instance descriptors
     //normal pass, smoothness map sampler
@@ -292,9 +292,9 @@ void DeferredLightingPipeline::createAttachments() {
 
     std::array<VkFence,3> fences;
     std::array<VkCommandBuffer,3> cmdBuffers;
-    instance->createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.NormalSpread, fences[0], cmdBuffers[0]);
-    instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.Diffuse, fences[1], cmdBuffers[1]);
-    instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,attachments.Specular, fences[2], cmdBuffers[2]);
+    instance->createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,attachments.NormalSpread, fences[0], cmdBuffers[0]);
+    instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT| VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,attachments.Diffuse, fences[1], cmdBuffers[1]);
+    instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT| VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,attachments.Specular, fences[2], cmdBuffers[2]);
     //shouldn't the depth stencil be created here as well ?
     VkDevice device = instance->device;
     vkWaitForFences(device,3,fences.data(),VK_TRUE,UINT64_MAX);

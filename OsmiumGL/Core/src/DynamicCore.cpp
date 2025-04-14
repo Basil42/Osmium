@@ -72,12 +72,16 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR dynamicRenderingLocalReadFeaturesKHR {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR,
     .dynamicRenderingLocalRead = VK_TRUE,};
+    VkPhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT dynamicRenderingUnusedAttachmentsFeaturesEXT {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT,
+    .dynamicRenderingUnusedAttachments = VK_TRUE,};
     //here I can specify features I need
     auto deviceSelectorResult = deviceSelector.set_surface(surface)//putting it here as a useful extension for dynamic rendering
     .add_required_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)
     .add_required_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
     .add_required_extension(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)
     .add_required_extension(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)
+    .add_required_extension(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME)
     .set_required_features({
     .samplerAnisotropy = VK_TRUE,
     })
@@ -86,6 +90,7 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
          .dynamicRendering = VK_TRUE,
      })
     .add_required_extension_features(dynamicRenderingLocalReadFeaturesKHR)
+    .add_required_extension_features(dynamicRenderingUnusedAttachmentsFeaturesEXT)
     .select();//defaults to discret gpu
 
     if (!deviceSelectorResult) {
@@ -194,7 +199,8 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     //TODO loading meshes and sending push constant
     //TODO light buffers
     setupImgui();
-
+    createColorResolveResource();
+    passTree = new PassBindings();
     //TODO: pipeline cache
 
     DefaultDescriptors = new DefaultSceneDescriptorSets(device,allocator,*this);
@@ -208,10 +214,12 @@ void OsmiumGLDynamicInstance::Shutdown() {
     vkDeviceWaitIdle(device);
     delete MainPipelineInstance;
     delete DefaultDescriptors;
+    delete passTree;
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     //deallocate command buffer
+    destroyAttachment(colorResolveAttachment);
     vkDestroyCommandPool(device,commandPools.draw,nullptr);
     vkDestroyCommandPool(device,commandPools.transient,nullptr);
     for (uint32_t i = 0; i < swapchainViews.size(); ++i) {
@@ -333,6 +341,7 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
     imguiLock.unlock();
 
     //transitionning the colro attachement to a present layout
+
     transitionImageLayoutCmd(commandBuffer,swapChainImage,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,subresourceRangeColor);
     check_vk_result(vkEndCommandBuffer(commandBuffer));
     //that is probably not the actual best place to do this
@@ -395,7 +404,7 @@ void OsmiumGLDynamicInstance::UpdateCameraData(const glm::mat4 &updatedViewMatri
 }
 
 
-void OsmiumGLDynamicInstance::SubmitPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) const {
+void OsmiumGLDynamicInstance::SubmitObjectPushDataBuffers(const std::map<RenderedObject, std::vector<std::byte>> &pushMap) const {//I need at least 2 pushconstant sets now
     //these are fairly slow structures but should not be accessed too many times
     for (auto& buffer: pushMap) {
         MaterialBindings* matBinding = nullptr;
@@ -570,6 +579,9 @@ void OsmiumGLDynamicInstance::RecreateSwapChain() {
         throw std::runtime_error("failed to rebuild swapchain: n" + swapchain_builder_result.error().message());
     }
     vkb::destroy_swapchain(swapchain);
+    destroyAttachment(colorResolveAttachment);
+    createColorResolveResource();
+    MainPipelineInstance->RecreateFrameBuffers(swapchain.extent);//this also refetch the color resolve
     swapchain = swapchain_builder_result.value();
 }
 
@@ -647,7 +659,7 @@ void OsmiumGLDynamicInstance::setupImgui() const {
         .RenderPass = VK_NULL_HANDLE,
         .MinImageCount = static_cast<uint32_t>(swapchainViews.size()),
         .ImageCount = static_cast<uint32_t>(swapchain.image_count),
-        .MSAASamples = msaaFlags,
+        .MSAASamples = VK_SAMPLE_COUNT_1_BIT,//no need for multi sampling on imgui for now
         .PipelineCache = VK_NULL_HANDLE,
         .Subpass = 0,
         .DescriptorPoolSize = 10,
@@ -740,6 +752,7 @@ void OsmiumGLDynamicInstance::createImage(uint32_t Width, uint32_t Height, uint3
     if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to create image");
     }
+
 }
 
 VkImageView OsmiumGLDynamicInstance::createImageView(const VkImage image, const VkFormat format, const VkImageAspectFlags aspectFlags,
@@ -827,10 +840,9 @@ void OsmiumGLDynamicInstance::createAttachment(VkFormat format, VkImageUsageFlag
 
     VmaAllocationCreateInfo allocCreateInfo = {
     .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-    .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,};
-    if (vmaCreateImage(allocator,&imageCreateInfo,&allocCreateInfo,&attachment.image,&attachment.imageMemory,nullptr) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create image");
-    }
+    .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    };
+    check_vk_result(vmaCreateImage(allocator,&imageCreateInfo,&allocCreateInfo,&attachment.image,&attachment.imageMemory,nullptr));
     //imageview
     VkImageViewCreateInfo imageViewCreateInfo = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -897,6 +909,15 @@ void OsmiumGLDynamicInstance::createAttachment(VkFormat format, VkImageUsageFlag
     // vkFreeCommandBuffers(device,commandPools.draw,1, &command_buffer);
 }
 
+void OsmiumGLDynamicInstance::createColorResolveResource() {
+    VkCommandBuffer cmdBuffer;
+    VkFence fence;
+    createAttachment(swapchain.image_format,VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,colorResolveAttachment,fence,cmdBuffer);
+    vkWaitForFences(device,1,&fence,VK_TRUE,UINT64_MAX);
+    vkDestroyFence(device,fence,nullptr);
+    vkFreeCommandBuffers(device,commandPools.draw,1, &cmdBuffer);
+
+}
 
 
 void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachment &attachment) {
@@ -907,8 +928,8 @@ void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachm
 
 
 
-void OsmiumGLDynamicInstance::createIndexBuffer(const std::vector<unsigned> &indices, VkBuffer vk_buffer,
-    VmaAllocation vma_allocation) {
+void OsmiumGLDynamicInstance::createIndexBuffer(const std::vector<unsigned> &indices, VkBuffer& vk_buffer,
+    VmaAllocation& vma_allocation) const {
     VkBufferCreateInfo stagingBufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     stagingBufferCreateInfo.size = sizeof(uint32_t) * indices.size();
     stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -962,6 +983,10 @@ void OsmiumGLDynamicInstance::createVertexAttributeBuffer(const void *vertexData
 
 VkImageView OsmiumGLDynamicInstance::GetCurrentSwapChainView() {
     return swapchainViews[currentFrame];
+}
+
+OsmiumGLDynamicInstance::Attachment OsmiumGLDynamicInstance::GetColorResolveAttachment() const {
+    return colorResolveAttachment;
 }
 
 VkCommandBuffer OsmiumGLDynamicInstance::beginSingleTimeCommands(VkQueue queue) const {
@@ -1040,7 +1065,7 @@ MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo *m
     const auto materialHandle =  LoadedMaterials->Add({});
     MaterialData* data = LoadedMaterials->getRef(materialHandle);
     data->NormalPass = material_create_info->NormalPass;
-    data->PointLightPass = material_create_info->PointLightPass;
+    //data->PointLightPass = material_create_info->PointLightPass;
     data->ShadingPass = material_create_info->ShadingPass;
     data->instances = std::vector<MatInstanceHandle>(0);
 

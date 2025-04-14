@@ -23,7 +23,7 @@ void OsmiumGL::Init(const std::string &appName) {
 
 
 void OsmiumGL::SubmitPushConstantBuffers() {
-    instance->SubmitPushDataBuffers(pushConstantStagingVectors);
+    instance->SubmitObjectPushDataBuffers(pushConstantStagingVectors);
 }
 #ifndef DYNAMIC_RENDERING
 void OsmiumGL::StartFrame() {
@@ -117,7 +117,9 @@ void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants>
 }
 
 void OsmiumGL::RenderFrame(Sync::SyncBoolCondition &imgui_update_sync) {
+    SubmitPushConstantBuffers();//I'll probably end doing thsi somewhere better suited to it
     instance->RenderFrame(imgui_update_sync);
+    ClearGOPushConstantBuffers();
 }
 
 MaterialHandle OsmiumGL::GetDefaultMaterial() {

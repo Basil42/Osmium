@@ -25,9 +25,9 @@ void GOC_MeshRenderer::Update() {
     const auto Modelptr = glm::value_ptr(modelMatrix);
     memcpy(&pushData[0], Modelptr, sizeof(modelMatrix));
 
-    glm::mat4 normalMatrix = glm::transpose(glm::inverse(viewMatrix*modelMatrix));
-    const auto normalPtr = glm::value_ptr(normalMatrix);
-    memcpy(&pushData[sizeof(modelMatrix)], normalPtr, sizeof(normalMatrix));
+    // glm::mat4 normalMatrix = glm::transpose(glm::inverse(viewMatrix*modelMatrix));
+    // const auto normalPtr = glm::value_ptr(normalMatrix);
+    // memcpy(&pushData[sizeof(modelMatrix)], normalPtr, sizeof(normalMatrix));
 
     //add more for specialized materials with more constants
 }
