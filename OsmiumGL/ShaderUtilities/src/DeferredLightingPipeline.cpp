@@ -133,6 +133,7 @@ DeferredLightingPipeline::DeferredLightingPipeline(OsmiumGLDynamicInstance* inst
     .vertexAttributeCount = 3,
     .vertexAttributes = POSITION | TEXCOORD0 | NORMAL,
     .CustomVertexInputAttributes = 0};
+    materialCreateInfo.ShadingPass.globalDescriptorSets = ShadingPass.descriptorSet;
     for (auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         const VkDescriptorSetAllocateInfo allocationInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,

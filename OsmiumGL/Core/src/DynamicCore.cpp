@@ -72,16 +72,12 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR dynamicRenderingLocalReadFeaturesKHR {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR,
     .dynamicRenderingLocalRead = VK_TRUE,};
-    VkPhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT dynamicRenderingUnusedAttachmentsFeaturesEXT {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT,
-    .dynamicRenderingUnusedAttachments = VK_TRUE,};
     //here I can specify features I need
     auto deviceSelectorResult = deviceSelector.set_surface(surface)//putting it here as a useful extension for dynamic rendering
     .add_required_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)
     .add_required_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
     .add_required_extension(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)
     .add_required_extension(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)
-    .add_required_extension(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME)
     .set_required_features({
     .samplerAnisotropy = VK_TRUE,
     })
@@ -90,7 +86,6 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
          .dynamicRendering = VK_TRUE,
      })
     .add_required_extension_features(dynamicRenderingLocalReadFeaturesKHR)
-    .add_required_extension_features(dynamicRenderingUnusedAttachmentsFeaturesEXT)
     .select();//defaults to discret gpu
 
     if (!deviceSelectorResult) {
@@ -194,8 +189,8 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     for (auto& fence : drawFences) {
         check_vk_result(vkCreateFence(device,&fenceCreateInfo,nullptr,&fence));
     }
-
-    msaaFlags = DeviceCapabilities::GetMaxMultiSamplingCapabilities(physicalDevice);
+    //leaving msaa off, it's not worth it on deferred
+    //msaaFlags = DeviceCapabilities::GetMaxMultiSamplingCapabilities(physicalDevice);
     //TODO loading meshes and sending push constant
     //TODO light buffers
     setupImgui();
@@ -239,6 +234,9 @@ void OsmiumGLDynamicInstance::Shutdown() {
     vkb::destroy_device(device);
     vkb::destroy_surface(instance,surface);
     vkb::destroy_instance(instance);
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
 
     std::cout << "shutdown successful" << std::endl;
 }

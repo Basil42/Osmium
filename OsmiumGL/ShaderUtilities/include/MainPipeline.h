@@ -85,6 +85,7 @@ class MainPipeline {
 
     void CreateGlobalDescriptorSets();
     void DestroyGlobalDescriptorSets();
+    void InitializeDefaultGlobalDescriptorSets();
 
     void CreateDefaultInstanceDescriptorSets();
     void DestroyDefaultInstanceDescriptorSets();

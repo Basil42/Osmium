@@ -153,14 +153,17 @@ void MainPipeline::DestroyDescriptorLayouts() const {
 }
 
 void MainPipeline::CreateAttachements() {
-    std::array<VkFence, 3> fences;
-    std::array<VkCommandBuffer, 3> cmdBuffers;
+    std::array<VkFence, 3> fences{};
+    std::array<VkCommandBuffer, 3> cmdBuffers{};
     instance->createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                attachments.NormalSpread, fences[0], cmdBuffers[0]);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.NormalSpread.imageView),"NormalSpread ImageView", VK_OBJECT_TYPE_IMAGE_VIEW);
     instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, attachments.Diffuse,
                                fences[1], cmdBuffers[1]);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.Diffuse.imageView),"Diffuse ImageView", VK_OBJECT_TYPE_IMAGE_VIEW);
     instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, attachments.Specular,
                                fences[2], cmdBuffers[2]);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.Specular.imageView),"Specular ImageView", VK_OBJECT_TYPE_IMAGE_VIEW);
     //shouldn't the depth stencil be created here as well ?
     VkDevice device = instance->device;
     vkWaitForFences(device, 3, fences.data(),VK_TRUE,UINT64_MAX);
@@ -185,6 +188,7 @@ void MainPipeline::CreateDepthResources() {
                           att.image, att.imageMemory);
     attachments.depthSencil.imageView = instance->createImageView(att.image, instance->DepthFormat,
                                                                   VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    attachments.depthSencil.format = instance->DepthFormat;
     instance->AddDebugName(reinterpret_cast<uint64_t>(att.imageView), "depth view", VK_OBJECT_TYPE_IMAGE_VIEW);
 
     VkCommandBuffer cmdBuffer = instance->beginSingleTimeCommands(instance->queues.graphicsQueue);
@@ -413,6 +417,16 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     VkPipelineRenderingCreateInfo pipelineRenderingInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     pipelineInfo.pNext = &pipelineRenderingInfo;
 
+    std::array<uint32_t, 4> colorAttachmentIndexes {,VK_ATTACHMENT_UNUSED}
+    VkRenderingInputAttachmentIndexInfoKHR renderingInputAttachmentIndexInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO_KHR,
+        .pNext = nullptr,
+        .colorAttachmentCount = ,
+        .pColorAttachmentInputIndices = ,
+        .pDepthInputAttachmentIndex = ,
+        .pStencilInputAttachmentIndex = 
+    };
+
     //Normal and spread passs
 
     std::array<VkPipelineColorBlendAttachmentState, 4> colorBlendAttachments{};
@@ -426,16 +440,16 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
 
     pipelineInfo.layout = NormalSpreadPass.pipelineLayout;
 
-    VkFormat collorAttachementFormat[4] = {
-        swapchainFormat,
+    VkFormat colorAttachementFormat[4] = {
         attachments.NormalSpread.format,
         attachments.Diffuse.format,
-        attachments.Specular.format
+        attachments.Specular.format,
+        swapchainFormat,//might not need that one, if I can use the Normal buffer to resolve into the swapchain image
     };
-    colorBlending.attachmentCount = 1;
+    colorBlending.attachmentCount = 4;
     colorBlending.pAttachments = colorBlendAttachments.data();
-    pipelineRenderingInfo.colorAttachmentCount = 1; //just normal spread, maybe I have to pass color
-    pipelineRenderingInfo.pColorAttachmentFormats = &collorAttachementFormat[1];
+    pipelineRenderingInfo.colorAttachmentCount = 4; //just normal spread, maybe I have to pass color
+    pipelineRenderingInfo.pColorAttachmentFormats = &colorAttachementFormat[0];
     pipelineRenderingInfo.depthAttachmentFormat = attachments.depthSencil.format;
     pipelineRenderingInfo.stencilAttachmentFormat = pipelineRenderingInfo.depthAttachmentFormat;
 
@@ -463,7 +477,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     colorBlending.pAttachments = colorBlendAttachments.data();
     pipelineRenderingInfo.colorAttachmentCount = 4;
     //normal,specular and diffuse in, color out, could probably just recompute normals
-    pipelineRenderingInfo.pColorAttachmentFormats = &collorAttachementFormat[0];
+    pipelineRenderingInfo.pColorAttachmentFormats = &colorAttachementFormat[0];
     depthStencil.depthWriteEnable = VK_FALSE; //not needed at this point
     depthStencil.depthCompareOp = VK_COMPARE_OP_EQUAL; //I can discard all others
 
@@ -603,6 +617,7 @@ void MainPipeline::CreateGlobalDescriptorSets() {
         clipUniform.binding= 0;
         instance->createBuffer(sizeof(PointLightUniformValue),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,clipUniform.buffer,clipUniform.allocation,VMA_MEMORY_USAGE_AUTO,VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
         vmaMapMemory(instance->allocator,clipUniform.allocation,&clipUniform.mappedMemory);
+        clipUniform.descriptorSet = PointLightPass.globalDescriptorSets[i];
     }
 
     //ambient light uniform
@@ -614,6 +629,8 @@ void MainPipeline::CreateGlobalDescriptorSets() {
         ambientUniform.binding = 0;
         instance->createBuffer(sizeof(glm::vec4),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,ambientUniform.buffer,ambientUniform.allocation,VMA_MEMORY_USAGE_AUTO,VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
         vmaMapMemory(instance->allocator,ambientUniform.allocation,&ambientUniform.mappedMemory);
+        ambientUniform.descriptorSet = ShadingPass.globalDescriptorSets[i];
+
     }
 }
 
@@ -630,6 +647,68 @@ void MainPipeline::DestroyGlobalDescriptorSets() {
         //vkFreeDescriptorSets(device,GlobalDescriptorPool,1,&lightUniform.descriptorSet);
         //the descriptor sets will go twith the pools
     }
+}
+
+void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
+    //light pass, should be updated with the camera info
+
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    //ambient light
+        UniformBufferStruct& ambientUniform = UniformShadingAmbientLight[i];
+        auto defaultAmbientLightColor = glm::vec4(0.2f);
+        memcpy(ambientUniform.mappedMemory,&defaultAmbientLightColor, sizeof(defaultAmbientLightColor));
+        VkDescriptorBufferInfo bufferInfo{
+        .buffer = ambientUniform.buffer,
+        .offset = 0,
+        .range = sizeof(glm::vec4)};
+        VkWriteDescriptorSet ambientWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = ambientUniform.descriptorSet,
+        .dstBinding = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = &bufferInfo,
+        };
+
+        VkDescriptorImageInfo normalImageInfo{
+        .sampler = VK_NULL_HANDLE,
+        .imageView = attachments.NormalSpread.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+        //Normal buffer
+        VkWriteDescriptorSet normalWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = ShadingPass.globalDescriptorSets[i],
+        .dstBinding = 1,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        .pImageInfo = &normalImageInfo,
+        };
+        VkDescriptorImageInfo DiffuseImageInfo{
+        .sampler = VK_NULL_HANDLE,
+        .imageView = attachments.Diffuse.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+        VkWriteDescriptorSet diffuseWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = ShadingPass.globalDescriptorSets[i],
+        .dstBinding = 2,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        .pImageInfo = &DiffuseImageInfo,};
+        VkDescriptorImageInfo SpecularImageInfo{
+        .sampler = VK_NULL_HANDLE,
+        .imageView = attachments.Specular.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+        VkWriteDescriptorSet specularWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = ShadingPass.globalDescriptorSets[i],
+        .dstBinding = 3,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        .pImageInfo = &SpecularImageInfo,};
+        std::array writeDescriptorSets{ambientWrite,normalWrite,diffuseWrite,specularWrite};
+        vkUpdateDescriptorSets(device,writeDescriptorSets.size(),writeDescriptorSets.data(),0,nullptr);
+    }
+
 }
 
 void MainPipeline::CreateDefaultInstanceDescriptorSets() {
@@ -750,6 +829,7 @@ MainPipeline::MainPipeline(OsmiumGLDynamicInstance *instance, VkDevice device, V
     CreateDescriptorPools();
 
     CreateGlobalDescriptorSets();
+    InitializeDefaultGlobalDescriptorSets();
 
     MaterialCreateInfo materialCreateInfo{};
     materialCreateInfo.NormalPass = {
@@ -776,6 +856,7 @@ MainPipeline::MainPipeline(OsmiumGLDynamicInstance *instance, VkDevice device, V
         .pipeline = ShadingPass.pipeline,
         .pipelineLayout = ShadingPass.pipelineLayout,
         .globalDescriptorSetLayout = ShadingPass.globalDescriptorLayout,
+        .globalDescriptorSets = ShadingPass.globalDescriptorSets,
         .instanceDescriptorSetLayout = ShadingPass.instanceDescriptorLayout,
         .pushconstantStride = sizeof(glm::mat4),
         .vertexAttributeCount = 2,
@@ -814,39 +895,30 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
 
 
     //depthstencil is already transitioned
-    std::array<VkRenderingAttachmentInfo,3> colorAttachmentsInfos;//non depth stencil attachement
-    for (auto i = 0; i < colorAttachmentsInfos.size(); i++) {
-        colorAttachmentsInfos[i] = {
+    std::array<VkRenderingAttachmentInfo,4> colorAttachmentsInfos{};//non depth stencil attachement
+    for (auto & colorAttachmentsInfo : colorAttachmentsInfos) {
+        colorAttachmentsInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,
         .resolveMode = VK_RESOLVE_MODE_NONE,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,//probably shoudl be don't care as well
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,//probably shoudl be don't care as well
         .clearValue = {0.0f,0.0f,0.0f,0.0f},};
     }
-    for (auto i = 0; i < colorAttachmentsInfos.size(); i++) {
+
+    for (auto i = 0; i < colorAttachmentsInfos.size()-1; i++) {
         colorAttachmentsInfos[i].imageView = attachmentVector[i].imageView;
     }
+    colorAttachmentsInfos[colorAttachmentsInfos.size()-1].imageView = instance->GetCurrentSwapChainView();
     VkRenderingAttachmentInfo depthAttachmentsInfo = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .imageView = attachments.depthSencil.imageView,
     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,//might need to actually store withotu a tiled gpu
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,//might need to actually store withotu a tiled gpu
     .clearValue = {0.0f,0.0f,0.0f,0.0f}};//might not be the correct clear value
 
-    VkRenderingAttachmentInfo resolveAttachmentInfo = {
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-    .imageView = attachments.colorResolve.imageView,
-    .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,//might need to transition it to a colro attachment before resolve
-    .resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
-    .resolveImageView = instance->GetCurrentSwapChainView(),
-    .resolveImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,//It's goint to be fully blited so it might not matter
-    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,//might need to store it, not sure
-    .clearValue = {0.0f,0.0f,0.0f,0.0f}
-    };
     VkExtent2D SCExtent= instance->swapchain.extent;
     VkRenderingInfo rendering_info = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -911,7 +983,7 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
     }
 //barrier between the two pass
     VkMemoryBarrier2 memBarrier{
-    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
     .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
     .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
     .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
@@ -926,6 +998,35 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
     //point lights pass, skipping for now
 
     //composition
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,ShadingPass.pipeline);
+ for (MaterialBindings const &matBinding: instance->passTree->Materials) {//don't really like that it doesn't happen in core, fine for now
+        const MaterialData& matData = instance->LoadedMaterials->get(matBinding.materialHandle);
+        //assuming uniaue pipeline in this case
+     vkCmdBindDescriptorSets(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.ShadingPass.pipelineLayout,1,1,matData.ShadingPass.globalDescriptorSets.data(),0,nullptr);
+        for (MaterialInstanceBindings const &MatInstanceBinding: matBinding.matInstances) {
+            MaterialInstanceData& matInstanceData = instance->LoadedMaterialInstances->get(MatInstanceBinding.matInstanceHandle);
+            vkCmdBindDescriptorSets(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.ShadingPass.pipelineLayout,2,1,matInstanceData.ShadingDescriptorSets.data(),0,nullptr);
+            for (auto const&mesh : MatInstanceBinding.meshes ) {
+                MeshData meshData = instance->LoadedMeshes->get(mesh.MeshHandle);
+                std::array<VkBuffer,2> vertexBuffers{//using an array for now as I know exactly how many buffers I know, I might just use a bigger array in a general implementation
+                meshData.VertexAttributeBuffers.at(POSITION).first,//slow to access, it might be better to have an array with all buitl in attributes
+                meshData.VertexAttributeBuffers.at(TEXCOORD0).first,
+                };
+                std::array<VkDeviceSize,2> vertexBufferSizes{0,0};
+                vkCmdBindVertexBuffers(commandBuffer,0,vertexBuffers.size(),vertexBuffers.data(),vertexBufferSizes.data());
+                vkCmdBindIndexBuffer(commandBuffer,meshData.indexBuffer,0,VK_INDEX_TYPE_UINT32);
+                for (int i = 0; i < mesh.objectCount ; i++) {
+                    vkCmdPushConstants(commandBuffer,
+                        matData.ShadingPass.pipelineLayout,
+                        VK_SHADER_STAGE_VERTEX_BIT,
+                        0,
+                        matData.ShadingPass.pushconstantStride,
+                        mesh.ObjectPushConstantData[instance->currentFrame].data()+(i*matData.ShadingPass.pushconstantStride));
+                    vkCmdDrawIndexed(commandBuffer,meshData.numIndices,1,0,0,0);
+                }
+            }
+        }
+    }
 
     //resolve the color attachment into the swapchain image
     vkCmdEndRendering(commandBuffer);
