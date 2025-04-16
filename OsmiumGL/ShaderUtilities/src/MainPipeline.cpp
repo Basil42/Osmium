@@ -155,15 +155,20 @@ void MainPipeline::DestroyDescriptorLayouts() const {
 void MainPipeline::CreateAttachements() {
     std::array<VkFence, 3> fences{};
     std::array<VkCommandBuffer, 3> cmdBuffers{};
-    instance->createAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    instance->createAttachment(VK_FORMAT_R16G16B16A16_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                attachments.NormalSpread, fences[0], cmdBuffers[0]);
     instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.NormalSpread.imageView),"NormalSpread ImageView", VK_OBJECT_TYPE_IMAGE_VIEW);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.NormalSpread.image),"NormalSpread Image",VK_OBJECT_TYPE_IMAGE);
     instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, attachments.Diffuse,
                                fences[1], cmdBuffers[1]);
     instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.Diffuse.imageView),"Diffuse ImageView", VK_OBJECT_TYPE_IMAGE_VIEW);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.Diffuse.image),"Diffuse Image",VK_OBJECT_TYPE_IMAGE);
+
     instance->createAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, attachments.Specular,
                                fences[2], cmdBuffers[2]);
     instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.Specular.imageView),"Specular ImageView", VK_OBJECT_TYPE_IMAGE_VIEW);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.Specular.image),"Specular Image",VK_OBJECT_TYPE_IMAGE);
+
     //shouldn't the depth stencil be created here as well ?
     VkDevice device = instance->device;
     vkWaitForFences(device, 3, fences.data(),VK_TRUE,UINT64_MAX);
@@ -318,7 +323,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .depthTestEnable = VK_TRUE,
         .depthWriteEnable = VK_TRUE,
-        .depthCompareOp = VK_COMPARE_OP_GREATER, //strange that it would be different
+        .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL, //strange that it would be different
         .front = {}, //sample has some stuff here, I'll investigate if weird stuff happens
         .back = {},
         .minDepthBounds = 0.0f,
@@ -417,15 +422,6 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     VkPipelineRenderingCreateInfo pipelineRenderingInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     pipelineInfo.pNext = &pipelineRenderingInfo;
 
-    std::array<uint32_t, 4> colorAttachmentIndexes {,VK_ATTACHMENT_UNUSED}
-    VkRenderingInputAttachmentIndexInfoKHR renderingInputAttachmentIndexInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO_KHR,
-        .pNext = nullptr,
-        .colorAttachmentCount = ,
-        .pColorAttachmentInputIndices = ,
-        .pDepthInputAttachmentIndex = ,
-        .pStencilInputAttachmentIndex = 
-    };
 
     //Normal and spread passs
 
@@ -434,6 +430,8 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     for (auto blendState: colorBlendAttachments) {
         blendState.colorWriteMask = 0xf; //not sure what that means
         blendState.blendEnable = VK_FALSE;
+        blendState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                          VK_COLOR_COMPONENT_A_BIT;
     }
     colorBlending.attachmentCount = 4;
     colorBlending.pAttachments = colorBlendAttachments.data();
@@ -469,6 +467,16 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
 
 
     //Shading pass
+    std::array<uint32_t, 4> colorAttachmentIndexes {0,1,2,VK_ATTACHMENT_UNUSED};
+    VkRenderingInputAttachmentIndexInfoKHR renderingInputAttachmentIndexInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO_KHR,
+        .pNext = nullptr,
+        .colorAttachmentCount = colorAttachmentIndexes.size(),
+        .pColorAttachmentInputIndices = colorAttachmentIndexes.data(),
+        .pDepthInputAttachmentIndex = nullptr,
+        .pStencilInputAttachmentIndex = nullptr
+    };
+    pipelineRenderingInfo.pNext = &renderingInputAttachmentIndexInfo;
     //no need for normals
     pipelineInfo.layout = ShadingPass.pipelineLayout;
     VertexInputState.vertexBindingDescriptionCount = 2;
@@ -673,7 +681,8 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
         VkDescriptorImageInfo normalImageInfo{
         .sampler = VK_NULL_HANDLE,
         .imageView = attachments.NormalSpread.imageView,
-        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR
+        };
         //Normal buffer
         VkWriteDescriptorSet normalWrite{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -686,7 +695,8 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
         VkDescriptorImageInfo DiffuseImageInfo{
         .sampler = VK_NULL_HANDLE,
         .imageView = attachments.Diffuse.imageView,
-        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR
+            };
         VkWriteDescriptorSet diffuseWrite{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = ShadingPass.globalDescriptorSets[i],
@@ -697,7 +707,8 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
         VkDescriptorImageInfo SpecularImageInfo{
         .sampler = VK_NULL_HANDLE,
         .imageView = attachments.Specular.imageView,
-        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR
+            };
         VkWriteDescriptorSet specularWrite{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = ShadingPass.globalDescriptorSets[i],
@@ -760,7 +771,7 @@ void MainPipeline::DestroyDefaultInstanceDescriptorSets() {
 
 void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
     instance->CreateSampler(DefaultTexture.sampler,1,1);
-    instance->createImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_R8_SNORM,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
+    instance->createImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_R8G8B8A8_SNORM,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
     VkCommandBuffer cmdBuffer = instance->beginSingleTimeCommands(instance->queues.graphicsQueue);
     VkImageSubresourceRange subResourceRange{
     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -771,10 +782,17 @@ void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
     instance->transitionImageLayoutCmd(cmdBuffer, DefaultTexture.image, VK_PIPELINE_STAGE_TRANSFER_BIT,
                                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
                                        VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                                       VK_IMAGE_LAYOUT_GENERAL, subResourceRange);
+    VkClearColorValue clearcolor = {1.0f,1.0f,1.0f,1.0f};
+    vkCmdClearColorImage(cmdBuffer,DefaultTexture.image,VK_IMAGE_LAYOUT_GENERAL,&clearcolor,1,&subResourceRange);
+    vkCmdClearColorImage(cmdBuffer,DefaultTexture.image,VK_IMAGE_LAYOUT_GENERAL,&clearcolor,1,&subResourceRange);
+    instance->transitionImageLayoutCmd(cmdBuffer, DefaultTexture.image, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                       VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL,
                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subResourceRange);
     instance->AddDebugName(reinterpret_cast<uint64_t>(DefaultTexture.image),"defaultTextureImage",VK_OBJECT_TYPE_IMAGE);
     instance->endSingleTimeCommands(cmdBuffer,instance->queues.graphicsQueue);
-    DefaultTexture.imageView = instance->createImageView(DefaultTexture.image,VK_FORMAT_R8_SNORM,VK_IMAGE_ASPECT_COLOR_BIT,1);
+    DefaultTexture.imageView = instance->createImageView(DefaultTexture.image,VK_FORMAT_R8G8B8A8_SNORM,VK_IMAGE_ASPECT_COLOR_BIT,1);
 
 
     const VkDescriptorImageInfo imageInfo{
@@ -891,7 +909,7 @@ MainPipeline::~MainPipeline() {
 void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage vk_image) const {
     assert(attachments.depthSencil.image != VK_NULL_HANDLE);
 
-    std::vector<OsmiumGLDynamicInstance::Attachment> attachmentVector = {attachments.NormalSpread,attachments.Diffuse,attachments.Specular};
+    std::vector attachmentVector = {attachments.NormalSpread,attachments.Diffuse,attachments.Specular};
 
 
     //depthstencil is already transitioned
@@ -910,6 +928,8 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
         colorAttachmentsInfos[i].imageView = attachmentVector[i].imageView;
     }
     colorAttachmentsInfos[colorAttachmentsInfos.size()-1].imageView = instance->GetCurrentSwapChainView();
+    colorAttachmentsInfos[colorAttachmentsInfos.size()-1].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
     VkRenderingAttachmentInfo depthAttachmentsInfo = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .imageView = attachments.depthSencil.imageView,
@@ -917,7 +937,7 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,//might need to actually store withotu a tiled gpu
-    .clearValue = {0.0f,0.0f,0.0f,0.0f}};//might not be the correct clear value
+    .clearValue = {1.0f,1.0f,1.0f,1.0f}};//might not be the correct clear value
 
     VkExtent2D SCExtent= instance->swapchain.extent;
     VkRenderingInfo rendering_info = {

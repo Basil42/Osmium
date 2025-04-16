@@ -322,7 +322,7 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
         .resolveMode = VK_RESOLVE_MODE_NONE,
         .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = {1.0f,0.0f,0.0f,1.0f}};
+        .clearValue = {0.0f,0.0f,0.0f,1.0f}};
         VkRenderingInfo imguiRenderInfo{
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
         .renderArea = {0,0,swapchain.extent.width,swapchain.extent.height},
