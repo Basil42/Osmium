@@ -20,6 +20,7 @@
 #include "ResourceArray.h"
 #include "VertexDescriptor.h"
 #include "MeshData.h"
+#include "PassBindings.h"
 #include "PointLights.h"
 #include "RenderedObject.h"
 #include "SyncUtils.h"
@@ -145,10 +146,15 @@ private:
     std::vector<std::vector<PointLightPushConstants>> pointLightPushConstants;
     //old material system data
     PassBindings*passTree = nullptr;
+    LightPassBindings* lightPassBindings = nullptr;
+
+
     std::mutex MaterialDataMutex;
     ResourceArray<MaterialData,MAX_LOADED_MATERIALS>*LoadedMaterials = new ResourceArray<MaterialData, MAX_LOADED_MATERIALS>();
+    ResourceArray<LightMaterialData,MAX_LOADED_MATERIALS>*LoadedLightMaterials = new ResourceArray<LightMaterialData, MAX_LOADED_MATERIALS>();
     std::mutex MatInstanceMutex;
     ResourceArray<MaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* LoadedMaterialInstances= new ResourceArray<MaterialInstanceData, MAX_LOADED_MATERIAL_INSTANCES>();
+    ResourceArray<LightMaterialInstanceData,MAX_LOADED_MATERIAL_INSTANCES>* LoadedLightMaterialInstances = new ResourceArray<LightMaterialInstanceData, MAX_LOADED_MATERIAL_INSTANCES>();
 
     void RecreateSwapChain();
 //setup functions
@@ -202,7 +208,15 @@ private:
         const VkImageSubresourceRange &subresource_range);
     VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
     MaterialHandle LoadMaterial(const MaterialCreateInfo* material_create_info,MaterialInstanceCreateInfo* defaultInstanceCreateinfo,MatInstanceHandle* defaultInstance);//also load a default instance
+    LightMaterialHandle LoadLightMaterial(const LightMaterialCreateinfo *material_create_info, LightMaterialInstanceCreateInfo *defaultInstanceCreateInfo, LightMatInstanceHandle
+                                          *defaultInstance) const;
+
     MatInstanceHandle LoadMaterialInstance(MaterialHandle material_handle, const MaterialInstanceCreateInfo * material_instance_create_info) const;
+
+    LightMatInstanceHandle LoadLightMaterialInstance(LightMaterialHandle material_handle,
+                                                     const LightMaterialInstanceCreateInfo *
+                                                     material_instance_create_info)
+    const;
 
 
     //interface to other utility classes

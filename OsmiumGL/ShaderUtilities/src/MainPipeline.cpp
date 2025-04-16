@@ -304,15 +304,21 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
 
     //sufficient information for the presented attachment
     VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {
-        .blendEnable = VK_FALSE,
+        .blendEnable = VK_TRUE,
         .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                           VK_COLOR_COMPONENT_A_BIT,
     };
+    //I'd rather not have it at all
+    colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    std::array colorblendAttachmentStates{colorBlendAttachmentState,colorBlendAttachmentState,colorBlendAttachmentState,colorBlendAttachmentState};//trying to specify it for all
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments = &colorBlendAttachmentState,
+        .attachmentCount = colorblendAttachmentStates.size(),
+        .pAttachments = colorblendAttachmentStates.data(),
     };
     VkPipelineViewportStateCreateInfo viewportState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
@@ -415,7 +421,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multisample,
         .pDepthStencilState = &depthStencil,
-        .pColorBlendState = &colorBlending,
+        .pColorBlendState = &colorBlending,//TODO the light buffer need blending on
         .pDynamicState = &dynamicState,
     };
     pipelineInfo.renderPass = VK_NULL_HANDLE; //not using this because we use dynamic rendering
@@ -427,11 +433,18 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
 
     std::array<VkPipelineColorBlendAttachmentState, 4> colorBlendAttachments{};
     //do I have to specify all attachement in the frame (I remember something like that being true)
-    for (auto blendState: colorBlendAttachments) {
+    for (auto& blendState: colorBlendAttachments) {
         blendState.colorWriteMask = 0xf; //not sure what that means
         blendState.blendEnable = VK_FALSE;
         blendState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                           VK_COLOR_COMPONENT_A_BIT;
+        blendState.colorBlendOp = VK_BLEND_OP_ADD;
+        blendState.alphaBlendOp = VK_BLEND_OP_ADD;
+        blendState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        blendState.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+        blendState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        blendState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+
     }
     colorBlending.attachmentCount = 4;
     colorBlending.pAttachments = colorBlendAttachments.data();
@@ -1016,7 +1029,12 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer, VkImage
     };
     vkCmdPipelineBarrier2(commandBuffer,&dependencyInfo);
     //point lights pass, skipping for now
+    vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,PointLightPass.pipeline);
+    for (LightMaterialBindings const &matData: instance->lightPassBindings->Materials) {
+        //const LightMaterialData& matData =
+    }
 
+    vkCmdPipelineBarrier2(commandBuffer,&dependencyInfo);
     //composition
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,ShadingPass.pipeline);
  for (MaterialBindings const &matBinding: instance->passTree->Materials) {//don't really like that it doesn't happen in core, fine for now

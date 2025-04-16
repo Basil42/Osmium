@@ -195,7 +195,9 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     //TODO light buffers
     setupImgui();
     createColorResolveResource();
+    //I will probably have a vector of these one they are unified and I should be able to get rid of all the Mainpipeline class by using the reflection library
     passTree = new PassBindings();
+    lightPassBindings = new LightPassBindings();
     //TODO: pipeline cache
 
     DefaultDescriptors = new DefaultSceneDescriptorSets(device,allocator,*this);
@@ -1071,20 +1073,36 @@ MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo *m
     *defaultInstance = LoadMaterialInstance(materialHandle,defaultInstanceCreateinfo);
     return materialHandle;
 }
+LightMaterialHandle OsmiumGLDynamicInstance::LoadLightMaterial(const LightMaterialCreateinfo* material_create_info, LightMaterialInstanceCreateInfo *defaultInstanceCreateInfo,LightMatInstanceHandle* defaultInstance) const {
+    const auto materialHandle = LoadedLightMaterials->Add({});
+    LightMaterialData* data = LoadedLightMaterials->getRef(materialHandle);
+    data->pass = material_create_info->pass;
+    data->instances = std::vector<MatInstanceHandle>(0);
+
+    *defaultInstance = LoadLightMaterialInstance(materialHandle,defaultInstanceCreateInfo);
+    return materialHandle;
+}
 
 MatInstanceHandle OsmiumGLDynamicInstance::LoadMaterialInstance(MaterialHandle material_handle,
     const MaterialInstanceCreateInfo *material_instance_create_info) const {
     MaterialData* data = LoadedMaterials->getRef(material_handle);
     MatInstanceHandle handle = LoadedMaterialInstances->Add({
         .NormalDescriptorSets = material_instance_create_info->NormalSets,
-        .PointlightDescriptorSets = material_instance_create_info->PointlightSets,
         .ShadingDescriptorSets = material_instance_create_info->ShadingSets
     });
     data->instances.push_back(handle);
     return handle;
 }
 
+LightMatInstanceHandle OsmiumGLDynamicInstance::LoadLightMaterialInstance(LightMaterialHandle material_handle,
+    const LightMaterialInstanceCreateInfo *material_instance_create_info)const {
+    LightMaterialData* data = LoadedLightMaterials->getRef(material_handle);
+    const LightMatInstanceHandle handle = LoadedLightMaterialInstances->Add({
+    .InstanceSets = material_instance_create_info->InstanceSets,});
+    data->instances.push_back(handle);
+    return handle;
 
+}
 MatInstanceHandle OsmiumGLDynamicInstance::GetLoadedMaterialDefaultInstance(MaterialHandle material) const {
     return LoadedMaterials->get(material).instances[0];//should be essentially garanteed
 }

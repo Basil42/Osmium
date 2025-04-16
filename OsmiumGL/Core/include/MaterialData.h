@@ -13,12 +13,8 @@
 #include <span>
 
 #include "RenderedObject.h"
-
-struct MaterialInstanceData {
-  //
-  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> NormalDescriptorSets, PointlightDescriptorSets, ShadingDescriptorSets;
-
-};
+typedef unsigned long LightMatInstanceHandle;
+typedef unsigned long LightMaterialHandle;
 struct PassData{
   VkPipeline pipeline = VK_NULL_HANDLE;
   VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
@@ -30,10 +26,14 @@ struct PassData{
   DefaultVertexAttributeFlags vertexAttributes = NONE;
   unsigned int CustomVertexInputAttributes = 0;
 };
+struct MaterialInstanceData {
+  //
+  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> NormalDescriptorSets, ShadingDescriptorSets;
+
+};
 struct MaterialData {
-  //TODO make data entry for all passes
 #ifdef DYNAMIC_RENDERING
-  PassData NormalPass,PointLightPass,ShadingPass;
+  PassData NormalPass,ShadingPass;
 #else
   VkPipeline NormalPipeline = VK_NULL_HANDLE;
   VkPipelineLayout NormalPipelineLayout = VK_NULL_HANDLE;
@@ -51,6 +51,19 @@ struct MaterialCreateInfo{
   PassData NormalPass,ShadingPass;
 };
 struct MaterialInstanceCreateInfo {
-  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> NormalSets,PointlightSets,ShadingSets;
+  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> NormalSets,ShadingSets;
+};
+struct LightMaterialInstanceData {
+  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> InstanceSets;
+};
+struct LightMaterialData {//TODO Unify material in a single struct (maybe a map of passIndex/passData), or better have material register to different pass trees
+  PassData pass;
+  std::vector<LightMatInstanceHandle> instances;
+};
+struct LightMaterialCreateinfo {
+  PassData pass;
+};
+struct LightMaterialInstanceCreateInfo {
+  std::array<VkDescriptorSet,MAX_FRAMES_IN_FLIGHT> InstanceSets;
 };
 #endif //MATERIALDATA_H
