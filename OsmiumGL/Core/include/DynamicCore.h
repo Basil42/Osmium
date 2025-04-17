@@ -65,6 +65,8 @@ class OsmiumGLDynamicInstance {
     //objhect management
     bool AddRenderedObject(RenderedObject rendered_object) const;
     void RemoveRenderedObject(RenderedObject rendered_object) const;
+
+    void RegisterPointLightShapeMesh(MeshHandle mesh_handle) const;
     //Mesh loading should probably take the deserialized struct directly
     MeshHandle LoadMesh(const std::filesystem::path& path);
     MeshHandle LoadMesh(void *vertices_data, DefaultVertexAttributeFlags attribute_flags, unsigned int
@@ -208,14 +210,12 @@ private:
         const VkImageSubresourceRange &subresource_range);
     VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
     MaterialHandle LoadMaterial(const MaterialCreateInfo* material_create_info,MaterialInstanceCreateInfo* defaultInstanceCreateinfo,MatInstanceHandle* defaultInstance);//also load a default instance
-    LightMaterialHandle LoadLightMaterial(const LightMaterialCreateinfo *material_create_info, LightMaterialInstanceCreateInfo *defaultInstanceCreateInfo, LightMatInstanceHandle
-                                          *defaultInstance) const;
+    LightMaterialHandle LoadLightMaterial(const LightMaterialCreateinfo *material_create_info) const;
 
     MatInstanceHandle LoadMaterialInstance(MaterialHandle material_handle, const MaterialInstanceCreateInfo * material_instance_create_info) const;
 
     LightMatInstanceHandle LoadLightMaterialInstance(LightMaterialHandle material_handle,
-                                                     const LightMaterialInstanceCreateInfo *
-                                                     material_instance_create_info)
+                                                     const LightMaterialInstanceCreateInfo *material_instance_create_info)
     const;
 
 

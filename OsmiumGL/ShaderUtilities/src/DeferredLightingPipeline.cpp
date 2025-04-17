@@ -315,7 +315,7 @@ void DeferredLightingPipeline::createDepthResources() {
     instance->createImage(instance->swapchain.extent.width,instance->swapchain.extent.height,1,instance->msaaFlags,
                 instance->DepthFormat,
                 VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
                 att.image, att.imageMemory);
     attachments.depthSencil.imageView = instance->createImageView(att.image, instance->DepthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     instance->AddDebugName(reinterpret_cast<uint64_t>(att.imageView),"depth view", VK_OBJECT_TYPE_IMAGE_VIEW);

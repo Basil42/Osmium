@@ -6,9 +6,12 @@
 #define GOC_POINTLIGHT_H
 #include <vector>
 
+#include "GOC_MeshRenderer.h"
 #include "PointLights.h"
 #include "ResourceArray.h"
+#include "../../OsmiumGL/Core/include/config.h"
 #include "Base/GameObjectComponent.h"
+
 
 
 class GOC_PointLight : public GameObjectComponent{
@@ -17,14 +20,20 @@ class GOC_PointLight : public GameObjectComponent{
 
     unsigned int lightHandle;
     static ResourceArray<PointLightPushConstants,50> constants;//let's say 50 for demo purposes
+    static std::optional<AssetId> AssetHandle;
+    static MeshHandle LightShapeMesh;
+
+    static void OnMeshLoaded(Asset* asset);
 public:
     const std::string & Name() override { return name; }
 
-    static void GORenderUpdate();;
+
+    static void GORenderUpdate();
 
     void Update() override{};//TODO add a changelist to resolve during update
 
     void RenderUpdate() override{};//might need to just get rid of this one
+
 
     explicit GOC_PointLight(GameObject * parent);
     ~GOC_PointLight() override;
@@ -34,6 +43,8 @@ public:
 
     void SetRadius(float radius);
     void SetValues(const glm::vec3 &pos, const glm::vec3 &color, float radius);
+    
+    void SetMeshAsset(AssetId asset_id);
 };
 
 

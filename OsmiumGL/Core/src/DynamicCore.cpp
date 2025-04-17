@@ -401,6 +401,14 @@ void OsmiumGLDynamicInstance::UpdateCameraData(const glm::mat4 &updatedViewMatri
     proj[1][1] = -1.0f;//correction for orientation convention
     const CameraUniformValue cameraUniform {.view = updatedViewMatrix, .projection = proj};
     DefaultDescriptors->UpdateCamera(cameraUniform,currentFrame);
+    PointLightUniformValue LightUniformUpdateData{
+    .clipUniform = {
+    .ScreenSize = glm::vec2(swapchain.extent.height,swapchain.extent.width),
+    .halfSizeNearPlane = {glm::tan((radianVFOV/2.0f) * (static_cast<float>(swapchain.extent.width)/static_cast<float>(swapchain.extent.height))), glm::tan(radianVFOV/2.0) }},
+    .reconstructUniform = {
+    .Projection = proj,
+    .depthRange = glm::vec2(0.0f, 1.0f),}};
+    MainPipelineInstance->UpdatePointLightUniform(LightUniformUpdateData);
 }
 
 
@@ -1073,22 +1081,15 @@ MaterialHandle OsmiumGLDynamicInstance::LoadMaterial(const MaterialCreateInfo *m
     *defaultInstance = LoadMaterialInstance(materialHandle,defaultInstanceCreateinfo);
     return materialHandle;
 }
-LightMaterialHandle OsmiumGLDynamicInstance::LoadLightMaterial(const LightMaterialCreateinfo* material_create_info, LightMaterialInstanceCreateInfo *defaultInstanceCreateInfo,LightMatInstanceHandle* defaultInstance) const {
+LightMaterialHandle OsmiumGLDynamicInstance::LoadLightMaterial(const LightMaterialCreateinfo *material_create_info) const {
     const auto materialHandle = LoadedLightMaterials->Add({});
     LightMaterialData* data = LoadedLightMaterials->getRef(materialHandle);
     data->pass = material_create_info->pass;
     data->instances = std::vector<MatInstanceHandle>(0);
 
-    *defaultInstance = LoadLightMaterialInstance(materialHandle,defaultInstanceCreateInfo);
     lightPassBindings->Materials[0] = {
-    .lightMaterialHandle = materialHandle,
-    };
-    lightPassBindings->Materials[0].instances.push_back({
-        .lightMatInstanceHandle = MAX_LOADED_MATERIAL_INSTANCES,
-        .lightCount = pointLightPushConstants.size(),
-        .LightPushConstantData = pointLightPushConstants,
-    });
-
+        .lightMaterialHandle = materialHandle,
+        };
     return materialHandle;
 }
 
@@ -1100,6 +1101,7 @@ MatInstanceHandle OsmiumGLDynamicInstance::LoadMaterialInstance(MaterialHandle m
         .ShadingDescriptorSets = material_instance_create_info->ShadingSets
     });
     data->instances.push_back(handle);
+
     return handle;
 }
 
@@ -1107,7 +1109,8 @@ LightMatInstanceHandle OsmiumGLDynamicInstance::LoadLightMaterialInstance(LightM
     const LightMaterialInstanceCreateInfo *material_instance_create_info)const {
     LightMaterialData* data = LoadedLightMaterials->getRef(material_handle);
     const LightMatInstanceHandle handle = LoadedLightMaterialInstances->Add({
-    .InstanceSets = material_instance_create_info->InstanceSets,});
+    .InstanceSets = material_instance_create_info->InstanceSets,
+    });
     data->instances.push_back(handle);
     return handle;
 
@@ -1175,6 +1178,7 @@ bool OsmiumGLDynamicInstance::AddRenderedObject(RenderedObject rendered_object) 
         return false;
     }
     mat_instance_binding->meshes.push_back(MeshBindings(rendered_object.mesh));
+    mat_instance_binding->meshes.back().objectCount++;
     return true;
 }
 
@@ -1202,6 +1206,17 @@ void OsmiumGLDynamicInstance::RemoveRenderedObject(RenderedObject rendered_objec
             break;
         }
     }
+}
+
+void OsmiumGLDynamicInstance::RegisterPointLightShapeMesh(MeshHandle mesh_handle) const {
+    const LightMaterialInstanceCreateInfo defaultInstanceCreateInfo{};
+    //clean this up
+    const auto& instanceHandle = LoadLightMaterialInstance(MainPipelineInstance->GetPointLightmaterialHandle(),&defaultInstanceCreateInfo);
+    if (lightPassBindings->Materials[0].instances.size() == 0)lightPassBindings->Materials[0].instances.resize(1);
+    lightPassBindings->Materials[0].instances[0] ={
+    .lightMatInstanceHandle = instanceHandle,
+    };
+    lightPassBindings->Materials.at(0).instances.at(0).meshBindings.MeshHandle = mesh_handle;
 }
 
 VkDescriptorSetLayout OsmiumGLDynamicInstance::GetCameraDescriptorLayout() const {

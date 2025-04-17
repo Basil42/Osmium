@@ -130,4 +130,8 @@ MatInstanceHandle OsmiumGL::GetDefaultMaterialInstance(MaterialHandle material) 
     return instance->GetLoadedMaterialDefaultInstance(material);
 }
 
+void OsmiumGL::RegisterPointLightLightShape(MeshHandle mesh_handle) {
+    instance->RegisterPointLightShapeMesh(mesh_handle);
+}
+
 

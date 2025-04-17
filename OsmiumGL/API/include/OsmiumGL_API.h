@@ -97,6 +97,8 @@ namespace  OsmiumGL {
     MaterialHandle GetDefaultMaterial();
 
     MatInstanceHandle GetDefaultMaterialInstance(MaterialHandle material);
+
+    void RegisterPointLightLightShape(MeshHandle mesh_handle);
 };
 
 

@@ -102,7 +102,7 @@ public:
                  VkFormat swapCHainFormat);
     ~MainPipeline();
 
-    void UpdatePointLightUniform(const PointLightUniformValue& value);
+    void UpdatePointLightUniform(const PointLightUniformValue &value) const;
     void UpdateAmbientLightUniform(const glm::vec4& value);
 
     void RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const;
@@ -110,6 +110,8 @@ public:
     MaterialHandle GetMaterialHandle() const;
 
     void RecreateFrameBuffers(VkExtent2D extent);
+
+    LightMaterialHandle GetPointLightmaterialHandle() const {return pointLightMaterialHandle;};
 };
 
 

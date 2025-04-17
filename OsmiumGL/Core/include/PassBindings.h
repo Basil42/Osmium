@@ -10,7 +10,7 @@
 
 struct MeshBindings {
     unsigned long MeshHandle = MAX_LOADED_MESHES;
-    unsigned int objectCount = 1;
+    unsigned int objectCount = 0;
     std::array<std::vector<std::byte>, MAX_FRAMES_IN_FLIGHT> ObjectPushConstantData;//rendered object need a pointer to this, this vector also needs to be cleared every frame
 };
 struct MaterialInstanceBindings {
@@ -27,8 +27,7 @@ struct PassBindings {
 };
 struct LightMaterialInstanceBindings {
     LightMatInstanceHandle lightMatInstanceHandle = MAX_LOADED_MATERIAL_INSTANCES;
-    unsigned int lightCount = 0;
-    std::array<std::vector<PointLightPushConstants>, MAX_FRAMES_IN_FLIGHT> LightPushConstantData;
+    MeshBindings meshBindings;
 };
 struct LightMaterialBindings {
     LightMaterialHandle lightMaterialHandle;

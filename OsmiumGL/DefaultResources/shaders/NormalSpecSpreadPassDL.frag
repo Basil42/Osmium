@@ -11,7 +11,7 @@ layout(location = 0)out vec4 Normal_smoothness;
 
 
 void main() {
-    Normal_smoothness = vec4(1.0);//vec4(normalize(inNormal),texture(smoothnessMap,inTexcoordinate).r);
+    Normal_smoothness = vec4(normalize(inNormal),texture(smoothnessMap,inTexcoordinate).r);
 //    Diffuse = vec4(0.0);
 //    Specular = vec4(0.0);
       //finalColor = vec4(0.0);

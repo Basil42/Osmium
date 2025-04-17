@@ -189,7 +189,7 @@ void MainPipeline::CreateDepthResources() {
     instance->createImage(instance->swapchain.extent.width, instance->swapchain.extent.height, 1, instance->msaaFlags,
                           instance->DepthFormat,
                           VK_IMAGE_TILING_OPTIMAL,
-                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
                           att.image, att.imageMemory);
     attachments.depthSencil.imageView = instance->createImageView(att.image, instance->DepthFormat,
                                                                   VK_IMAGE_ASPECT_DEPTH_BIT, 1);
@@ -210,7 +210,7 @@ void MainPipeline::CreateDepthResources() {
         .srcAccessMask = 0,
         .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
         .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .newLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,//VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = att.image,
@@ -371,12 +371,12 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
         .binding = 1,
         .stride = sizeof(glm::vec2),
         //technically loosing space here but the vec3 after is 16 aligned so it probably doesn't matter
-        .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
     };
     VertexBindings[2] = {
         .binding = 2,
         .stride = sizeof(glm::vec3),
-        .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
     };
 
     //attribute description should be all compatible
@@ -542,8 +542,8 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     depthStencil.depthWriteEnable = VK_FALSE; //prevent light from writing to depth buffer
     depthStencil.depthTestEnable = VK_FALSE; //need fragments from light volumes that might be partially ocluded
     rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT; //so light work while inside them
-    VertexInputState.vertexBindingDescriptionCount = 0;
-    VertexInputState.vertexAttributeDescriptionCount = 0;
+    VertexInputState.vertexBindingDescriptionCount = 1;
+    VertexInputState.vertexAttributeDescriptionCount = 1;
 
     shaderStages[0] = instance->loadShader("../OsmiumGL/DefaultResources/shaders/PointLightDL.vert.spv",
                                            VK_SHADER_STAGE_VERTEX_BIT);
@@ -677,6 +677,58 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
     //light pass, should be updated with the camera info
 
     for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        //clip info
+        const UniformBufferStruct& pointLightGlobalUniform = UniformPointLightCameraInfo[i];
+        VkDescriptorBufferInfo clipBufferInfo{
+        .buffer = UniformPointLightCameraInfo[i].buffer,
+        .offset = 0,
+        .range = sizeof(PointLightUniformValue::clipUniform)};
+        VkWriteDescriptorSet pointLightClipInfoSetWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = PointLightPass.globalDescriptorSets[i],
+        .dstBinding = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = &clipBufferInfo,
+        };
+        VkDescriptorBufferInfo pointLightReconstructBufferInfo{
+        .buffer = UniformPointLightCameraInfo[i].buffer,
+        .offset = offsetof(PointLightUniformValue,PointLightUniformValue::clipUniform),
+        .range = sizeof(PointLightUniformValue::reconstructUniform)};
+        VkWriteDescriptorSet pointLightReconstructWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = PointLightPass.globalDescriptorSets[i],
+        .dstBinding = 1,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = &pointLightReconstructBufferInfo,
+        };
+        VkDescriptorImageInfo depthImageInfo{
+        .sampler = VK_NULL_HANDLE,
+        .imageView = attachments.depthSencil.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR};//could transition to read only ?
+        VkWriteDescriptorSet pointLightDepthWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = PointLightPass.globalDescriptorSets[i],
+        .dstBinding = 2,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        .pImageInfo = &depthImageInfo,
+        };
+        VkDescriptorImageInfo NormalImageInfo{
+        .sampler = VK_NULL_HANDLE,
+        .imageView = attachments.NormalSpread.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR
+        };
+        VkWriteDescriptorSet pointLightNormalWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = PointLightPass.globalDescriptorSets[i],
+        .dstBinding = 3,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        .pImageInfo = &NormalImageInfo};
+        std::array pointLightWrites{pointLightClipInfoSetWrite,pointLightReconstructWrite,pointLightDepthWrite,pointLightNormalWrite};
+        vkUpdateDescriptorSets(device,pointLightWrites.size(),pointLightWrites.data(),0,nullptr);
     //ambient light
         const UniformBufferStruct& ambientUniform = UniformShadingAmbientLight[i];
         auto defaultAmbientLightColor = glm::vec4(0.2f);
@@ -922,9 +974,10 @@ MainPipeline::MainPipeline(OsmiumGLDynamicInstance *instance, VkDevice device, V
         .CustomVertexInputAttributes = 0
         },};
     LightMaterialInstanceCreateInfo pointLightMaterialInstanceCreateInfo{
-    .InstanceSets = nullptr};
+    .InstanceSets = nullptr,
+    };
 
-    pointLightMaterialHandle = instance->LoadLightMaterial(&pointLightmaterialCreateInfo,&pointLightMaterialInstanceCreateInfo,&defaultPointLightInstanceHandle);
+    pointLightMaterialHandle = instance->LoadLightMaterial(&pointLightmaterialCreateInfo);
 }
 
 MainPipeline::~MainPipeline() {
@@ -937,6 +990,10 @@ MainPipeline::~MainPipeline() {
     instance->destroyAttachment(attachments.depthSencil);
     DestroyAttachments();
     DestroyDescriptorLayouts();
+}
+
+void MainPipeline::UpdatePointLightUniform(const PointLightUniformValue &value) const {
+    memcpy(UniformPointLightCameraInfo[instance->currentFrame].mappedMemory,&value,sizeof(PointLightUniformValue));
 }
 
 void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const {
@@ -1050,6 +1107,7 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const {
     };
     vkCmdPipelineBarrier2(commandBuffer,&dependencyInfo);
     //point lights pass
+
     for (LightMaterialBindings const &matBiding: instance->lightPassBindings->Materials) {
         const LightMaterialData& matData = instance->LoadedLightMaterials->get(matBiding.lightMaterialHandle);
         vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pass.pipeline);//not assuming unique pipeline here
@@ -1058,12 +1116,18 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const {
         vkCmdBindDescriptorSets(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,matData.pass.pipelineLayout,1,1,&matData.pass.globalDescriptorSets[frameNum],0,nullptr);
         for (LightMaterialInstanceBindings const &instance_bindings : matBiding.instances) {
 
-            for (unsigned int i = 0; i < instance->pointLightPushConstants[frameNum].size() ; i++) {
-                vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(PointLightPushConstants::vertConstant)+sizeof(PointLightPushConstants::radius),instance->pointLightPushConstants.data()+(i*matData.pass.pushconstantStride));
-                vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_FRAGMENT_BIT,offsetof(PointLightPushConstants,PointLightPushConstants::radius),sizeof(PointLightPushConstants::radius) + sizeof(PointLightPushConstants::fragConstant),instance->pointLightPushConstants.data()+(i*matData.pass.pushconstantStride));
-                vkCmdDraw(commandBuffer,3,1,0,0);//shorthand for a full screenpass ?
+            auto& mesh_bindings = instance_bindings.meshBindings;
+            MeshData meshData = instance->LoadedMeshes->get(mesh_bindings.MeshHandle);
+            VkBuffer vertexBuffer = meshData.VertexAttributeBuffers.at(POSITION).first;
+            const VkDeviceSize sizes = 0;
+            vkCmdBindVertexBuffers(commandBuffer,0,1,&vertexBuffer,&sizes);
+            vkCmdBindIndexBuffer(commandBuffer,meshData.indexBuffer,0,VK_INDEX_TYPE_UINT32);
+                for (unsigned int i = 0; i < instance->pointLightPushConstants[frameNum].size() ; i++) {
+                    vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(PointLightPushConstants::vertConstant)+sizeof(PointLightPushConstants::radius),instance->pointLightPushConstants.data()+(i*matData.pass.pushconstantStride));
+                    vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_FRAGMENT_BIT,offsetof(PointLightPushConstants,PointLightPushConstants::radius),sizeof(PointLightPushConstants::radius) + sizeof(PointLightPushConstants::fragConstant),instance->pointLightPushConstants.data()+(i*matData.pass.pushconstantStride));
+                    vkCmdDrawIndexed(commandBuffer,meshData.numIndices,1,0,0,0);
+                }
 
-            }
         }
 
     }

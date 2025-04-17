@@ -16,8 +16,8 @@ layout(push_constant)uniform PointLight {
 } Light;
 
 
-layout(location = 0)out vec3 outDiffuse;
-layout(location = 1)out vec3 outSpecular;
+layout(location = 1)out vec3 outDiffuse;
+layout(location = 2)out vec3 outSpecular;
 //I might be able to just treat view position as 0 if I do everything in view space
 //I don't see how to calculate light data from only normals and the spread factor, maybe I could use the reverse view matrix
 void main() {
