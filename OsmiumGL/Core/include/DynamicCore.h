@@ -143,7 +143,7 @@ private:
     Attachment colorResolveAttachment;
     MainPipeline* MainPipelineInstance;
 
-    std::vector<std::vector<PointLightPushConstants>> pointLightPushConstants;
+    std::array<std::vector<PointLightPushConstants>,MAX_FRAMES_IN_FLIGHT> pointLightPushConstants;
     //old material system data
     PassBindings*passTree = nullptr;
     LightPassBindings* lightPassBindings = nullptr;

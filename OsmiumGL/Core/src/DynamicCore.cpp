@@ -183,7 +183,6 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     VkFenceCreateInfo fenceCreateInfo{
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
     .flags = VK_FENCE_CREATE_SIGNALED_BIT,};
-    pointLightPushConstants.resize(swapchainViews.size());
     drawFences.resize(drawCommandBuffers.size());
 
     for (auto& fence : drawFences) {
@@ -312,7 +311,7 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
 
 
 
-    MainPipelineInstance->RenderDeferredFrameCmd(commandBuffer, swapChainImage);
+    MainPipelineInstance->RenderDeferredFrameCmd(commandBuffer);
     //imgui frame
     imguiLock.lock();
     ImGuiFrameReadyCondition.cv.wait(imguiLock,[&ImGuiFrameReadyCondition](){return ImGuiFrameReadyCondition.boolean == false;});
@@ -387,6 +386,7 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
 void OsmiumGLDynamicInstance::UpdateDynamicPointLights(const std::span<PointLightPushConstants> &LightArray) {
     const unsigned int lightCount = LightArray.size();
     pointLightPushConstants[currentFrame].resize(lightCount);
+
     memcpy(pointLightPushConstants[currentFrame].data(),LightArray.data(),lightCount*sizeof(PointLightPushConstants));
 }
 
@@ -1080,6 +1080,15 @@ LightMaterialHandle OsmiumGLDynamicInstance::LoadLightMaterial(const LightMateri
     data->instances = std::vector<MatInstanceHandle>(0);
 
     *defaultInstance = LoadLightMaterialInstance(materialHandle,defaultInstanceCreateInfo);
+    lightPassBindings->Materials[0] = {
+    .lightMaterialHandle = materialHandle,
+    };
+    lightPassBindings->Materials[0].instances.push_back({
+        .lightMatInstanceHandle = MAX_LOADED_MATERIAL_INSTANCES,
+        .lightCount = pointLightPushConstants.size(),
+        .LightPushConstantData = pointLightPushConstants,
+    });
+
     return materialHandle;
 }
 

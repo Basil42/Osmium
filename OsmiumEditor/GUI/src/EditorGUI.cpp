@@ -20,6 +20,7 @@
 #include "GOComponents/GOC_Transform.h"
 #include "GOComponents/GOC_Camera.h"
 #include "GOComponents/GOC_DirectionalLight.h"
+#include "GOComponents/GOC_PointLight.h"
 
 void EditorGUI::Run() {
 
@@ -145,21 +146,36 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);//this shoudl probably be a reference to stay up to date
             static unsigned int frameNumber = 0;
             ImGui::Text("Frame Number: %u", frameNumber++);
-            if(ImGui::Button("Create Default Entity")) {
+            if(ImGui::Button("Create Default Entities")) {
                 //set the transform to something convenient here
                 //this should happen on the sim thread
 
-                GameObjectCreateInfo defaultObjectInfo;
-                defaultObjectInfo.name = "default";
-                defaultObjectInfo.parent = 0;//I should probably pre allocate a 0 handle game object just to be safe
-                OsmiumInstance->CreateNewGameObject(defaultObjectInfo,[](GameObject* gameObject) {
+                GameObjectCreateInfo defaultMeshInfo;
+                defaultMeshInfo.name = "default mesh";
+                defaultMeshInfo.parent = 0;//I should probably pre allocate a 0 handle game object just to be safe
+                OsmiumInstance->CreateNewGameObject(defaultMeshInfo,[](GameObject* gameObject) {
                     gameObject->Addcomponent<GOC_Transform>();
                     gameObject->Addcomponent<GOC_MeshRenderer>([](GOC_MeshRenderer* renderer) {
                         renderer->SetMaterial(OsmiumGL::GetDefaultMaterial(),true);
                         renderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/models/monkey.obj"));
                     });
                 });
-
+                GameObjectCreateInfo defaultGreenPointLightInfo;
+                defaultGreenPointLightInfo.name = "default green light";
+                defaultGreenPointLightInfo.parent = 0;
+                OsmiumInstance->CreateNewGameObject(defaultGreenPointLightInfo,[](GameObject* gameObject) {
+                    gameObject->Addcomponent<GOC_PointLight>([](GOC_PointLight* light) {
+                        light->SetValues(glm::vec3(3.0f,0.0f,0.0f),glm::vec3(0.0f,1.0f,0.0),5.0f);
+                    });
+                });
+                GameObjectCreateInfo defaultRedLightInfo;
+                defaultRedLightInfo.name = "default red light";
+                defaultRedLightInfo.parent = 0;
+                OsmiumInstance->CreateNewGameObject(defaultRedLightInfo,[](GameObject* gameObject) {
+                    gameObject->Addcomponent<GOC_PointLight>([](GOC_PointLight* light) {
+                        light->SetValues(glm::vec3(3.0f,2.0f,0.0f),glm::vec3(1.0f,0.0f,0.0),5.0f);
+                    });
+                });
                     // GameObject* defaultObject = CreateNewGameObject();
                     // defaultObject->Addcomponent<GOC_Transform>();
                     // const auto defaultGOMeshRenderer = defaultObject->Addcomponent<GOC_MeshRenderer>();

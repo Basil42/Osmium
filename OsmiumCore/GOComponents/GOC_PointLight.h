@@ -26,9 +26,14 @@ public:
 
     void RenderUpdate() override{};//might need to just get rid of this one
 
-    GOC_PointLight(GameObject * parent);
+    explicit GOC_PointLight(GameObject * parent);
     ~GOC_PointLight() override;
 
+    void SetPosition(const glm::vec3 & pos);
+    void SetColor(const glm::vec3 & col);
+
+    void SetRadius(float radius);
+    void SetValues(const glm::vec3 &pos, const glm::vec3 &color, float radius);
 };
 
 

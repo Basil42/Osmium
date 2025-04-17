@@ -59,6 +59,8 @@ class MainPipeline {
 
     MaterialHandle materialHandle;
     MatInstanceHandle defaultMatInstanceHandle;
+    LightMaterialHandle pointLightMaterialHandle;
+    LightMatInstanceHandle defaultPointLightInstanceHandle;
 
     void CreateNormalPassDescriptorLayouts();
     void DestroyNormalPassDescriptorLayouts() const;
@@ -103,7 +105,7 @@ public:
     void UpdatePointLightUniform(const PointLightUniformValue& value);
     void UpdateAmbientLightUniform(const glm::vec4& value);
 
-    void RenderDeferredFrameCmd(VkCommandBuffer command_buffer, VkImage vk_image) const;
+    void RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const;
 
     MaterialHandle GetMaterialHandle() const;
 

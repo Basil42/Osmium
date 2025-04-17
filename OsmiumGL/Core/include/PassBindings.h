@@ -5,6 +5,7 @@
 #ifndef PASSTREE_H
 #define PASSTREE_H
 #include "MaterialData.h"
+#include "PointLights.h"
 
 
 struct MeshBindings {
@@ -27,7 +28,7 @@ struct PassBindings {
 struct LightMaterialInstanceBindings {
     LightMatInstanceHandle lightMatInstanceHandle = MAX_LOADED_MATERIAL_INSTANCES;
     unsigned int lightCount = 0;
-    std::array<std::vector<std::byte>, MAX_FRAMES_IN_FLIGHT> LightPushConstantData;
+    std::array<std::vector<PointLightPushConstants>, MAX_FRAMES_IN_FLIGHT> LightPushConstantData;
 };
 struct LightMaterialBindings {
     LightMaterialHandle lightMaterialHandle;

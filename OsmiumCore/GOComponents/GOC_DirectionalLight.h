@@ -22,7 +22,6 @@ public:
     float Intensity;
 
     const std::string name = "DirectionalLight";
-    std::chrono::time_point<std::chrono::system_clock> oldTime;
 
     const std::string & Name() override {
         return name;
