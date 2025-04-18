@@ -243,24 +243,30 @@ void MainPipeline::CreatePipelineLayouts(VkDevice device, VkSampleCountFlagBits 
     check_vk_result(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &NormalSpreadPass.pipelineLayout));
 
     //light pass
-    VkPushConstantRange PointLightPushConstantRange[2];
-    PointLightPushConstantRange[0] = {
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .size = sizeof(PointLightPushConstants::vertConstant) + sizeof(float)
-    };
+    // VkPushConstantRange PointLightPushConstantRange[2];
+    // PointLightPushConstantRange[0] = {
+    //     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    //     .offset = 0,
+    //     .size = sizeof(PointLightPushConstants::vertConstant) + sizeof(float)
+    // };
+    //
+    // PointLightPushConstantRange[1] = {
+    //     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    //     .offset = offsetof(PointLightPushConstants, PointLightPushConstants::radius),
+    //     .size = sizeof(PointLightPushConstants::fragConstant) + 16
+    // };
+    const VkPushConstantRange  PointLightPushConstantRange{
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+    .offset = 0,
+    .size = sizeof(PointLightPushConstants)};
 
-    PointLightPushConstantRange[1] = {
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .size = sizeof(PointLightPushConstants::fragConstant) + 16
-    };
-    PointLightPushConstantRange[1].offset = offsetof(PointLightPushConstants, PointLightPushConstants::radius);
 
     const std::array pointLightDescriptorLayouts{CameraSetLayout, PointLightPass.globalDescriptorLayout};
     pipelineLayoutInfo.setLayoutCount = 2;
     pipelineLayoutInfo.pSetLayouts = pointLightDescriptorLayouts.data();
     //might have to have severa to get the camera set
-    pipelineLayoutInfo.pushConstantRangeCount = 2;
-    pipelineLayoutInfo.pPushConstantRanges = PointLightPushConstantRange;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &PointLightPushConstantRange;
     check_vk_result(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &PointLightPass.pipelineLayout));
 
     //shading
@@ -525,7 +531,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     colorBlendAttachments[0] = {
         //diffuse
         .blendEnable = VK_TRUE,
-        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .colorBlendOp = VK_BLEND_OP_ADD,
         .srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO, //should not need it at all
@@ -693,7 +699,7 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
         };
         VkDescriptorBufferInfo pointLightReconstructBufferInfo{
         .buffer = UniformPointLightCameraInfo[i].buffer,
-        .offset = offsetof(PointLightUniformValue,PointLightUniformValue::clipUniform),
+        .offset = offsetof(PointLightUniformValue,PointLightUniformValue::reconstructUniform),
         .range = sizeof(PointLightUniformValue::reconstructUniform)};
         VkWriteDescriptorSet pointLightReconstructWrite{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -1123,8 +1129,9 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const {
             vkCmdBindVertexBuffers(commandBuffer,0,1,&vertexBuffer,&sizes);
             vkCmdBindIndexBuffer(commandBuffer,meshData.indexBuffer,0,VK_INDEX_TYPE_UINT32);
                 for (unsigned int i = 0; i < instance->pointLightPushConstants[frameNum].size() ; i++) {
-                    vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(PointLightPushConstants::vertConstant)+sizeof(PointLightPushConstants::radius),instance->pointLightPushConstants.data()+(i*matData.pass.pushconstantStride));
-                    vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_FRAGMENT_BIT,offsetof(PointLightPushConstants,PointLightPushConstants::radius),sizeof(PointLightPushConstants::radius) + sizeof(PointLightPushConstants::fragConstant),instance->pointLightPushConstants.data()+(i*matData.pass.pushconstantStride));
+                    vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,0,sizeof(PointLightPushConstants), &instance->pointLightPushConstants[frameNum][i]);
+                    //vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(PointLightPushConstants::vertConstant)+sizeof(PointLightPushConstants::radius),instance->pointLightPushConstants[frameNum].data()+static_cast<size_t>(i*matData.pass.pushconstantStride));
+                    //vkCmdPushConstants(commandBuffer,matData.pass.pipelineLayout,VK_SHADER_STAGE_FRAGMENT_BIT,offsetof(PointLightPushConstants,radius),16 + sizeof(PointLightPushConstants::fragConstant),instance->pointLightPushConstants[frameNum].data()+(offsetof(PointLightPushConstants,radius)+static_cast<size_t>(i*matData.pass.pushconstantStride)));
                     vkCmdDrawIndexed(commandBuffer,meshData.numIndices,1,0,0,0);
                 }
 

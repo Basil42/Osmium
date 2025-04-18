@@ -42,7 +42,7 @@ public:
     void SetColor(const glm::vec3 & col);
 
     void SetRadius(float radius);
-    void SetValues(const glm::vec3 &pos, const glm::vec3 &color, float radius);
+    void SetValues(const glm::vec3 & pos, const glm::vec3 & color, float radius, float intensity);
     
     void SetMeshAsset(AssetId asset_id);
 };

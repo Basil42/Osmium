@@ -12,6 +12,8 @@
 #include "AssetManagement/Asset.h"
 #include "AssetManagement/AssetType/MeshAsset.h"
 
+
+
 ResourceArray<PointLightPushConstants,50> GOC_PointLight::constants;
 std::optional<AssetId> GOC_PointLight::AssetHandle;
 MeshHandle GOC_PointLight::LightShapeMesh = MAX_LOADED_MESHES;
@@ -65,12 +67,12 @@ void GOC_PointLight::SetRadius(const float radius) {
     PointLightPushConstants &constantValue = constants.get(lightHandle);
     constantValue.radius = radius;
 }
-void GOC_PointLight::SetValues(const glm::vec3 &pos, const glm::vec3 &color, const float radius) {
+void GOC_PointLight::SetValues(const glm::vec3 &pos, const glm::vec3 &color, const float radius, const float intensity) {
     auto &[vertConstant, radiusConstant, fragConstant] = constants.get(lightHandle);
     vertConstant.model = glm::translate(glm::mat4(1.0f),pos);
     radiusConstant = radius;
     fragConstant.position = glm::vec4(pos,1.0f);
-    fragConstant.color = glm::vec4(color,1.0f);
+    fragConstant.color = glm::vec4(color,intensity);
 }
 
 void GOC_PointLight::SetMeshAsset(AssetId asset_id) {

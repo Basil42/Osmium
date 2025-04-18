@@ -406,7 +406,7 @@ void OsmiumGLDynamicInstance::UpdateCameraData(const glm::mat4 &updatedViewMatri
     .ScreenSize = glm::vec2(swapchain.extent.height,swapchain.extent.width),
     .halfSizeNearPlane = {glm::tan((radianVFOV/2.0f) * (static_cast<float>(swapchain.extent.width)/static_cast<float>(swapchain.extent.height))), glm::tan(radianVFOV/2.0) }},
     .reconstructUniform = {
-    .Projection = proj,
+    .invProjection = glm::inverse(proj),
     .depthRange = glm::vec2(0.0f, 1.0f),}};
     MainPipelineInstance->UpdatePointLightUniform(LightUniformUpdateData);
 }

@@ -90,7 +90,7 @@ private:
 
 
     DirLightUniformValue directionalLightValue{.VLightDirection = {glm::vec3(1.0f)}, .DirLightColor = glm::vec3(1.0f), .DirLightIntensity = 1.0f};
-    PointLightUniformValue pointLightValue{.clipUniform = {.ScreenSize = glm::vec2(1.0f), .halfSizeNearPlane = glm::vec2(1.0f)},.reconstructUniform = {.Projection = glm::mat4(1.0f), .depthRange = glm::vec2(-1.0f,1.0f)}};
+    PointLightUniformValue pointLightValue{.clipUniform = {.ScreenSize = glm::vec2(1.0f), .halfSizeNearPlane = glm::vec2(1.0f)},.reconstructUniform = {.invProjection = glm::mat4(1.0f), .depthRange = glm::vec2(-1.0f,1.0f)}};
     CameraUniformValue mainCameraUniformValue;
 
     //pointLight data
