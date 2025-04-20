@@ -688,7 +688,7 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
         VkDescriptorBufferInfo clipBufferInfo{
         .buffer = UniformPointLightCameraInfo[i].buffer,
         .offset = 0,
-        .range = sizeof(PointLightUniformValue::clipUniform)};
+        .range = sizeof(PointLightUniformValue)};
         VkWriteDescriptorSet pointLightClipInfoSetWrite{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = PointLightPass.globalDescriptorSets[i],
@@ -699,8 +699,8 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
         };
         VkDescriptorBufferInfo pointLightReconstructBufferInfo{
         .buffer = UniformPointLightCameraInfo[i].buffer,
-        .offset = offsetof(PointLightUniformValue,PointLightUniformValue::reconstructUniform),
-        .range = sizeof(PointLightUniformValue::reconstructUniform)};
+        .offset = 0,//this triggers a validation layer on my A4500 but works anyway, I'll probably end up removing it
+        .range = sizeof(PointLightUniformValue)};
         VkWriteDescriptorSet pointLightReconstructWrite{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = PointLightPass.globalDescriptorSets[i],
@@ -737,7 +737,7 @@ void MainPipeline::InitializeDefaultGlobalDescriptorSets() {
         vkUpdateDescriptorSets(device,pointLightWrites.size(),pointLightWrites.data(),0,nullptr);
     //ambient light
         const UniformBufferStruct& ambientUniform = UniformShadingAmbientLight[i];
-        auto defaultAmbientLightColor = glm::vec4(0.2f);
+        auto defaultAmbientLightColor = glm::vec4(0.002f);
         memcpy(ambientUniform.mappedMemory,&defaultAmbientLightColor, sizeof(defaultAmbientLightColor));
         VkDescriptorBufferInfo bufferInfo{
         .buffer = ambientUniform.buffer,

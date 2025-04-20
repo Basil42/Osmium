@@ -20,4 +20,5 @@ void main() {
     vec4 specularColor = texture(specularMap,TexCoord);
     specularColor = specularColor + (1-specularColor)*(1-max(dot(subpassLoad(NormalSpreadBuffer).xyz,viewDir),0.0));
     outColor = albedo * (AmbientLight + subpassLoad(DiffuseBuffer)) + subpassLoad(SpecularBuffer) * specularColor;
+    //should convert it to something better handled by srgb
 }

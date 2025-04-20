@@ -119,6 +119,9 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     //swapchain
     vkb::SwapchainBuilder swapchainBuilder{device};
     auto swapchain_result = swapchainBuilder
+    .set_desired_format(VkSurfaceFormatKHR{
+    .format = VK_FORMAT_B8G8R8_SNORM,
+    .colorSpace = VK_COLOR_SPACE_ADOBERGB_LINEAR_EXT})
     .build();
     if (!swapchain_result) {
         throw std::runtime_error(swapchain_result.error().message());
@@ -397,7 +400,7 @@ void OsmiumGLDynamicInstance::UpdateDirectionalLightData(const glm::vec3 directi
 
 void OsmiumGLDynamicInstance::UpdateCameraData(const glm::mat4 &updatedViewMatrix, float radianVFOV) {
     //projection is relatively stable and could be cached but this is relatively cheap
-    auto proj = glm::perspective(radianVFOV,static_cast<float>(swapchain.extent.width) / static_cast<float>(swapchain.extent.height),0.1f,10.0f);
+    auto proj = glm::perspective(radianVFOV,static_cast<float>(swapchain.extent.width) / static_cast<float>(swapchain.extent.height),0.1f,100.0f);
     proj[1][1] = -1.0f;//correction for orientation convention
     const CameraUniformValue cameraUniform {.view = updatedViewMatrix, .projection = proj};
     DefaultDescriptors->UpdateCamera(cameraUniform,currentFrame);
