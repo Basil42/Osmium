@@ -18,7 +18,6 @@ void main() {
     vec3 viewDir = normalize(-viewPos);
     vec4 albedo = texture(alebedoMap,TexCoord);
     vec4 specularColor = texture(specularMap,TexCoord);
-    specularColor = specularColor + (1-specularColor)*(1-max(dot(subpassLoad(NormalSpreadBuffer).xyz,viewDir),0.0));
+    specularColor = specularColor + (1-specularColor)*pow((1-max(dot(subpassLoad(NormalSpreadBuffer).xyz,viewDir),0.0)),5.0);
     outColor = albedo * (AmbientLight + subpassLoad(DiffuseBuffer)) + subpassLoad(SpecularBuffer) * specularColor;
-    //should convert it to something better handled by srgb
 }

@@ -12,8 +12,7 @@ struct PointLightPushConstants {
     }vertConstant;
         float radius;//TODO move it inside the parent struct, it can be shared by both stage(align it to 16, I imagine everything must be in there)
     struct {
-        alignas(16)glm::vec4 position;
-        glm::vec4 color;
+        alignas(16)glm::vec4 color;
     }fragConstant;
 
 };

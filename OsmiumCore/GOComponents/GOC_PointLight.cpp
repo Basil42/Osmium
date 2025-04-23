@@ -40,7 +40,6 @@ GOC_PointLight::GOC_PointLight(GameObject *parent): GameObjectComponent(parent) 
             .model = glm::mat4(1.0f),},
         .radius = 50.0f,
         .fragConstant = {
-            .position = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
             .color = glm::vec4(1.0f,1.0f,1.0f,1.0f),
     }};
         lightHandle = constants.Add(value);
@@ -57,7 +56,6 @@ void GOC_PointLight::SetPosition(const glm::vec3 &pos) const {
     PointLightPushConstants &constantValue = constants.get(lightHandle);
     //I could deduplicate this similar to radius
     constantValue.vertConstant.model = glm::translate(glm::mat4(1.0f),pos);
-    constantValue.fragConstant.position = glm::vec4(pos,1.0f);
 }
 
 void GOC_PointLight::SetColorAndIntensity(const glm::vec3 &col, const float intensity) const {
@@ -73,7 +71,7 @@ void GOC_PointLight::SetRadius(const float radius) {
 
 void GOC_PointLight::GetValues(glm::vec3 &pos, float &radius, glm::vec3 &col, float &intensity) const {
     const auto& values =  constants.get(lightHandle);
-    pos = values.fragConstant.position;
+    pos = values.vertConstant.model[3];
     col = values.fragConstant.color;
     radius = values.radius;
     intensity = values.fragConstant.color.a;
@@ -84,7 +82,6 @@ void GOC_PointLight::SetValues(const glm::vec3 &pos, const glm::vec3 &color, con
     auto &[vertConstant, radiusConstant, fragConstant] = constants.get(lightHandle);
     vertConstant.model = glm::translate(glm::mat4(1.0f),pos);
     radiusConstant = radius;
-    fragConstant.position = glm::vec4(pos,1.0f);
     fragConstant.color = glm::vec4(color,intensity);
 }
 
