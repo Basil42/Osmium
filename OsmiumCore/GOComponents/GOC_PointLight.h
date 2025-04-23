@@ -28,6 +28,7 @@ public:
     const std::string & Name() override { return name; }
 
 
+
     static void GORenderUpdate();
 
     void Update() override{};//TODO add a changelist to resolve during update
@@ -38,10 +39,14 @@ public:
     explicit GOC_PointLight(GameObject * parent);
     ~GOC_PointLight() override;
 
-    void SetPosition(const glm::vec3 & pos);
-    void SetColor(const glm::vec3 & col);
+    glm::vec3 GetPosition();
+    void SetPosition(const glm::vec3 & pos) const;
+    glm::vec4 GetColorAndIntensity();
+    void SetColorAndIntensity(const glm::vec3 & col, float intensity) const;
 
+    float GetRadius();
     void SetRadius(float radius);
+    void GetValues(glm::vec3 & pos, float &radius, glm::vec3 & col, float &intensity) const;
     void SetValues(const glm::vec3 & pos, const glm::vec3 & color, float radius, float intensity);
     
     void SetMeshAsset(AssetId asset_id);

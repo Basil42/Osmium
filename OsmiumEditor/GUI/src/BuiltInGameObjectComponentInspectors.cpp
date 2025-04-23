@@ -7,12 +7,14 @@
 #include "AssetManagement/AssetType/MeshAsset.h"
 #include "GOComponents/GOC_Camera.h"
 #include "GOComponents/GOC_MeshRenderer.h"
+#include "GOComponents/GOC_PointLight.h"
 #ifndef BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #define BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #include <imgui.h>
 #include <filesystem>
 #include "ComponentInspector.h"
 #include "GOComponents/GOC_Transform.h"
+
 
 namespace GUI{
     template<>
@@ -66,6 +68,30 @@ namespace GUI{
 
     }
     static const bool registered_GOC_Camera = registerType<GOC_Camera>();
+
+template<>
+    inline void RenderGameObjectComponentInspector<GOC_PointLight>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
+    auto comp = dynamic_cast<GOC_PointLight*>(gameObjectComponent);
+    glm::vec3 pos;
+    float radius;
+    glm::vec3 col;
+    float intensity;
+    comp->GetValues(pos,radius,col,intensity);
+    if (ImGui::DragFloat3("Position",&pos[0])) {
+        comp->SetPosition(pos);
+    }
+    if (ImGui::DragFloat3("Color",&col[0])) {
+        comp->SetColorAndIntensity(col,intensity);
+    }
+    if (ImGui::DragFloat("Intensity",&intensity)) {
+        comp->SetColorAndIntensity(col,intensity);
+    }
+    if (ImGui::DragFloat("Radius",&radius)) {
+        comp->SetRadius(radius);
+    }
+}
+    static const bool registered_GOC_PointLight = registerType<GOC_PointLight>();
+
 }
 
 #endif //BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H

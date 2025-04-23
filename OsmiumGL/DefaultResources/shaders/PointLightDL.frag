@@ -19,7 +19,7 @@ layout(push_constant)uniform PointLight {
 layout(location = 1)out vec3 outDiffuse;
 layout(location = 2)out vec3 outSpecular;
 
-layout(constant_id = 0)const float MaxSpecularPower = 50.0f;
+layout(constant_id = 0)const float MaxSpecularPower = 32.0f;
 //I might be able to just treat view position as 0 if I do everything in view space
 //I don't see how to calculate light data from only normals and the spread factor, maybe I could use the reverse view matrix
 void main() {
@@ -46,5 +46,5 @@ void main() {
     float attenuation = 1.0 / (1.0 + attenuationFactorB * lightDistance * lightDistance);
     //additively blended
     outDiffuse = lambertian * Light.color.rgb * Light.color.a * attenuation;
-    outSpecular = vec3(specular * Light.color.rgb * Light.color.a * attenuation);
+    outSpecular = vec3(Light.color.rgb * specular * Light.color.a * attenuation);
 }

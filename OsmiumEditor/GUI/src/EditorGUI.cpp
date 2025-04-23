@@ -45,7 +45,7 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
     if (ImGui::IsKeyDown(ImGuiKey_D)) PositionInput.x += 1.0f;
     if (ImGui::IsKeyDown(ImGuiKey_A)) PositionInput.x -= 1.0f;
     if (PositionInput == glm::vec2(0.0f)) {;
-        cameraSpeed = cameraSpeed * glm::pow(0.1f,io.DeltaTime);
+        cameraSpeed = cameraSpeed * glm::pow(0.01f,io.DeltaTime);
         if (cameraSpeed.length() < MinCameraSpeed)cameraSpeed = glm::vec3(0.0f);
     }
     auto transformComp = EditorCamera->GetTransformComponent();
@@ -165,7 +165,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
                 defaultGreenPointLightInfo.parent = 0;
                 OsmiumInstance->CreateNewGameObject(defaultGreenPointLightInfo,[](GameObject* gameObject) {
                     gameObject->Addcomponent<GOC_PointLight>([](GOC_PointLight* light) {
-                        light->SetValues(glm::vec3(3.0f,0.0f,0.0f),glm::vec3(0.0f,1.0f,0.0),5.0f, 10.0f);
+                        light->SetValues(glm::vec3(3.0f,0.0f,0.0f),glm::vec3(0.0f,1.0f,0.0),5.0f, 20.0f);
                     });
                 });
                 GameObjectCreateInfo defaultRedLightInfo;
@@ -173,7 +173,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
                 defaultRedLightInfo.parent = 0;
                 OsmiumInstance->CreateNewGameObject(defaultRedLightInfo,[](GameObject* gameObject) {
                     gameObject->Addcomponent<GOC_PointLight>([](GOC_PointLight* light) {
-                        light->SetValues(glm::vec3(-3.0f,2.0f,0.0f),glm::vec3(1.0f,0.0f,0.0),5.0f, 10.0f);
+                        light->SetValues(glm::vec3(-3.0f,2.0f,0.0f),glm::vec3(1.0f,0.0f,0.0),5.0f, 25.0f);
                     });
                 });
                     // GameObject* defaultObject = CreateNewGameObject();

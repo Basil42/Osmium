@@ -155,7 +155,7 @@ void MainPipeline::DestroyDescriptorLayouts() const {
 void MainPipeline::CreateAttachements() {
     std::array<VkFence, 3> fences{};
     std::array<VkCommandBuffer, 3> cmdBuffers{};
-    instance->createAttachment(VK_FORMAT_R16G16B16A16_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    instance->createAttachment(VK_FORMAT_R16G16B16A16_SNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                attachments.NormalSpread, fences[0], cmdBuffers[0]);
     instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.NormalSpread.imageView),"NormalSpread ImageView", VK_OBJECT_TYPE_IMAGE_VIEW);
     instance->AddDebugName(reinterpret_cast<uint64_t>(attachments.NormalSpread.image),"NormalSpread Image",VK_OBJECT_TYPE_IMAGE);
@@ -336,7 +336,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .depthTestEnable = VK_TRUE,
         .depthWriteEnable = VK_TRUE,
-        .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL, //strange that it would be different
+        .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
         .front = {}, //sample has some stuff here, I'll investigate if weird stuff happens
         .back = {},
         .minDepthBounds = 0.0f,
@@ -546,7 +546,8 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
 
     colorBlending.attachmentCount = 4;
     depthStencil.depthWriteEnable = VK_FALSE; //prevent light from writing to depth buffer
-    depthStencil.depthTestEnable = VK_FALSE; //need fragments from light volumes that might be partially ocluded
+    depthStencil.depthTestEnable = VK_FALSE;
+    //depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;//this would require an additional pass to check the depth of the front faces
     rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT; //so light work while inside them
     VertexInputState.vertexBindingDescriptionCount = 1;
     VertexInputState.vertexAttributeDescriptionCount = 1;

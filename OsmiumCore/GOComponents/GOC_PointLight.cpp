@@ -53,20 +53,33 @@ GOC_PointLight::~GOC_PointLight() {
     constants.Remove(lightHandle);
 }
 //All these are unsafe at the moment
-void GOC_PointLight::SetPosition(const glm::vec3 &pos) {
+void GOC_PointLight::SetPosition(const glm::vec3 &pos) const {
     PointLightPushConstants &constantValue = constants.get(lightHandle);
     //I could deduplicate this similar to radius
     constantValue.vertConstant.model = glm::translate(glm::mat4(1.0f),pos);
     constantValue.fragConstant.position = glm::vec4(pos,1.0f);
 }
-void GOC_PointLight::SetColor(const glm::vec3 &color) {
+
+void GOC_PointLight::SetColorAndIntensity(const glm::vec3 &col, const float intensity) const {
     PointLightPushConstants &constantValue = constants.get(lightHandle);
-    constantValue.fragConstant.color = glm::vec4(color,1.0f);
+    constantValue.fragConstant.color = glm::vec4(col,intensity);
 }
+
+
 void GOC_PointLight::SetRadius(const float radius) {
     PointLightPushConstants &constantValue = constants.get(lightHandle);
     constantValue.radius = radius;
 }
+
+void GOC_PointLight::GetValues(glm::vec3 &pos, float &radius, glm::vec3 &col, float &intensity) const {
+    const auto& values =  constants.get(lightHandle);
+    pos = values.fragConstant.position;
+    col = values.fragConstant.color;
+    radius = values.radius;
+    intensity = values.fragConstant.color.a;
+
+}
+
 void GOC_PointLight::SetValues(const glm::vec3 &pos, const glm::vec3 &color, const float radius, const float intensity) {
     auto &[vertConstant, radiusConstant, fragConstant] = constants.get(lightHandle);
     vertConstant.model = glm::translate(glm::mat4(1.0f),pos);
