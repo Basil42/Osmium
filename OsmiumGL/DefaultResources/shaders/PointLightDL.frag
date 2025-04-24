@@ -20,6 +20,7 @@ layout(location = 1)out vec3 outDiffuse;
 layout(location = 2)out vec3 outSpecular;
 
 layout(constant_id = 0)const float MaxSpecularPower = 32.0f;
+layout(constant_id = 1)const float attenuationCutoff = 0.02f;
 //I might be able to just treat view position as 0 if I do everything in view space
 //I don't see how to calculate light data from only normals and the spread factor, maybe I could use the reverse view matrix
 void main() {
@@ -44,9 +45,9 @@ void main() {
 
 
 
-    float attenuationFactorB = 1.0 / (Light.radius * Light.radius * 0.01);
-    float lightDistance = (viewSpaceSurfacePosition.xyz - viewLightCenterLinear).length();
-    float attenuation = 1.0 / (1.0 + attenuationFactorB * lightDistance * lightDistance);
+    //float attenuationFactorB = 1.0 / (Light.radius * Light.radius * 0.01);
+    float lightDistance = length(viewSpaceSurfacePosition.xyz - viewLightCenterLinear);
+    float attenuation = attenuationCutoff * ((Light.radius * Light.radius) / (lightDistance*lightDistance + 0.2));
     //additively blended
     vec3 IntensityColor = Light.color.rgb * Light.color.a * attenuation;
     outDiffuse = lambertian * IntensityColor;
