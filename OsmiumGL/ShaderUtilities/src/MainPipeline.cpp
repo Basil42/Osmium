@@ -546,8 +546,8 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
 
     colorBlending.attachmentCount = 4;
     depthStencil.depthWriteEnable = VK_FALSE; //prevent light from writing to depth buffer
-    depthStencil.depthTestEnable = VK_FALSE;
-    //depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;//this would require an additional pass to check the depth of the front faces
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;//this would require an additional pass to check the depth of the front faces
     rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT; //so light work while inside them
     VertexInputState.vertexBindingDescriptionCount = 1;
     VertexInputState.vertexAttributeDescriptionCount = 1;

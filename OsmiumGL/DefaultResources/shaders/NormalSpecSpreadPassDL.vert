@@ -19,7 +19,8 @@ layout(location = 1)out vec2 Texcoordinate;
 void main() {
     gl_Position = VP.proj * VP.view * ubo.model * vec4(inPosition,1.0);
     mat3 normalMat = transpose(inverse(mat3(mat3(ubo.model))));
-    Normal = normalize(normalMat * inNormal);//not sure it is that useful to normilize here
-
+    //Normal = normalize(normalMat * inNormal);//not sure it is that useful to normilize here
+    vec4 viewNormal = VP.view * vec4(normalMat * inNormal,0);
+    Normal = viewNormal.xyz;
     Texcoordinate = inTexcoordinate;
 }
