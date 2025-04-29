@@ -37,7 +37,7 @@ void GameInstance::GameLoop() {
             const auto handle = GameObjects->emplace_new(newObj);
             newObj->Name = entry.first.name;
             newObj->Handle = handle;
-            entry.second(newObj);
+            if (entry.second)entry.second(newObj);
         }
 
         //Do simulation things

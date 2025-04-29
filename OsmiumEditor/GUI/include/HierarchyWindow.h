@@ -21,11 +21,12 @@ class HierarchyWindow final : EditorWindow {
 
     const ResourceArray<GameObject,MAX_GAMEOBJECTS>& gameObjectContainer;
     GameObjectHandle& selectedGameObjectHandle;
+    GameInstance* gameInstance;
     //will be used later for renaming from hierarchy
     //std::optional<GameObjectHandle> renamedObject;
 
 public:
-    explicit HierarchyWindow(const GameInstance* gameInstance,GameObjectHandle& selection);
+    explicit HierarchyWindow(GameInstance* gameInstance,GameObjectHandle& selection);
     void Render(ImGuiIO &io) override;
 };
 

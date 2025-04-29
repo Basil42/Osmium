@@ -33,11 +33,24 @@ void InspectorWindow::Render(ImGuiIO &io) {
     if (objectResourceArray.contains(selectedGameObjectHandle)) {
         GameObject& obj = objectResourceArray.get(selectedGameObjectHandle);
         ImGui::InputText("Name", &obj.Name);
-        ImGui::LabelText(obj.Name.c_str(), "Name");
         for (auto&[typeIndex, component]: obj.GetComponents()) {
             if(ImGui::CollapsingHeader(component->Name().c_str())) {//name is bad here, I should use something else
                 RenderComponentInspector(io,typeIndex, component);
             }
+        }
+        if (ImGui::BeginPopup("Add Component")) {
+            static ImGuiTextFilter filter;
+            if (ImGui::IsWindowAppearing())//assuming th epopup counts as a window
+            {
+                ImGui::SetKeyboardFocusHere();
+                filter.Clear();
+            }
+            //ImGui::SetNextItemShortcut() could not determine what this did in the demno window
+            filter.Draw("##filter", -FLT_MIN);
+
+
+            //for (int i = 0; i < IM_ARRAYSIZE())
+            ImGui::EndPopup();
         }
     }
 

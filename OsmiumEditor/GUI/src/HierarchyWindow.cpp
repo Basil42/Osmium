@@ -7,7 +7,8 @@
 #include "ResourceArray.h"
 #include "Base/GameInstance.h"
 
-HierarchyWindow::HierarchyWindow(const GameInstance *gameInstance,GameObjectHandle& selection): gameObjectContainer(gameInstance->GetGameObjects()),selectedGameObjectHandle(selection) {
+HierarchyWindow::HierarchyWindow(GameInstance *gameInstance,GameObjectHandle& selection): gameObjectContainer(
+    gameInstance->GetGameObjects()), selectedGameObjectHandle(selection), gameInstance(gameInstance) {
 }
 
 void HierarchyWindow::Render(ImGuiIO &io) {
@@ -21,6 +22,12 @@ void HierarchyWindow::Render(ImGuiIO &io) {
 
 
         ImGui::PopID();
+    }
+    if (ImGui::Button("add gameobject")) {
+        GameObjectCreateInfo info{
+        .name = "new Object",
+        .parent = 0};
+        gameInstance->CreateNewGameObject(info);
     }
     // ImGui::Separator();
     // if (selectedGameObject != nullptr)ImGui::LabelText("Selected", selectedGameObject->Name.c_str());

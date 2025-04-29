@@ -14,24 +14,21 @@
 #include "mathUtils.h"
 namespace Intersection {
     //Default intersection function in case we forget to implement the intersection, or we have user defined shapes later
-    inline bool NonImplementedIntersection(Collider& collider1, Collider& collider2) {
+    inline auto NonImplementedIntersection(Collider& collider1, Collider& collider2) -> bool {
         std::cout << "Intersection betweeen " << collider1.shape() << "and" << collider2.shape() <<std::endl;
         return false;
     }
 
 
-    //general intersection check function that will look into the table for the actual function
-    inline bool CheckIntersection(Collider& a,Collider& b) {
-        return CollisionChecks[a.shape()][b.shape()](a,b);
-    }
+
 
     //implementations
-    inline bool SphereToSphereIntersection(Collider& a,Collider& b) {
+    inline auto SphereToSphereIntersection(Collider& a,Collider& b) -> bool {
         auto radiusSquared = dynamic_cast<SphereCollider&>(a).radius + dynamic_cast<SphereCollider&>(b).radius;
         radiusSquared *= radiusSquared;
         return length2(a.getTransform()[3] - b.getTransform()[3]) < radiusSquared;
     }
-    inline bool SphereToBoxIntersection(Collider& sphere,Collider& box) {
+    inline auto SphereToBoxIntersection(Collider& sphere,Collider& box) -> bool {
         //adapted from Graphics Gems
         auto dmin = 0.0f;
         auto spherePosition = sphere.getTransform()[3] * inverse(box.getTransform());//sphere position in the box local space, might need to add a second matrix is the box doesn't align with the object transform
@@ -47,18 +44,33 @@ namespace Intersection {
 
     }
 
-    inline bool BoxToBoxIntersection(Collider& a,Collider& b) {
-        //check inscribed sphere and circumscribed sphere collision with the sphere to box implementation, then separate plane algo, that seems very wasteful though
+    inline auto BoxToBoxIntersection(Collider& a,Collider& b) -> bool {
+        const auto& aBox = dynamic_cast<BoxCollider&>(a);
+        const auto& bBox = dynamic_cast<BoxCollider&>(b);
+        const glm::vec3 lsize = aBox.size;
 
+        std::array<glm::vec3,8> boxRTranformedVertices{};
+        bBox.getWorldVertices(boxRTranformedVertices);
+        glm::mat4 aTransform = aBox.getTransform();
+        for (int i = 0; i < 8; i++) {
+            glm::vec4 transformedPosition = aTransform * glm::vec4(boxRTranformedVertices[i],1.0f);
+            transformedPosition = transformedPosition / transformedPosition.w;
+            if (transformedPosition.x < lsize.x/2.0f && transformedPosition.x > -lsize.x/2.0f &&
+                transformedPosition.y < lsize.y/2.0f && transformedPosition.y > -lsize.y/2.0f &&
+                transformedPosition.z < lsize.z/2.0f && transformedPosition.z > -lsize.z/2.0f) {
+                return true;
+            }
+        }
+        return false;
     }//might have a separate function for checking axis aligned box for intersection (for bounds related checks)
     
-    inline bool CylinderToCylinderIntersection(Collider& a,Collider& b) {}
-    inline bool CylinderToBoxIntersection(Collider& cylinder,Collider& box) {}
+    inline auto CylinderToCylinderIntersection(Collider& a,Collider& b) -> bool {}
+    inline auto CylinderToBoxIntersection(Collider& cylinder,Collider& box) -> bool {}
     //convenience implementation
-    inline bool BoxToSphereIntersection(Collider& box,Collider& sphere) {
+    inline auto BoxToSphereIntersection(Collider &box, Collider &sphere) -> bool {
         return SphereToBoxIntersection(sphere,box);
     }
-    inline bool BoxToCylinderIntersection(Collider& box,Collider& cylinder) {
+    inline auto BoxToCylinderIntersection(Collider& box,Collider& cylinder) -> bool {
         return CylinderToBoxIntersection(cylinder,box);
     }
     using CollisionCheck = bool (*)(Collider& collider1, Collider& collider2);//could extend it later like in jolt for scale and such
@@ -72,12 +84,16 @@ namespace Intersection {
                 }
             }
             result[Sphere][Sphere] = SphereToSphereIntersection;
-            //result[Box][Box] = BoxToBoxIntersection;
+            result[Box][Box] = BoxToBoxIntersection;
             result[Sphere][Box] = SphereToBoxIntersection;
             result[Box][Sphere] = BoxToSphereIntersection;
             return result;
         }()
     };
+    //general intersection check function that will look into the table for the actual function
+    inline auto CheckIntersection(Collider& a,Collider& b) -> bool {
+        return CollisionChecks[a.shape()][b.shape()](a,b);
+    }
 
 
 }
