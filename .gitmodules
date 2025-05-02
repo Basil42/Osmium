@@ -7,6 +7,4 @@
 [submodule "vk-bootstrap"]
 	path = vk-bootstrap
 	url = https://github.com/charles-lunarg/vk-bootstrap
-[submodule "crossguid"]
-	path = crossguid
-	url = https://github.com/graeme-hill/crossguid
+
