@@ -20,6 +20,7 @@ set(OSMIUMCORE_SOURCES
         AssetManagement/AssetType/DefaultAsset.cpp
         GOComponents/GOC_Camera.cpp
         GOComponents/GOC_DIrectionalLight.cpp
+        AssetManagement/AssetType/TextureAsset.cpp
 
 )
 set(OSMIUMCORE_HEADERS
@@ -34,7 +35,6 @@ set(OSMIUMCORE_HEADERS
         Base/Entity.h
         Helpers/Properties.h
         Base/SceneManager.h
-
         AssetManagement/Asset.h
         AssetManagement/AssetManager.h
         Base/ResourceManager.h
@@ -47,6 +47,7 @@ set(OSMIUMCORE_HEADERS
         GOComponents/GOC_DIrectionalLight.h
         GOComponents/GOC_PointLight.cpp
         GOComponents/GOC_PointLight.h
+        AssetManagement/AssetType/TextureAsset.h
 )
 foreach (LIB OsmiumCore E_OsmiumCore)
 
