@@ -28,6 +28,7 @@ void GOC_Camera::Update() {
 
 GOC_Camera::GOC_Camera(GameObject *parent) : GameObjectComponent(parent){
     transform = parent->GetComponent<GOC_Transform>();
+    if (!transform)transform = parent->Addcomponent<GOC_Transform>();
     rotationMode = ROTATION_MODE_TRANSFORM;
     transform->SetTransformMatrix(glm::inverse(glm::lookAt(glm::vec3(0.0f,0.0f,4.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,1.0f,0.0f))));
 

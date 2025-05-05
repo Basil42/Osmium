@@ -32,7 +32,7 @@ namespace GUI{
         go->SetTransformMatrix(translation,rotation,scale,skew,perspective);
 
     }
-    static const bool registered_GOC_Transform = registerType<GOC_Transform>();
+    static const bool registered_GOC_Transform = registerType<GOC_Transform>("Transform");
 
     template<>
     inline void RenderGameObjectComponentInspector<GOC_MeshRenderer>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
@@ -50,7 +50,7 @@ namespace GUI{
         if (ImGui::BeginCombo("Mesh",meshAssetPreview,ImGuiComboFlags_None)) {//I'll figure out the flags later
             for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {
                 if (asset->getType() != mesh)continue;//we should instead use premade queries to do this, it will get very slow on large databases
-                const bool is_selected = (assetHandle.value() == id);
+                const bool is_selected = assetHandle.has_value() && (assetHandle.value() == id);
                 if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
                     comp->SetMeshAsset(id);
                 }
@@ -59,7 +59,7 @@ namespace GUI{
         }
 
     }
-    static const bool registered_GOC_MeshRenderer = registerType<GOC_MeshRenderer>();
+    static const bool registered_GOC_MeshRenderer = registerType<GOC_MeshRenderer>("Mesh Renderer");
 
     template<>
     inline void RenderGameObjectComponentInspector<GOC_Camera>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
@@ -67,7 +67,7 @@ namespace GUI{
         ImGui::DragFloat("Vertical FoV", &comp->verticalFoV, 0.01f, 0.0f, 360.0f);
 
     }
-    static const bool registered_GOC_Camera = registerType<GOC_Camera>();
+    static const bool registered_GOC_Camera = registerType<GOC_Camera>("Camera");
 
 template<>
     inline void RenderGameObjectComponentInspector<GOC_PointLight>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
@@ -90,7 +90,7 @@ template<>
         comp->SetRadius(radius);
     }
 }
-    static const bool registered_GOC_PointLight = registerType<GOC_PointLight>();
+    static const bool registered_GOC_PointLight = registerType<GOC_PointLight>("Point Light");
 
 }
 

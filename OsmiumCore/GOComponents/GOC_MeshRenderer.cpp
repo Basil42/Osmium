@@ -58,6 +58,7 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, Ma
     mesh = meshHandle;
     material = materialHandle;
     transform = parent->GetComponent<GOC_Transform>();
+    if (!transform)transform = parent->Addcomponent<GOC_Transform>();
     //needs tol be completed
 }
 

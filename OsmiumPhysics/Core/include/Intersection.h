@@ -45,22 +45,7 @@ namespace Intersection {
     }
 
     inline auto BoxToBoxIntersection(Collider& a,Collider& b) -> bool {
-        const auto& aBox = dynamic_cast<BoxCollider&>(a);
-        const auto& bBox = dynamic_cast<BoxCollider&>(b);
-        const glm::vec3 lsize = aBox.size;
 
-        std::array<glm::vec3,8> boxRTranformedVertices{};
-        bBox.getWorldVertices(boxRTranformedVertices);
-        glm::mat4 aTransform = aBox.getTransform();
-        for (int i = 0; i < 8; i++) {
-            glm::vec4 transformedPosition = aTransform * glm::vec4(boxRTranformedVertices[i],1.0f);
-            transformedPosition = transformedPosition / transformedPosition.w;
-            if (transformedPosition.x < lsize.x/2.0f && transformedPosition.x > -lsize.x/2.0f &&
-                transformedPosition.y < lsize.y/2.0f && transformedPosition.y > -lsize.y/2.0f &&
-                transformedPosition.z < lsize.z/2.0f && transformedPosition.z > -lsize.z/2.0f) {
-                return true;
-            }
-        }
         return false;
     }//might have a separate function for checking axis aligned box for intersection (for bounds related checks)
     

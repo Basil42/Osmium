@@ -25,7 +25,6 @@
 #include "MeshSerialization.h"
 #include "PassBindings.h"
 #include "SyncUtils.h"
-#include "Capabilities/DeviceCapabilities.h"
 
 
 

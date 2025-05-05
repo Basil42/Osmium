@@ -8,6 +8,7 @@
 #include <typeindex>
 #include <map>
 #include "Base/GameObjectComponent.h"
+#include "Base/GameObject.h"
 
 namespace GUI{
     using InspectorFunction = void(*)(ImGuiIO& io, GameObjectComponent*);
@@ -16,15 +17,24 @@ namespace GUI{
         static std::map<std::type_index, InspectorFunction> inspectors;
         return inspectors;
     }
+    inline std::map<std::string, void(*)(GameObject*)>& GetComponentAddList() {
+        static std::map<std::string, void(*)(GameObject*)> entries;
+        return entries;
+    }
 
     template<typename T, typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent, T>>>
     void RenderGameObjectComponentInspector(ImGuiIO& io,GameObjectComponent* component) {
         ImGui::Text("Component");
     }
+    template<typename T, typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent, T>>>
+    void AddGameObjectComponentMenuAction(GameObject* go) {
+        go->Addcomponent<T>();
+    }
 
     template<typename T, typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent, T>>>
-    bool registerType() {
+    bool registerType(std::string name) {
         getInspectors()[typeid(T)] = &RenderGameObjectComponentInspector<T>;
+        GetComponentAddList()[name] = &AddGameObjectComponentMenuAction<T>;
         return true;
     }
 }
