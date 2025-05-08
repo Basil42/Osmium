@@ -17,8 +17,8 @@ protected:
 
 public:
     std::mutex & GetRessourceMutex() override;
-    unsigned long GetTextureHandle();
-    TextureAsset(const xg::Guid &id);
+    unsigned long GetTextureHandle() const;
+    explicit TextureAsset(const xg::Guid &id);
 #ifdef EDITOR
     TextureAsset(const xg::Guid &id, const std::string &filename);
 #endif

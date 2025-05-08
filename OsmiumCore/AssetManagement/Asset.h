@@ -18,6 +18,7 @@ typedef  xg::Guid AssetId;
  */
 enum AssetType {
     mesh,
+    texture,
     material,
     unsupported,
 };

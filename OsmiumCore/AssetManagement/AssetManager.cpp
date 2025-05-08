@@ -16,6 +16,8 @@
 #include "AssetType/DefaultAsset.h"
 #include "AssetType/MeshAsset.h"
 #include "MeshSerialization.h"
+#include "TextureSerialization.h"
+#include "AssetType/TextureAsset.h"
 #include "Base/config.h"
 
 std::mutex AssetManager::loadingCollectionMutex;
@@ -166,6 +168,7 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
 
     //check for existing meta file
     std::string metaPath = path.string() + ".meta";
+        auto resourcePath = ResourceFolder;
 
 
 
@@ -180,7 +183,6 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
             Serialization::CreateMeshMetaData(path, meshMetaData);
             shouldImport = true;
         }
-        auto resourcePath = ResourceFolder;
         resourcePath /= meshMetaData.guid.str();
 
         if (!std::filesystem::exists(resourcePath))shouldImport = true;
@@ -191,6 +193,22 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
             Serialization::ImportMeshAsset(path,ResourceFolder,meshMetaData);
         }
         asset = new MeshAsset(meshMetaData.guid, meshMetaData.name);
+    }if (path.extension() == "png" || path.extension() == "jpg" || path.extension() == "jpeg") {
+        Serialization::TextureMetaData textureMetaData;
+        bool shouldImport = false;
+        if (std::filesystem::exists(metaPath)) {
+            Serialization::ReadTextureMetaData(path, textureMetaData);
+        }else {
+            Serialization::CreateTextureMetaData(path,textureMetaData);
+            shouldImport = true;
+        }
+        resourcePath /= textureMetaData.guid.str();
+        if (!std::filesystem::exists(resourcePath)) {shouldImport = true;}
+        if (!shouldImport && std::filesystem::last_write_time(resourcePath) < std::filesystem::last_write_time(path)) shouldImport = true;
+        if (shouldImport) {
+            Serialization::ImportTextureAsset(path,ResourceFolder,textureMetaData);
+        }
+        asset = new TextureAsset(textureMetaData.guid, textureMetaData.name);
     }else {
         std::cerr << path.extension() << " is not a supported file format" << std::endl;
         asset = new DefaultAsset();//user is responsible for loading it

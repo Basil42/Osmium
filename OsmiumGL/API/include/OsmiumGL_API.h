@@ -14,6 +14,7 @@
 #include <glm/fwd.hpp>
 
 #include "SyncUtils.h"
+#include "AssetManagement/AssetType/TextureAsset.h"
 
 
 struct PointLightPushConstants;
@@ -81,6 +82,8 @@ namespace  OsmiumGL {
     void LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count, const std::vector<VertexBufferDescriptor> &
                          bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices);
 
+    unsigned long LoadTexture(const xg::Guid &id);
+
     void ImguiEndImGuiFrame();
 
     bool ShouldClose();
@@ -99,6 +102,7 @@ namespace  OsmiumGL {
     MatInstanceHandle GetDefaultMaterialInstance(MaterialHandle material);
 
     void RegisterPointLightLightShape(MeshHandle mesh_handle);
+
 };
 
 

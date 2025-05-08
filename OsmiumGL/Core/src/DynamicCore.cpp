@@ -561,6 +561,10 @@ void OsmiumGLDynamicInstance::UnloadMesh(MeshHandle mesh, bool immediate) {
     vmaDestroyBuffer(allocator,data.indexBuffer,data.IndexBufferAlloc);
 }
 
+TextureHandle OsmiumGLDynamicInstance::LoadTexture(const std::filesystem::path &path) {
+    Serialization::TextureSerializationData data;
+}
+
 bool OsmiumGLDynamicInstance::ShouldClose() const {
     return glfwWindowShouldClose(window);
 }

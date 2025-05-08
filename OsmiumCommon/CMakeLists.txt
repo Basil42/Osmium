@@ -6,16 +6,22 @@ set(OSMIUMCOMMONHEADERS
         include/ResourceArray.h
         include/MeshFileLoading.h
         include/MathUtils.h
-        src/Serialization.cpp
         include/Serialization.h
         include/MeshSerialization.h
         include/Memcheck.h
-        src/MeshSerialization.cpp
         include/SyncUtils.h
+        include/TextureSerialization.h
+)
+set (OSMIUMCOMMONSOURCE
+        src/Serialization.cpp
+        src/MeshSerialization.cpp
+        src/TextureSerialization.cpp
+
 )
 
 add_library(OsmiumCommon STATIC
-    ${OSMIUMCOMMONHEADERS})
+    ${OSMIUMCOMMONHEADERS}
+    ${OSMIUMCOMMONSOURCE})
 set_target_properties(OsmiumCommon PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(OsmiumCommon PUBLIC include)
 target_link_libraries(OsmiumCommon PUBLIC crossguid)

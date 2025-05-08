@@ -91,6 +91,10 @@ void OsmiumGL::LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned
     mesh_handle = instance->LoadMesh(verticesData,attribute_flags,vertex_count,bufferDescriptors, indices);
 }
 
+unsigned long OsmiumGL::LoadTexture(const xg::Guid &id) {
+    return instance->LoadTexture(ResourceFolder / id.str());
+}
+
 void OsmiumGL::ImguiEndImGuiFrame() {
     instance->endImgGuiFrame();
 }

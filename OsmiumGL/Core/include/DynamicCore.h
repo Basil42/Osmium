@@ -30,6 +30,7 @@ struct PointLightPushConstants;
 class DefaultSceneDescriptorSets;
 enum DefaultVertexAttributeFlags : unsigned int;
 typedef unsigned long MeshHandle;
+typedef unsigned long TextureHandle;
 class GLFWwindow;
 class DeferredLightingPipeline;
 class MainPipeline;
@@ -73,6 +74,7 @@ class OsmiumGLDynamicInstance {
                         vertex_count, const std::vector<VertexBufferDescriptor> &bufferDescriptors, const std::vector<unsigned int> &indices);
     void UnloadMesh(MeshHandle mesh, bool immediate);
 
+    TextureHandle LoadTexture(const std::filesystem::path& path);
     bool ShouldClose() const;
 
     VkDescriptorSetLayout& GetPointLightSetLayout();
