@@ -35,12 +35,32 @@ bool Serialization::ImportTextureAsset(const std::filesystem::path &filepath, co
     data.dimensions[1] = height;
     data.MipMapCount = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 
+    std::ofstream SerializedFile;
+    SerializedFile.open(destination.string() + "/" + metaData.guid.str(),std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+    SerializedFile.write(reinterpret_cast<char*>(&data.format), sizeof(VkFormat));
+    SerializedFile.write(reinterpret_cast<char*>(data.dimensions.data()), sizeof(unsigned int) * 2);
+    SerializedFile.write(reinterpret_cast<char*>(&data.MipMapCount), sizeof(unsigned short));
+    SerializedFile.write(reinterpret_cast<char*>(&data.data), dataSize);
+    SerializedFile.close();
+
     //meta data
     metaData.name = filepath.filename().string();
     metaData.dimensions = data.dimensions;
     metaData.format = data.format;
     metaData.MipMapCount = data.MipMapCount;
     metaData.guid = xg::newGuid();
+    SerializedFile.open(filepath.string() + ".meta", std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+    SerializedFile << "GUID: " << std::endl << metaData.guid << std::endl;
+    SerializedFile << "Name: " << std::endl << metaData.name << std::endl;
+    SerializedFile << "Dimensions: " << std::endl << data.dimensions[0] <<
+        std::endl << data.dimensions[1] << std::endl;
+    SerializedFile << "Format: " << std::endl << data.format << std::endl;
+    SerializedFile << "MipMap : " << std::endl <<data.MipMapCount << std::endl;
+    SerializedFile.close();
+
+    //also missing some kind of validation
+    return true;
+
 
 
 
