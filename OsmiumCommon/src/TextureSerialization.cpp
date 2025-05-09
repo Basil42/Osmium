@@ -60,14 +60,6 @@ bool Serialization::ImportTextureAsset(const std::filesystem::path &filepath, co
 
     //also missing some kind of validation
     return true;
-
-
-
-
-
-
-
-
 }
 
 bool Serialization::ReadTextureMetaData(const std::filesystem::path &filepath,
@@ -104,6 +96,32 @@ bool Serialization::ReadTextureMetaData(const std::filesystem::path &filepath,
     //ideally there shoudl be some kind of check that the data was valid
     return true;
 
+}
+
+bool Serialization::DeserializeTextureAsset(const std::filesystem::path &filepath,
+    Serialization::TextureSerializationData &Data) {
+    assert(!filepath.has_extension());
+    std::ifstream ifs(filepath, std::ios_base::in | std::ios_base::binary);
+    if (!ifs.is_open()) {
+        std::cerr << "Failed to open file, asset might not have been imported." << std::endl;
+        return false;
+    }
+    //could memcpy all meta info in one go, this is just for clarity
+    char Reader[std::max({sizeof(Data.format), sizeof(Data.dimensions),sizeof(Data.MipMapCount)})];
+    //format
+    ifs.read(Reader, sizeof(Data.format));
+    Data.format = *reinterpret_cast<VkFormat*>(Reader);
+    //dimension
+    ifs.read(Reader, sizeof(Data.dimensions));
+    memcpy(Data.dimensions.data(),Reader,sizeof(Data.dimensions));
+    //mip map
+    ifs.read(Reader, sizeof(Data.MipMapCount));
+    Data.MipMapCount = *reinterpret_cast<unsigned short*>(Reader);
+    //data
+    const unsigned int byteCount = Data.dimensions[0] * Data.dimensions[1] * 4;//temp, this is the format stb imports
+    Data.data.resize(byteCount);
+    ifs.read(reinterpret_cast<std::istream::char_type *>(Data.data.data()), byteCount);
+    return true;//also no validation in this case
 }
 
 
