@@ -16,6 +16,10 @@ void TextureAsset::Load_Impl() {
     textureHandle = OsmiumGL::LoadTexture(id);
 }
 
+void TextureAsset::Unload_Impl(bool immediate) {
+    throw std::runtime_error("TextureAsset::Unload_Impl not implemented");
+}
+
 std::mutex & TextureAsset::GetRessourceMutex() {
     return Resources::ResourceManager::getResourceMutex(Resources::ResourceType_Texture);
 }

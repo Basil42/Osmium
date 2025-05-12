@@ -21,7 +21,7 @@ void MeshAsset::Load_Impl() {
     assert(!AssetManager::isAssetLoaded(id));
 
     MeshHandle = OsmiumGL::LoadMesh(id);
-
+    std::cout << "Mesh loaded" << std::endl;
 }
 
 std::mutex& MeshAsset::GetRessourceMutex() {

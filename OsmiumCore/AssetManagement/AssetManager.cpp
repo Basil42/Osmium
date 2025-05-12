@@ -193,16 +193,15 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
             Serialization::ImportMeshAsset(path,ResourceFolder,meshMetaData);
         }
         asset = new MeshAsset(meshMetaData.guid, meshMetaData.name);
-    }if (path.extension() == "png" || path.extension() == "jpg" || path.extension() == "jpeg") {
+    }else if (path.extension() == "png" || path.extension() == "jpg" || path.extension() == "jpeg") {
         Serialization::TextureMetaData textureMetaData;
         bool shouldImport = false;
         if (std::filesystem::exists(metaPath)) {
             Serialization::ReadTextureMetaData(path, textureMetaData);
+            resourcePath /= textureMetaData.guid.str();
         }else {
-            Serialization::CreateTextureMetaData(path,textureMetaData);
             shouldImport = true;
         }
-        resourcePath /= textureMetaData.guid.str();
         if (!std::filesystem::exists(resourcePath)) {shouldImport = true;}
         if (!shouldImport && std::filesystem::last_write_time(resourcePath) < std::filesystem::last_write_time(path)) shouldImport = true;
         if (shouldImport) {
@@ -248,6 +247,7 @@ void AssetManager::BuildAssetDatabase() {
         }
     }
 #endif
+    std::cout << "asset database loaded." << std::endl;
 }
 
 void AssetManager::LoadAssetDatabase() {

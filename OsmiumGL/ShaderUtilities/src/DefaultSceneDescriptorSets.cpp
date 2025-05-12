@@ -22,17 +22,18 @@ VkPipelineLayout DefaultSceneDescriptorSets::GetPointLightPipelineLayout() const
 }
 
 void DefaultSceneDescriptorSets::CreateDefaultDescriptorPool(const VkDevice _device) {
-    std::array<VkDescriptorPoolSize, BUILT_IN_DESCRIPTOR_POOL_SIZE_COUNT> sizes{};
+    std::array<VkDescriptorPoolSize, 2> sizes{};
 
 //camera,dirlight and point light
     sizes[0] = VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                     MAX_FRAMES_IN_FLIGHT * 3);
-
+    sizes[1] = VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        MAX_FRAMES_IN_FLIGHT *3 *5);
 
     VkDescriptorPoolCreateInfo descriptorPoolInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT *3),
-        .poolSizeCount = static_cast<uint32_t>(BUILT_IN_DESCRIPTOR_POOL_SIZE_COUNT),
+        .poolSizeCount = static_cast<uint32_t>(sizes.size()),
         .pPoolSizes = sizes.data()
     };
 
@@ -86,7 +87,7 @@ void DefaultSceneDescriptorSets::CreateDefaultDescriptorLayouts(const VkDevice _
 
     constexpr VkDescriptorSetLayoutBinding DepthBufferBinding = {
         .binding = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT};
     constexpr VkDescriptorSetLayoutBinding normalSpreadBinding = {

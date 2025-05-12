@@ -11,6 +11,5 @@
 #define MAX_LOADED_MESHES 255
 
 //built in scene descriptors
-#define BUILT_IN_DESCRIPTOR_POOL_SIZE_COUNT 1//it should be possible to know this at compile time even with custom descriptors
 #define BUILT_IN_DESCRIPTOR_BINDING_COUNT 2
 #endif //CONFIG_H

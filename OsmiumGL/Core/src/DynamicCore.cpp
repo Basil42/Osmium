@@ -25,8 +25,7 @@
 #include "MeshSerialization.h"
 #include "PassBindings.h"
 #include "SyncUtils.h"
-
-
+#include "TextureSerialization.h"
 
 
 void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {

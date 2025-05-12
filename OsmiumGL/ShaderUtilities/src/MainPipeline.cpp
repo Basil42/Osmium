@@ -573,9 +573,10 @@ void MainPipeline::DestroyPipelines() const {
 void MainPipeline::CreateDescriptorPools() {
     constexpr unsigned int GlobalPoolSizeCount = 4;
     std::array<VkDescriptorPoolSize, GlobalPoolSizeCount> GlobalPoolSizes = {};
+    //camera descriptor + light position reconstruciton info
     GlobalPoolSizes[0] = {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = MAX_FRAMES_IN_FLIGHT
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT *6
     };
     //depth and normal spread,diffuse and specular  attachment, not sure that's how I use it
     GlobalPoolSizes[1] = {
@@ -615,7 +616,7 @@ void MainPipeline::CreateDescriptorPools() {
     const VkDescriptorPoolCreateInfo instancePoolCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets = MAX_FRAMES_IN_FLIGHT * 3 * 5,//arbitrary for now
+        .maxSets = MAX_FRAMES_IN_FLIGHT * 3 * 5,//arbitrary
         .poolSizeCount = instancePoolSizeCount,
         .pPoolSizes = instancePoolSizes.data(),
     };

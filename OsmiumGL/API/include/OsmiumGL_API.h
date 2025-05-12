@@ -14,7 +14,6 @@
 #include <glm/fwd.hpp>
 
 #include "SyncUtils.h"
-#include "AssetManagement/AssetType/TextureAsset.h"
 
 
 struct PointLightPushConstants;

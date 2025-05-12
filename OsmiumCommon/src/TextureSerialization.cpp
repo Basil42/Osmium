@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "MeshSerialization.h"
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <fstream>
 
@@ -99,7 +100,7 @@ bool Serialization::ReadTextureMetaData(const std::filesystem::path &filepath,
 }
 
 bool Serialization::DeserializeTextureAsset(const std::filesystem::path &filepath,
-    Serialization::TextureSerializationData &Data) {
+                                            Serialization::TextureSerializationData &Data) {
     assert(!filepath.has_extension());
     std::ifstream ifs(filepath, std::ios_base::in | std::ios_base::binary);
     if (!ifs.is_open()) {

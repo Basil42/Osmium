@@ -29,6 +29,7 @@ namespace Serialization {
     bool ImportTextureAsset(const std::filesystem::path& filepath,const std::filesystem::path &destination, Serialization::TextureMetaData &metaData);
     bool ReadTextureMetaData(const std::filesystem::path& filepath, Serialization::TextureMetaData &metaData);
     bool DeserializeTextureAsset(const std::filesystem::path& filepath, Serialization::TextureSerializationData &Data);
+
 }
 
 
