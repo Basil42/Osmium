@@ -507,7 +507,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     //normal,specular and diffuse in, color out, could probably just recompute normals
     pipelineRenderingInfo.pColorAttachmentFormats = &colorAttachementFormat[0];
     depthStencil.depthWriteEnable = VK_FALSE; //not needed at this point
-    depthStencil.depthCompareOp = VK_COMPARE_OP_EQUAL; //I can discard all others
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //I can discard all others
 
     shaderStages[0] = instance->loadShader("../OsmiumGL/DefaultResources/shaders/ShadingPassDL.vert.spv",
                                            VK_SHADER_STAGE_VERTEX_BIT);
@@ -848,6 +848,7 @@ void MainPipeline::DestroyDefaultInstanceDescriptorSets() {
 void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
     instance->CreateSampler(DefaultTexture.sampler,1,1);
     instance->createImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_R8G8B8A8_SNORM,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
+    instance->AddDebugName(reinterpret_cast<uint64_t>(DefaultTexture.image),"defaultTexture",VK_OBJECT_TYPE_IMAGE);
     VkCommandBuffer cmdBuffer  = instance->beginSingleTimeCommands(instance->queues.graphicsQueue);
     constexpr VkImageSubresourceRange subResourceRange{
     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -855,17 +856,26 @@ void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
     .levelCount = VK_REMAINING_MIP_LEVELS,
     .baseArrayLayer = 0,
     .layerCount = VK_REMAINING_ARRAY_LAYERS,};
-    instance->transitionImageLayoutCmd(cmdBuffer, DefaultTexture.image, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-                                       VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-                                       VK_IMAGE_LAYOUT_GENERAL, subResourceRange);
+    instance->transitionImageLayoutCmd(cmdBuffer, DefaultTexture.image,
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL,
+        subResourceRange);
     constexpr VkClearColorValue clearcolor = {1.0f,1.0f,1.0f,1.0f};
     vkCmdClearColorImage(cmdBuffer,DefaultTexture.image,VK_IMAGE_LAYOUT_GENERAL,&clearcolor,1,&subResourceRange);
-    vkCmdClearColorImage(cmdBuffer,DefaultTexture.image,VK_IMAGE_LAYOUT_GENERAL,&clearcolor,1,&subResourceRange);
-    instance->transitionImageLayoutCmd(cmdBuffer, DefaultTexture.image, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-                                       VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL,
-                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subResourceRange);
+    instance->transitionImageLayoutCmd(
+        cmdBuffer,
+        DefaultTexture.image,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_SHADER_READ_BIT,
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        subResourceRange);
     instance->AddDebugName(reinterpret_cast<uint64_t>(DefaultTexture.image),"defaultTextureImage",VK_OBJECT_TYPE_IMAGE);
     instance->endSingleTimeCommands(cmdBuffer,instance->queues.graphicsQueue);
     DefaultTexture.imageView = instance->createImageView(DefaultTexture.image,VK_FORMAT_R8G8B8A8_SNORM,VK_IMAGE_ASPECT_COLOR_BIT,1);

@@ -12,7 +12,6 @@ set(OSMIUMGL_SOURCES
         Core/src/MaterialData.cpp
         ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
         Core/src/DynamicCore.cpp
-        ShaderUtilities/src/DeferredLightingPipeline.cpp
         ShaderUtilities/src/MainPipeline.cpp
         ShaderUtilities/src/spirv_reflect.c
         ShaderUtilities/src/spirv_reflect.cpp
@@ -32,7 +31,6 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/DefaultSceneDescriptorSets.h
         Common/include/UniformBufferObject.h
         Core/include/DynamicCore.h
-        ShaderUtilities/include/DeferredLightingPipeline.h
         DebugUtils/ErrorChecking.h
         ShaderUtilities/include/PointLights.h
         ShaderUtilities/include/DirectionalLight.h

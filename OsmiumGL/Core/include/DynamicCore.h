@@ -203,10 +203,10 @@ private:
     void transitionImageLayoutCmd(
         VkCommandBuffer command_buffer,
         VkImage image,
-        VkPipelineStageFlags src_stage_mask,
-        VkPipelineStageFlags dst_stage_mask,
-        VkAccessFlags src_access_mask,
-        VkAccessFlags dst_access_mask,
+        VkPipelineStageFlagBits2 src_stage_mask,
+        VkPipelineStageFlagBits2 dst_stage_mask,
+        VkAccessFlagBits2 src_access_mask,
+        VkAccessFlagBits2 dst_access_mask,
         VkImageLayout old_layout,
         VkImageLayout new_layout,
         const VkImageSubresourceRange &subresource_range);

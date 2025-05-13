@@ -17,7 +17,6 @@
 #include <glm/ext/matrix_clip_space.hpp>
 
 #include "DefaultSceneDescriptorSets.h"
-#include "DeferredLightingPipeline.h"
 #include "ErrorChecking.h"
 #include "InitUtilVk.h"
 #include "MainPipeline.h"
@@ -287,12 +286,12 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,};
     //clear color
-    VkClearValue clear_values[5]{};
+    std::array<VkClearValue,5> clear_values{};
     clear_values[0].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//swapchainimage clear
     clear_values[1].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//positiondepth
     clear_values[2].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//normal
     clear_values[3].color        = {{0.0f, 0.0f, 0.0f, 0.0f}};//albedo
-    clear_values[4].depthStencil = {0.0f, 0};//depth stencil
+    clear_values[4].depthStencil = {.depth=0.0f, .stencil=0};//depth stencil
 
     VkCommandBuffer commandBuffer = drawCommandBuffers[currentFrame];
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
@@ -1038,10 +1037,10 @@ void OsmiumGLDynamicInstance::endSingleTimeCommands(VkCommandBuffer commandBuffe
 
 void OsmiumGLDynamicInstance::transitionImageLayoutCmd(VkCommandBuffer command_buffer,
         VkImage image,
-        VkPipelineStageFlags src_stage_mask,
-        VkPipelineStageFlags dst_stage_mask,
-        VkAccessFlags src_access_mask,
-        VkAccessFlags dst_access_mask,
+        VkPipelineStageFlagBits2 src_stage_mask,
+        VkPipelineStageFlagBits2 dst_stage_mask,
+        VkAccessFlagBits2 src_access_mask,
+        VkAccessFlagBits2 dst_access_mask,
         VkImageLayout old_layout,
         VkImageLayout new_layout,
         const VkImageSubresourceRange &subresource_range) {
