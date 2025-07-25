@@ -193,7 +193,7 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
             Serialization::ImportMeshAsset(path,ResourceFolder,meshMetaData);
         }
         asset = new MeshAsset(meshMetaData.guid, meshMetaData.name);
-    }else if (path.extension() == "png" || path.extension() == "jpg" || path.extension() == "jpeg") {
+    }else if (path.extension() == ".png" || path.extension() == ".jpg" || path.extension() == ".jpeg") {
         Serialization::TextureMetaData textureMetaData;
         bool shouldImport = false;
         if (std::filesystem::exists(metaPath)) {

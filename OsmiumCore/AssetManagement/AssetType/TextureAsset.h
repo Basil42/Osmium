@@ -16,8 +16,8 @@ protected:
     void Unload_Impl(bool immediate) override;
 
 public:
-    std::mutex & GetRessourceMutex() override;
-    unsigned long GetTextureHandle() const;
+    [[nodiscard]]auto GetRessourceMutex() -> std::mutex & override;
+    [[nodiscard]] auto GetTextureHandle() const -> unsigned long;
     explicit TextureAsset(const xg::Guid &id);
 #ifdef EDITOR
     TextureAsset(const xg::Guid &id, const std::string &filename);

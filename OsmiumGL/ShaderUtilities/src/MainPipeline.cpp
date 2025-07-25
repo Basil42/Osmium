@@ -4,6 +4,7 @@
 
 #include "MainPipeline.h"
 
+#include "Descriptors.h"
 #include "DynamicCore.h"
 #include "ErrorChecking.h"
 #include "PassBindings.h"
@@ -186,7 +187,7 @@ void MainPipeline::DestroyAttachments() {
 
 void MainPipeline::CreateDepthResources() {
     OsmiumGLDynamicInstance::Attachment &att = attachments.depthSencil;
-    instance->createImage(instance->swapchain.extent.width, instance->swapchain.extent.height, 1, instance->msaaFlags,
+    instance->CreateImage(instance->swapchain.extent.width, instance->swapchain.extent.height, 1, instance->msaaFlags,
                           instance->DepthFormat,
                           VK_IMAGE_TILING_OPTIMAL,
                           VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
@@ -530,7 +531,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     //I do need to change blend modes here to accumulate in the buffers, I don't quite understand what the sample does here
     colorBlendAttachments[0] = {
         //diffuse
-        .blendEnable = VK_TRUE,
+        .blendEnable = VK_FALSE,
         .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .colorBlendOp = VK_BLEND_OP_ADD,
@@ -578,10 +579,10 @@ void MainPipeline::CreateDescriptorPools() {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = MAX_FRAMES_IN_FLIGHT *6
     };
-    //depth and normal spread,diffuse and specular  attachment, not sure that's how I use it
+    //depth and normal spread,diffuse and specular  attachment, not sure that's how I use it (+depth +swap chain ?)
     GlobalPoolSizes[1] = {
         .type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        .descriptorCount = 4 * MAX_FRAMES_IN_FLIGHT//I dount I need to actually duplicate these
+        .descriptorCount = 6 * MAX_FRAMES_IN_FLIGHT//I dount I need to actually duplicate these
     };
     //position reconstruction data
     GlobalPoolSizes[2] = {
@@ -599,29 +600,32 @@ void MainPipeline::CreateDescriptorPools() {
     PoolInfo.pPoolSizes = GlobalPoolSizes.data();
     PoolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * GlobalPoolSizeCount;
     check_vk_result(vkCreateDescriptorPool(instance->device, &PoolInfo, nullptr, &GlobalDescriptorPool));
+    instance->AddDebugName(reinterpret_cast<uint64_t>(GlobalDescriptorPool),"GlobalDescPool",VK_OBJECT_TYPE_DESCRIPTOR_POOL);
 
     constexpr unsigned int instancePoolSizeCount = 2;
     std::array<VkDescriptorPoolSize, instancePoolSizeCount> instancePoolSizes = {};
     //smoothness
     instancePoolSizes[0] = {
         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = 1 * MAX_FRAMES_IN_FLIGHT
+        .descriptorCount = 1 * MAX_FRAMES_IN_FLIGHT *50
     };
     //albedo and specular samplers
     instancePoolSizes[1] = {
         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = 2 * MAX_FRAMES_IN_FLIGHT
+        .descriptorCount = 2 * MAX_FRAMES_IN_FLIGHT * 50
     };
 
     const VkDescriptorPoolCreateInfo instancePoolCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets = MAX_FRAMES_IN_FLIGHT * 3 * 5,//arbitrary
+        .maxSets = MAX_FRAMES_IN_FLIGHT * 3 * 50,//arbitrary
         .poolSizeCount = instancePoolSizeCount,
         .pPoolSizes = instancePoolSizes.data(),
     };
     check_vk_result(vkCreateDescriptorPool(instance->device, &instancePoolCreateInfo, nullptr,
                                            &InstanceDescriptorPool));
+    instance->AddDebugName(reinterpret_cast<uint64_t>(InstanceDescriptorPool),"InstancesDescPool",VK_OBJECT_TYPE_DESCRIPTOR_POOL);
+
 }
 
 void MainPipeline::DestroyDescriptorPools() const {
@@ -847,7 +851,7 @@ void MainPipeline::DestroyDefaultInstanceDescriptorSets() {
 
 void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
     instance->CreateSampler(DefaultTexture.sampler,1,1);
-    instance->createImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_R8G8B8A8_SNORM,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
+    instance->CreateImage(1,1,1,VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_R8G8B8A8_SNORM,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,DefaultTexture.image,DefaultTexture.imageAlloc);
     instance->AddDebugName(reinterpret_cast<uint64_t>(DefaultTexture.image),"defaultTexture",VK_OBJECT_TYPE_IMAGE);
     VkCommandBuffer cmdBuffer  = instance->beginSingleTimeCommands(instance->queues.graphicsQueue);
     constexpr VkImageSubresourceRange subResourceRange{
@@ -885,7 +889,7 @@ void MainPipeline::InitializeDefaultInstanceDescriptorSets() {
         .sampler = DefaultTexture.sampler,
         .imageView = DefaultTexture.imageView,
         .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-    std::array<VkWriteDescriptorSet,MAX_FRAMES_IN_FLIGHT *3> writeOperations{};
+    std::array<VkWriteDescriptorSet,static_cast<std::size_t>(MAX_FRAMES_IN_FLIGHT *3)> writeOperations{};
     unsigned int writeIndex = 0;
     for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         writeOperations[writeIndex++] = {
@@ -1030,7 +1034,7 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const {
         .resolveMode = VK_RESOLVE_MODE_NONE,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,//probably shoudl be don't care as well
-        .clearValue = {0.0f,0.0f,0.0f,0.0f},};
+        .clearValue = {0.0f,0.0f,1.0f,0.0f},};
     }
 
     for (auto i = 0; i < colorAttachmentsInfos.size()-1; i++) {
@@ -1116,7 +1120,7 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const {
     .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
     .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
     .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-    .dstAccessMask = VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT};
+    .dstAccessMask = VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT };
     VkDependencyInfo dependencyInfo = {
     .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
     .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
@@ -1124,6 +1128,20 @@ void MainPipeline::RenderDeferredFrameCmd(VkCommandBuffer commandBuffer) const {
     .pMemoryBarriers = &memBarrier,
     };
     vkCmdPipelineBarrier2(commandBuffer,&dependencyInfo);
+
+    VkMemoryBarrier2 ChaInedMemBarrier{
+    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+    .srcAccessMask = VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT};
+    VkDependencyInfo dependencyInfoChain = {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+        .memoryBarrierCount = 1,
+        .pMemoryBarriers = &ChaInedMemBarrier
+    };
+    vkCmdPipelineBarrier2(commandBuffer,&dependencyInfoChain);
     //point lights pass
 
     for (LightMaterialBindings const &matBiding: instance->lightPassBindings->Materials) {
@@ -1197,4 +1215,26 @@ void MainPipeline::RecreateFrameBuffers(VkExtent2D extent) {
     DestroyAttachments();
     CreateAttachements();
     attachments.colorResolve = instance->GetColorResolveAttachment();
+}
+
+void MainPipeline::CreateMaterialInstanceData(MaterialInstanceData &instance_data) const {
+    std::array<VkDescriptorSetLayout,MAX_FRAMES_IN_FLIGHT> layouts;
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) layouts[i] = NormalSpreadPass.instanceDescriptorLayout;
+    VkDescriptorSetAllocateInfo allocationInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = InstanceDescriptorPool,
+    .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+    .pSetLayouts = layouts.data()};
+    check_vk_result(vkAllocateDescriptorSets(device,&allocationInfo,instance_data.NormalDescriptorSets.data()));
+    //the defualt alloc has sampler related data here, which I regret
+
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) layouts[i] = ShadingPass.instanceDescriptorLayout;
+    allocationInfo.pSetLayouts = layouts.data();
+    check_vk_result(vkAllocateDescriptorSets(device,&allocationInfo,instance_data.ShadingDescriptorSets.data()));
+
+}
+
+void MainPipeline::DestoryMaterialInstanceData(MaterialInstanceData &instance_data) {
+    vkFreeDescriptorSets(device,InstanceDescriptorPool,MAX_FRAMES_IN_FLIGHT,instance_data.NormalDescriptorSets.data());
+    vkFreeDescriptorSets(device,InstanceDescriptorPool,MAX_FRAMES_IN_FLIGHT,instance_data.ShadingDescriptorSets.data());
 }

@@ -48,6 +48,7 @@ set(OSMIUMCORE_HEADERS
         GOComponents/GOC_PointLight.cpp
         GOComponents/GOC_PointLight.h
         AssetManagement/AssetType/TextureAsset.h
+        ../OsmiumGL/Core/include/TextureData.h
 )
 foreach (LIB OsmiumCore E_OsmiumCore)
 

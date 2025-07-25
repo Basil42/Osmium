@@ -26,7 +26,7 @@ void DefaultSceneDescriptorSets::CreateDefaultDescriptorPool(const VkDevice _dev
 
 //camera,dirlight and point light
     sizes[0] = VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                    MAX_FRAMES_IN_FLIGHT * 3);
+                                    MAX_FRAMES_IN_FLIGHT * 3 *5);
     sizes[1] = VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
         MAX_FRAMES_IN_FLIGHT *3 *5);
 

@@ -37,22 +37,56 @@ namespace GUI{
     template<>
     inline void RenderGameObjectComponentInspector<GOC_MeshRenderer>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
         //use the combo function to display a query of all mesh assets
-        auto comp = dynamic_cast<GOC_MeshRenderer*>(gameObjectComponent);
+        const auto comp = dynamic_cast<GOC_MeshRenderer*>(gameObjectComponent);
         //MeshHandle handle = comp->GetMeshHandle();
         auto meshAssetPreview  = "None";
-        auto assetHandle = comp->GetAssetHandle();
-        Asset * assetRef = nullptr;
-        if (assetHandle.has_value()) {
-            assetRef = AssetManager::GetAsset(assetHandle.value());
-            meshAssetPreview = assetRef->name.c_str();//convoluted conversion, there is surely a better way
+        const auto meshAssetHandle = comp->GetMeshAssetHandle();
+        if (meshAssetHandle.has_value()) {
+            const Asset * meshAssetRef = nullptr;
+            meshAssetRef = AssetManager::GetAsset(meshAssetHandle.value());
+            meshAssetPreview = meshAssetRef->name.c_str();//convoluted conversion, there is surely a better way
         }
         //combo boxes will require a query system for asset selection
         if (ImGui::BeginCombo("Mesh",meshAssetPreview,ImGuiComboFlags_None)) {//I'll figure out the flags later
             for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {
                 if (asset->getType() != mesh)continue;//we should instead use premade queries to do this, it will get very slow on large databases
-                const bool is_selected = assetHandle.has_value() && (assetHandle.value() == id);
+                const bool is_selected = meshAssetHandle.has_value() && (meshAssetHandle.value() == id);
                 if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
                     comp->SetMeshAsset(id);
+                }
+            }
+            ImGui::EndCombo();
+        }
+        auto albedoAssetPreview = "None";
+        const std::optional<AssetId> albedoHandle = comp->GetAlbedoMapAssetHandle();
+        if (albedoHandle.has_value()) {
+            const Asset* albedoAssetRef = nullptr;
+            albedoAssetRef = AssetManager::GetAsset(albedoHandle.value());
+            albedoAssetPreview = albedoAssetRef->name.c_str();
+        }
+        if (ImGui::BeginCombo("Albedo Texture",albedoAssetPreview,ImGuiComboFlags_None)) {
+            for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {
+                if (asset->getType() != texture)continue;
+                const bool is_selected = albedoHandle.has_value() && (albedoHandle.value() == id);
+                if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
+                    comp->SetBlinnPhongAlbedoMap(id);
+                }
+            }
+            ImGui::EndCombo();
+        }
+        auto SpecularAssetPreview = "None";
+        const std::optional<AssetId> SpecularHandle = comp->GetSpecularMapAssetHandle();
+        if (SpecularHandle.has_value()) {
+            const Asset* SpecularAssetRef = nullptr;
+            SpecularAssetRef = AssetManager::GetAsset(SpecularHandle.value());
+            SpecularAssetPreview = SpecularAssetRef->name.c_str();
+        }
+        if (ImGui::BeginCombo("Specular",SpecularAssetPreview,ImGuiComboFlags_None)) {
+            for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {
+                if (asset->getType() != texture)continue;
+                const bool is_selected = SpecularHandle.has_value() && (SpecularHandle.value() == id);
+                if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
+                    comp->SetBlinnPhongSpecularMap(id);
                 }
             }
             ImGui::EndCombo();

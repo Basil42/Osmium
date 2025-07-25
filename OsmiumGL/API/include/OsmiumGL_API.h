@@ -82,6 +82,7 @@ namespace  OsmiumGL {
                          bufferDescriptors, DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices);
 
     unsigned long LoadTexture(const xg::Guid &id);
+    void UnloadTexture(unsigned long texture_handle);
 
     void ImguiEndImGuiFrame();
 
@@ -101,6 +102,11 @@ namespace  OsmiumGL {
     MatInstanceHandle GetDefaultMaterialInstance(MaterialHandle material);
 
     void RegisterPointLightLightShape(MeshHandle mesh_handle);
+
+    MatInstanceHandle CreateMaterialInstance(MaterialHandle material);
+    void DestroyMaterialInstance(MatInstanceHandle material_instance);
+
+    void SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding, TextureHandle texture);
 
 };
 

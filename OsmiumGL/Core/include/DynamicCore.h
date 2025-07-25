@@ -24,6 +24,7 @@
 #include "PointLights.h"
 #include "RenderedObject.h"
 #include "SyncUtils.h"
+#include "TextureData.h"
 struct PassBindings;
 struct CameraUniformValue;
 struct PointLightPushConstants;
@@ -61,7 +62,7 @@ class OsmiumGLDynamicInstance {
     [[nodiscard]] MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material) const;
     [[nodiscard]] MaterialData getMaterialData(MaterialHandle material_handle) const;
     [[nodiscard]] MaterialInstanceData getMaterialInstanceData(MatInstanceHandle mat_instance_handle) const;
-    MaterialHandle GetDefaultMaterialHandle();
+    MaterialHandle GetDefaultMaterialHandle() const;
 
     //objhect management
     bool AddRenderedObject(RenderedObject rendered_object) const;
@@ -75,12 +76,20 @@ class OsmiumGLDynamicInstance {
     void UnloadMesh(MeshHandle mesh, bool immediate);
 
     TextureHandle LoadTexture(const std::filesystem::path& path);
+    void UnloadTexture(TextureHandle textureHandle) const;
+
+    MatInstanceHandle CreateBlinnPhongMaterialInstance(MaterialHandle material);
+    void DestroyBlinnPhongMaterialInstance(MatInstanceHandle matInstanceHandle);
+
     bool ShouldClose() const;
 
     VkDescriptorSetLayout& GetPointLightSetLayout();
 
     VkPipelineLayout GetGlobalPipelineLayout();
 
+    void SetShadingStageTextureOnBlinnPhongMaterialInstance(MatInstanceHandle mat_instance_handle, unsigned int binding, TextureHandle texture);
+
+    MaterialHandle GetBlinnPhongHandle() const;
 
 private:
     vkb::Instance instance;//I'll have the api actually keep a forward decalred reference to the instance instead of making everything static
@@ -99,6 +108,8 @@ private:
     //internal sync info
     std::mutex meshDataMutex;
     std::unique_ptr<ResourceArray<MeshData,MAX_LOADED_MESHES>> LoadedMeshes = std::make_unique<ResourceArray<MeshData,MAX_LOADED_MESHES>>();
+    std::mutex TextureDataMutex;
+    std::unique_ptr<ResourceArray<TextureData,MAX_LOADED_TEXTURES>> LoadedTextures = std::make_unique<ResourceArray<TextureData,MAX_LOADED_TEXTURES>>();
 
     struct {
         std::vector<VkSemaphore> aquiredImageReady = {};
@@ -122,12 +133,12 @@ private:
     std::vector<VkCommandBuffer> drawCommandBuffers;
     VkSampleCountFlagBits msaaFlags = VK_SAMPLE_COUNT_1_BIT;//TODO establish max supported before creating attachement
     const std::set<std::string> allocatorExtensions{
-        VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-        VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE_4_EXTENSION_NAME,
+        //VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+        //VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+        //VK_KHR_MAINTENANCE_4_EXTENSION_NAME,
         VK_KHR_MAINTENANCE_5_EXTENSION_NAME,
         VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
-        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+        //VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
         VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
         VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME,
     };
@@ -174,7 +185,7 @@ private:
                       vma_allocation,VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags allocationFlags = 0x00000000) const;
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) const;
 
-    void createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
+    void CreateImage(uint32_t Width, uint32_t Height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling
                      tiling, VkImageUsageFlags usage, VkImage
                      &image, VmaAllocation &imageAllocation) const;
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) const;
@@ -189,18 +200,19 @@ private:
     void createDepthResources();
 
     void createAttachments();
-    void destroyAttachment(Attachment &attachment);
+    void destroyAttachment(Attachment &attachment) const;
     void destroyAttachments();
     void createIndexBuffer(const std::vector<unsigned int> &indices, VkBuffer &vk_buffer, VmaAllocation &vma_allocation) const;
     void createVertexAttributeBuffer(const void *vertexData, const VertexBufferDescriptor &buffer_descriptor,
                                      unsigned int vertexCount, VkBuffer &vk_buffer,
                                      VmaAllocation &vma_allocation) const;
     //utility function
-    VkImageView GetCurrentSwapChainView();
-    Attachment  GetColorResolveAttachment() const;
-    VkCommandBuffer beginSingleTimeCommands(VkQueue queue) const;
+    [[nodiscard]] auto GetCurrentSwapChainView() const -> VkImageView;
+    [[nodiscard]] auto  GetColorResolveAttachment() const -> Attachment;
+    auto beginSingleTimeCommands(VkQueue queue) const -> VkCommandBuffer;
     void endSingleTimeCommands(VkCommandBuffer commandBuffer,VkQueue queue) const;
-    void transitionImageLayoutCmd(
+
+    static void transitionImageLayoutCmd(
         VkCommandBuffer command_buffer,
         VkImage image,
         VkPipelineStageFlagBits2 src_stage_mask,
@@ -210,7 +222,7 @@ private:
         VkImageLayout old_layout,
         VkImageLayout new_layout,
         const VkImageSubresourceRange &subresource_range);
-    VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
+    [[nodiscard]] VkPipelineShaderStageCreateInfo loadShader(const std::string &path, VkShaderStageFlagBits shaderStage) const;
     MaterialHandle LoadMaterial(const MaterialCreateInfo* material_create_info,MaterialInstanceCreateInfo* defaultInstanceCreateinfo,MatInstanceHandle* defaultInstance);//also load a default instance
     LightMaterialHandle LoadLightMaterial(const LightMaterialCreateinfo *material_create_info) const;
 

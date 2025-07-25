@@ -43,6 +43,10 @@ void OsmiumGL::Shutdown() {
 
 }
 
+MaterialHandle OsmiumGL::GetBlinnPhongHandle() {
+    return instance->GetBlinnPhongHandle();
+}
+
 
 void OsmiumGL::ClearGOPushConstantBuffers() {
 
@@ -95,6 +99,10 @@ unsigned long OsmiumGL::LoadTexture(const xg::Guid &id) {
     return instance->LoadTexture(ResourceFolder / id.str());
 }
 
+void OsmiumGL::UnloadTexture(unsigned long texture_handle) {
+    instance->UnloadTexture(texture_handle);
+}
+
 void OsmiumGL::ImguiEndImGuiFrame() {
     instance->endImgGuiFrame();
 }
@@ -136,6 +144,19 @@ MatInstanceHandle OsmiumGL::GetDefaultMaterialInstance(MaterialHandle material) 
 
 void OsmiumGL::RegisterPointLightLightShape(MeshHandle mesh_handle) {
     instance->RegisterPointLightShapeMesh(mesh_handle);
+}
+
+MatInstanceHandle OsmiumGL::CreateMaterialInstance(MaterialHandle material) {
+    return instance->CreateBlinnPhongMaterialInstance(material);
+}
+
+void OsmiumGL::DestroyMaterialInstance(MatInstanceHandle material_instance) {
+     instance->DestroyBlinnPhongMaterialInstance(material_instance);
+}
+
+void OsmiumGL::SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding,
+                                            TextureHandle texture) {
+    instance->SetShadingStageTextureOnBlinnPhongMaterialInstance(material_instance,binding,texture);
 }
 
 

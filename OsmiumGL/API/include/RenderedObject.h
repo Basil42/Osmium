@@ -12,9 +12,10 @@ namespace std {
     enum class byte : unsigned char;
 }
 
-typedef unsigned long MaterialHandle;
-typedef unsigned long MatInstanceHandle;
-typedef unsigned long MeshHandle;
+using MaterialHandle = unsigned long;
+using MatInstanceHandle = unsigned long;
+using MeshHandle = unsigned long;
+using TextureHandle = unsigned long;
 struct RenderedObject {//Struct entries are ordered like they are in the render tree
     MaterialHandle material;//this is mostly the pipeline
     MatInstanceHandle matInstance;//uniform set

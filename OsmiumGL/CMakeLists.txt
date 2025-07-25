@@ -40,6 +40,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Common/include/Texture.h
         Initialization/Capabilities/DeviceCapabilities.h
         Core/include/vk_mem_alloc.h
+        Core/include/TextureData.h
 
 )
 add_library(OsmiumGL STATIC

@@ -4,7 +4,6 @@
 #include "Asset.h"
 
 #include "AssetManager.h"
-#include "MeshSerialization.h"
 #include "Serialization.h"
 #ifdef EDITOR
 /**
@@ -30,7 +29,7 @@ void Asset::Load() {
 }
 
 void Asset::Unload(bool immediate = false) {
-    if (--referenceCount == 0)Unload_Impl(immediate);
+    if (--referenceCount <= 0)Unload_Impl(immediate);
 }
 Asset::Asset(const xg::Guid& guid) : id(guid)
  #if defined EDITOR

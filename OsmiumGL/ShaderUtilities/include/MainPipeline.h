@@ -111,7 +111,10 @@ public:
 
     void RecreateFrameBuffers(VkExtent2D extent);
 
-    LightMaterialHandle GetPointLightmaterialHandle() const {return pointLightMaterialHandle;};
+    LightMaterialHandle GetPointLightmaterialHandle() const {return pointLightMaterialHandle;}
+
+    void CreateMaterialInstanceData(MaterialInstanceData & instance_data) const;
+    void DestoryMaterialInstanceData(MaterialInstanceData & instance_data);
 };
 
 

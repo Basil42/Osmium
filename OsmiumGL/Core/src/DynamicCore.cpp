@@ -4,6 +4,7 @@
 
 #include "../include/DynamicCore.h"
 
+#include <cstddef>
 #include <iostream>
 #include <set>
 #include <ShaderUtilities.h>
@@ -11,6 +12,7 @@
 
 #include <VkBootstrap.h>
 #define VMA_IMPLEMENTATION
+#include <ranges>
 #include <vk_mem_alloc.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -24,6 +26,7 @@
 #include "MeshSerialization.h"
 #include "PassBindings.h"
 #include "SyncUtils.h"
+#include "TextureData.h"
 #include "TextureSerialization.h"
 
 
@@ -34,7 +37,7 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     .set_engine_name("Osmium")
 #ifdef Vk_VALIDATION_LAYER
     .request_validation_layers()
-    .enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
+    //.enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
 #endif
     .use_default_debug_messenger()
     .require_api_version(VK_MAKE_VERSION(1, 3, 0))
@@ -71,16 +74,18 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     .dynamicRenderingLocalRead = VK_TRUE,};
     //here I can specify features I need
     auto deviceSelectorResult = deviceSelector.set_surface(surface)//putting it here as a useful extension for dynamic rendering
-    .add_required_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)
-    .add_required_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
     .add_required_extension(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)
-    .add_required_extension(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)
     .set_required_features({
     .samplerAnisotropy = VK_TRUE,
+    })
+    .set_required_features_12(
+    {.timelineSemaphore = VK_TRUE,
+    .bufferDeviceAddress = VK_TRUE,//allocator
     })
      .set_required_features_13({
          .synchronization2 = VK_TRUE,
          .dynamicRendering = VK_TRUE,
+
      })
     .add_required_extension_features(dynamicRenderingLocalReadFeaturesKHR)
     .select();//defaults to discret gpu
@@ -94,10 +99,6 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     for (const auto& alloc_extension_to_enable: allocatorExtensions) {
         physicalDevice.enable_extension_if_present(alloc_extension_to_enable.c_str());
     }
-    VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
-    .bufferDeviceAddress = VK_TRUE};
-    physicalDevice.enable_extension_features_if_present(bufferDeviceAddressFeatures);
 
     //logical device
     vkb::DeviceBuilder deviceBuilder{ physicalDevice };
@@ -179,6 +180,10 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,//non primary are I believed used for multithreaded render command buffer building
     .commandBufferCount = static_cast<uint32_t>(drawCommandBuffers.size())};
     check_vk_result(vkAllocateCommandBuffers(device,&cmdBufferAllocateInfo,drawCommandBuffers.data()));
+    unsigned short bufferIndex = 0;
+    for (auto cmdBuffer: drawCommandBuffers) {
+        AddDebugName(reinterpret_cast<uint64_t>(cmdBuffer),("draw cmd buffer " + std::to_string(bufferIndex)).c_str(),VK_OBJECT_TYPE_COMMAND_BUFFER);
+    }
     //draw buffer fence
     VkFenceCreateInfo fenceCreateInfo{
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -190,7 +195,6 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     }
     //leaving msaa off, it's not worth it on deferred
     //msaaFlags = DeviceCapabilities::GetMaxMultiSamplingCapabilities(physicalDevice);
-    //TODO loading meshes and sending push constant
     //TODO light buffers
     setupImgui();
     createColorResolveResource();
@@ -211,6 +215,7 @@ void OsmiumGLDynamicInstance::Shutdown() {
     delete MainPipelineInstance;
     delete DefaultDescriptors;
     delete passTree;
+
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -312,6 +317,26 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
 
 
     MainPipelineInstance->RenderDeferredFrameCmd(commandBuffer);
+    VkImageMemoryBarrier2 imageMemBarrier{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .image = swapChainImage,
+    .subresourceRange = subresourceRangeColor};
+    VkDependencyInfo Imguidependency{
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+    .memoryBarrierCount = 0,
+    .pMemoryBarriers = nullptr,
+    .bufferMemoryBarrierCount = 0,
+    .pBufferMemoryBarriers = nullptr,
+    .imageMemoryBarrierCount = 1,
+    .pImageMemoryBarriers = &imageMemBarrier};
+    vkCmdPipelineBarrier2(commandBuffer,&Imguidependency);
     //imgui frame
     imguiLock.lock();
     ImGuiFrameReadyCondition.cv.wait(imguiLock,[&ImGuiFrameReadyCondition](){return ImGuiFrameReadyCondition.boolean == false;});
@@ -356,7 +381,9 @@ void OsmiumGLDynamicInstance::RenderFrame(Sync::SyncBoolCondition &ImGuiFrameRea
     submitInfo.pCommandBuffers = &drawCommandBuffers[currentFrame];
 
     //submit buffer
+    auto lock = std::unique_lock(TextureDataMutex);
     vkQueueSubmit(queues.graphicsQueue,1,&submitInfo,drawFences[currentFrame]);
+    lock.unlock();
 
 
     
@@ -448,7 +475,7 @@ MeshHandle OsmiumGLDynamicInstance::LoadMesh(const std::filesystem::path &path) 
     Serialization::MeshSerializationData data;
     if (!Serialization::DeserializeMeshAsset(path,data)) {
         throw std::runtime_error("Failed to load mesh asset");
-        return -1;
+        //return -1;
     }
     std::vector<VertexBufferDescriptor> buffersDescriptors;
     DefaultVertexAttributeFlags attributeFlags = NONE;
@@ -560,8 +587,96 @@ void OsmiumGLDynamicInstance::UnloadMesh(MeshHandle mesh, bool immediate) {
 }
 
 TextureHandle OsmiumGLDynamicInstance::LoadTexture(const std::filesystem::path &path) {
-    Serialization::TextureSerializationData data;
+    Serialization::TextureSerializationData serializationData;
+    if (!Serialization::DeserializeTextureAsset(path, serializationData)) {
+        throw std::runtime_error("Failed to load texture asset: " + path.string());
+    }
+
+    TextureData textureData;
+    CreateSampler(textureData.Sampler,serializationData.dimensions[0],serializationData.dimensions[1]);
+    CreateImage(serializationData.dimensions[0],serializationData.dimensions[1],serializationData.MipMapCount,VK_SAMPLE_COUNT_1_BIT,serializationData.format,VK_IMAGE_TILING_OPTIMAL,VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,textureData.ImageHandle,textureData.ImageAllocation);
+    textureData.ImageView = createImageView(textureData.ImageHandle,serializationData.format,VK_IMAGE_ASPECT_COLOR_BIT,1);//not a fan of the inconsistency here.
+    AddDebugName(reinterpret_cast<uint64_t>(textureData.ImageHandle),reinterpret_cast<const char *>(path.filename().c_str()),VK_OBJECT_TYPE_IMAGE);
+
+
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+
+    createBuffer(static_cast<uint64_t>(serializationData.dimensions[0])*(serializationData.dimensions[1])*4,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,stagingBuffer,stagingAllocation, VMA_MEMORY_USAGE_AUTO, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+    void* data;
+    vmaMapMemory(allocator,stagingAllocation,&data);
+    memcpy(data, serializationData.data.data(),serializationData.data.size());
+    vmaUnmapMemory(allocator,stagingAllocation);
+    auto lock = std::unique_lock(TextureDataMutex);
+    VkCommandBuffer CmdBuffer = beginSingleTimeCommands(queues.graphicsQueue);
+    constexpr VkImageSubresourceRange subResourceRange{
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = VK_REMAINING_MIP_LEVELS,
+        .baseArrayLayer = 0,
+        .layerCount = VK_REMAINING_ARRAY_LAYERS,
+    };
+    transitionImageLayoutCmd(CmdBuffer,textureData.ImageHandle,
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        subResourceRange);
+
+    VkBufferImageCopy region{
+    .bufferOffset = 0,
+    .bufferRowLength = 0,
+    .bufferImageHeight = 0,
+    .imageSubresource = {
+    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .mipLevel = 0,
+    .baseArrayLayer = 0,
+    .layerCount = 1},
+    .imageOffset = {0,0,0},
+    .imageExtent = {serializationData.dimensions[0],serializationData.dimensions[1],1}};
+
+    vkCmdCopyBufferToImage(CmdBuffer,stagingBuffer,textureData.ImageHandle,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&region);
+
+    transitionImageLayoutCmd(CmdBuffer,textureData.ImageHandle,
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        subResourceRange);
+    endSingleTimeCommands(CmdBuffer,queues.graphicsQueue);
+    lock.unlock();
+    vkDestroyBuffer(device,stagingBuffer,nullptr);
+    vmaFreeMemory(allocator,stagingAllocation);
+    return LoadedTextures->Add(textureData);
 }
+
+void OsmiumGLDynamicInstance::UnloadTexture(TextureHandle textureHandle) const {
+    TextureData textData = LoadedTextures->get(textureHandle);
+    vkDestroySampler(device,textData.Sampler,nullptr);
+    vkDestroyImageView(device,textData.ImageView,nullptr);
+    vkDestroyImage(device,textData.ImageHandle,nullptr);
+    vmaFreeMemory(allocator,textData.ImageAllocation);
+}
+
+MatInstanceHandle OsmiumGLDynamicInstance::CreateBlinnPhongMaterialInstance(MaterialHandle material) {
+    MaterialInstanceData instanceData;
+    MainPipelineInstance->CreateMaterialInstanceData(instanceData);
+    MaterialInstanceCreateInfo matInstanceCreateInfo{
+        .NormalSets = instanceData.NormalDescriptorSets,
+        .ShadingSets = instanceData.ShadingDescriptorSets
+    };
+    return LoadMaterialInstance(material,&matInstanceCreateInfo);
+}
+
+void OsmiumGLDynamicInstance::DestroyBlinnPhongMaterialInstance(MatInstanceHandle matInstanceHandle) {
+    MaterialInstanceData matInstance = LoadedMaterialInstances->get(matInstanceHandle);
+    MainPipelineInstance->DestoryMaterialInstanceData(matInstance);
+}
+
 
 bool OsmiumGLDynamicInstance::ShouldClose() const {
     return glfwWindowShouldClose(window);
@@ -573,6 +688,35 @@ VkDescriptorSetLayout& OsmiumGLDynamicInstance::GetPointLightSetLayout() {
 
 VkPipelineLayout OsmiumGLDynamicInstance::GetGlobalPipelineLayout() {
     return DefaultDescriptors->GetCameraPipelineLayout();
+}
+
+void OsmiumGLDynamicInstance::SetShadingStageTextureOnBlinnPhongMaterialInstance(const MatInstanceHandle mat_instance_handle,
+    const unsigned int binding, const TextureHandle texture) {
+    MaterialInstanceData instanceData = LoadedMaterialInstances->get(mat_instance_handle);
+    TextureData textureData = LoadedTextures->get(texture);
+
+    const VkDescriptorImageInfo imageInfo{
+      .sampler = textureData.Sampler,
+      .imageView = textureData.ImageView,
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    };
+    std::array<VkWriteDescriptorSet,static_cast<std::size_t>(MAX_FRAMES_IN_FLIGHT)> writeOperations{};
+    unsigned int writeIndex = 0;
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        writeOperations[writeIndex++] = VkWriteDescriptorSet{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = instanceData.ShadingDescriptorSets[i],
+        .dstBinding = binding,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = &imageInfo,
+        };
+    }
+    vkUpdateDescriptorSets(device,writeOperations.size(),writeOperations.data(),0,nullptr);
+}
+
+MaterialHandle OsmiumGLDynamicInstance::GetBlinnPhongHandle() const {
+    return MainPipelineInstance->GetMaterialHandle();
 }
 
 
@@ -735,7 +879,7 @@ void OsmiumGLDynamicInstance::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
     endSingleTimeCommands(commandBuffer, queues.transferQueue);
 }
 
-void OsmiumGLDynamicInstance::createImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,
+void OsmiumGLDynamicInstance::CreateImage(uint32_t Width, uint32_t Height, uint32_t mipLevels,
     VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage&image,
     VmaAllocation&imageAllocation) const {
     VkImageCreateInfo imageCreateInfo{
@@ -767,8 +911,9 @@ void OsmiumGLDynamicInstance::createImage(uint32_t Width, uint32_t Height, uint3
 
 }
 
-VkImageView OsmiumGLDynamicInstance::createImageView(const VkImage image, const VkFormat format, const VkImageAspectFlags aspectFlags,
-    const uint32_t mipLevels) const {
+auto OsmiumGLDynamicInstance::createImageView(const VkImage image, const VkFormat format,
+                                              const VkImageAspectFlags aspectFlags,
+                                              const uint32_t mipLevels) const -> VkImageView {
     const VkImageViewCreateInfo viewInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = image,
@@ -932,7 +1077,7 @@ void OsmiumGLDynamicInstance::createColorResolveResource() {
 }
 
 
-void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachment &attachment) {
+void OsmiumGLDynamicInstance::destroyAttachment(OsmiumGLDynamicInstance::Attachment &attachment) const {
     vkDestroyImageView(device,attachment.imageView,nullptr);
     vmaDestroyImage(allocator,attachment.image,attachment.imageMemory);
     attachment = {};
@@ -985,7 +1130,7 @@ void OsmiumGLDynamicInstance::createVertexAttributeBuffer(const void *vertexData
 
     vmaCopyMemoryToAllocation(allocator,buffer_descriptor.data,stagingAllocation,0,stagingBufferCreateInfo.size);
 
-    createBuffer(buffer_descriptor.AttributeStride * vertexCount,
+    createBuffer(static_cast<uint64_t>(buffer_descriptor.AttributeStride) * vertexCount,
                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                  vk_buffer,
                  vma_allocation);
@@ -993,16 +1138,16 @@ void OsmiumGLDynamicInstance::createVertexAttributeBuffer(const void *vertexData
     vmaDestroyBuffer(allocator,stagingBuffer,stagingAllocation);
 }
 
-VkImageView OsmiumGLDynamicInstance::GetCurrentSwapChainView() {
+auto OsmiumGLDynamicInstance::GetCurrentSwapChainView() const -> VkImageView {
     return swapchainViews[currentFrame];
 }
 
-OsmiumGLDynamicInstance::Attachment OsmiumGLDynamicInstance::GetColorResolveAttachment() const {
+auto OsmiumGLDynamicInstance::GetColorResolveAttachment() const -> OsmiumGLDynamicInstance::Attachment {
     return colorResolveAttachment;
 }
 
-VkCommandBuffer OsmiumGLDynamicInstance::beginSingleTimeCommands(VkQueue queue) const {
-    VkCommandBufferAllocateInfo allocInfo = {
+auto OsmiumGLDynamicInstance::beginSingleTimeCommands(VkQueue queue) const -> VkCommandBuffer {
+    const VkCommandBufferAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = queue == queues.transferQueue ? commandPools.transient : commandPools.draw,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
@@ -1011,7 +1156,7 @@ VkCommandBuffer OsmiumGLDynamicInstance::beginSingleTimeCommands(VkQueue queue) 
     VkCommandBuffer commandBuffer;
     vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
 
-    VkCommandBufferBeginInfo beginInfo = {
+    constexpr VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
@@ -1131,7 +1276,7 @@ MaterialInstanceData OsmiumGLDynamicInstance::getMaterialInstanceData(MatInstanc
     return LoadedMaterialInstances->get(mat_instance_handle);
 }
 
-MaterialHandle OsmiumGLDynamicInstance::GetDefaultMaterialHandle() {
+MaterialHandle OsmiumGLDynamicInstance::GetDefaultMaterialHandle() const {
     return MainPipelineInstance->GetMaterialHandle();
 }
 

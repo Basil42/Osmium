@@ -173,7 +173,7 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
                 defaultRedLightInfo.parent = 0;
                 OsmiumInstance->CreateNewGameObject(defaultRedLightInfo,[](GameObject* gameObject) {
                     gameObject->Addcomponent<GOC_PointLight>([](GOC_PointLight* light) {
-                        light->SetValues(glm::vec3(3.0f,2.0f,0.0f),glm::vec3(1.0f,0.0f,0.0),5.0f, 5.0f);
+                        light->SetValues(glm::vec3(3.0f,2.0f,0.0f),glm::vec3(1.0f,0.0f,0.0),7.0f, 5.0f);
                     });
                 });
                     // GameObject* defaultObject = CreateNewGameObject();
