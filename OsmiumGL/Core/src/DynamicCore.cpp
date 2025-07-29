@@ -40,7 +40,7 @@ void OsmiumGLDynamicInstance::Initialize(const std::string& appName) {
     //.enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
 #endif
     .use_default_debug_messenger()
-    .require_api_version(VK_MAKE_VERSION(1, 3, 0))
+    .require_api_version(VK_MAKE_VERSION(1, 4, 0))
     .build();
 
     if (!inst_builder_result) {
