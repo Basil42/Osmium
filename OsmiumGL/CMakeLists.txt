@@ -68,13 +68,10 @@ target_include_directories(OsmiumGL PUBLIC
         API/include
         ShaderUtilities/include)
 
-find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(OsmiumGL PUBLIC glfw)
 find_package(Vulkan REQUIRED)
-target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
-find_package(Stb REQUIRED)
-target_include_directories(OsmiumGL PRIVATE ${Stb_INCLUDE_DIR})
 
+target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers)
 target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
 target_link_libraries(OsmiumGL PRIVATE vk-bootstrap)

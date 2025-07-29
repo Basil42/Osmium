@@ -22,7 +22,6 @@ set(PHYSICS_HEADERS
 
 add_library(OsmiumPhysics STATIC ${PHYSICS_SOURCES}
 ${PHYSICS_HEADERS})
-find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumPhysics PRIVATE glm::glm)
 target_link_libraries(OsmiumPhysics PRIVATE OsmiumCommon)
 target_include_directories(OsmiumPhysics PRIVATE Core/include)

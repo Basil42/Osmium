@@ -59,7 +59,6 @@ add_library(${LIB} STATIC
 
 
 target_link_libraries(${LIB}  PUBLIC OsmiumGL)#should fix the lib to make it private at some point
-find_package(glm CONFIG REQUIRED)
 target_link_libraries(${LIB}  PRIVATE glm::glm)
 target_link_libraries(${LIB}  PUBLIC OsmiumCommon)
 target_link_libraries(${LIB}  PRIVATE OsmiumPhysics)

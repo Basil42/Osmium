@@ -25,9 +25,7 @@ add_library(OsmiumCommon STATIC
 set_target_properties(OsmiumCommon PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(OsmiumCommon PUBLIC include)
 target_link_libraries(OsmiumCommon PUBLIC crossguid)
-find_package(tinyobjloader CONFIG REQUIRED)
-target_link_libraries(OsmiumCommon PRIVATE tinyobjloader::tinyobjloader)
-find_package(glm CONFIG REQUIRED)
 target_link_libraries(OsmiumCommon PUBLIC glm::glm)
+target_link_libraries(OsmiumCommon PUBLIC Vulkan::Headers)
 
 
