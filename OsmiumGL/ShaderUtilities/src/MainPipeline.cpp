@@ -531,7 +531,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
     //I do need to change blend modes here to accumulate in the buffers, I don't quite understand what the sample does here
     colorBlendAttachments[0] = {
         //diffuse
-        .blendEnable = VK_FALSE,
+        .blendEnable = VK_TRUE,
         .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .colorBlendOp = VK_BLEND_OP_ADD,
