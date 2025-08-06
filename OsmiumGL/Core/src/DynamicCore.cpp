@@ -449,7 +449,10 @@ void OsmiumGLDynamicInstance::SubmitObjectPushDataBuffers(const std::map<Rendere
                 break;
             }
         }
-        assert(matBinding != nullptr);
+        if (matBinding == nullptr) {
+            std::cout << "stale material binding, ignoring" << std::endl;
+            continue;
+        }
         MaterialInstanceBindings* matInstanceBinding = nullptr;
         for (auto& binding: matBinding->matInstances) {
             if (binding.matInstanceHandle == buffer.first.matInstance) {
@@ -457,7 +460,10 @@ void OsmiumGLDynamicInstance::SubmitObjectPushDataBuffers(const std::map<Rendere
                 break;
             }
         }
-        assert(matInstanceBinding != nullptr);
+        if (matInstanceBinding == nullptr) {
+            std::cout << "stale matInstance binding, ignoring" << std::endl;
+            continue;
+        }
         for (auto& binding : matInstanceBinding->meshes) {
             if (binding.MeshHandle == buffer.first.mesh) {
                 std::vector<std::byte>& destBuffer = binding.ObjectPushConstantData[currentFrame];
@@ -608,7 +614,7 @@ TextureHandle OsmiumGLDynamicInstance::LoadTexture(const std::filesystem::path &
     memcpy(data, serializationData.data.data(),serializationData.data.size());
     vmaUnmapMemory(allocator,stagingAllocation);
     auto lock = std::unique_lock(TextureDataMutex);
-    VkCommandBuffer CmdBuffer = beginSingleTimeCommands(queues.graphicsQueue);
+    VkCommandBuffer CmdBuffer = beginSingleTimeCommands(queues.transferQueue);
     constexpr VkImageSubresourceRange subResourceRange{
         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .baseMipLevel = 0,
@@ -647,7 +653,7 @@ TextureHandle OsmiumGLDynamicInstance::LoadTexture(const std::filesystem::path &
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         subResourceRange);
-    endSingleTimeCommands(CmdBuffer,queues.graphicsQueue);
+    endSingleTimeCommands(CmdBuffer,queues.transferQueue);
     lock.unlock();
     vkDestroyBuffer(device,stagingBuffer,nullptr);
     vmaFreeMemory(allocator,stagingAllocation);

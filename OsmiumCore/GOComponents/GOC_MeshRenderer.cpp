@@ -91,12 +91,13 @@ GOC_MeshRenderer::~GOC_MeshRenderer() {
 void GOC_MeshRenderer::UpdateRenderedObject() {
     shouldUpdateRenderObject = false;
     if (registered) {
+        std::cout << "Unregistered object : " << name.c_str() << std::endl;
         OsmiumGL::UnregisterRenderedObject(renderedObject);
         registered = false;
-        return;
     }
 
     if (mesh <= MAX_LOADED_MESHES && material <= MAX_LOADED_MATERIALS && materialInstance <= MAX_LOADED_MATERIAL_INSTANCES) {
+        std::cout << "Registered object : " << name.c_str() << std::endl;
         renderedObject.mesh = mesh;
         renderedObject.material = material;
         renderedObject.matInstance = materialInstance;
@@ -168,12 +169,14 @@ void GOC_MeshRenderer::SetBlinnPhongAlbedoMap(AssetId asset_id) {
         materialInstance = OsmiumGL::CreateMaterialInstance(material);
         HasOwnMaterialInstance = true;
     }
+    std::cout << "requesting setting albedo texture." << std::endl;
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
         OsmiumGL::SetTextureInMaterialInstance(materialInstance,0,handle);
         albedoMap = handle;
         albedoMapAssetHandle = asset->id;
         shouldUpdateRenderObject = true;
+        std::cout << "marked object for renderer upate" << std::endl;
     });
 
 
