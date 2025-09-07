@@ -76,7 +76,7 @@ class OsmiumGLDynamicInstance {
     void UnloadMesh(MeshHandle mesh, bool immediate);
 
     TextureHandle LoadTexture(const std::filesystem::path& path);
-    void UnloadTexture(TextureHandle textureHandle) const;
+    void UnloadTexture(TextureHandle textureHandle);
 
     MatInstanceHandle CreateBlinnPhongMaterialInstance(MaterialHandle material);
     void DestroyBlinnPhongMaterialInstance(MatInstanceHandle matInstanceHandle);

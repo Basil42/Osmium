@@ -1232,6 +1232,51 @@ void MainPipeline::CreateMaterialInstanceData(MaterialInstanceData &instance_dat
     allocationInfo.pSetLayouts = layouts.data();
     check_vk_result(vkAllocateDescriptorSets(device,&allocationInfo,instance_data.ShadingDescriptorSets.data()));
 
+//initialize descriptors
+    const VkDescriptorImageInfo imageInfo{
+    .sampler = DefaultTexture.sampler,
+    .imageView = DefaultTexture.imageView,
+    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,};
+    std::array<VkWriteDescriptorSet,static_cast<std::size_t>(MAX_FRAMES_IN_FLIGHT)> descriptorWrites{};
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        descriptorWrites[i] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = instance_data.ShadingDescriptorSets[i],
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &imageInfo,
+        };
+    }
+
+    vkUpdateDescriptorSets(device,descriptorWrites.size(),descriptorWrites.data(),0,nullptr);
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        descriptorWrites[i] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = instance_data.ShadingDescriptorSets[i],
+            .dstBinding = 1,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &imageInfo,
+        };
+    }
+
+    vkUpdateDescriptorSets(device,descriptorWrites.size(),descriptorWrites.data(),0,nullptr);
+
+    for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        descriptorWrites[i] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = instance_data.NormalDescriptorSets[i],
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &imageInfo,
+        };
+    }
+
+    vkUpdateDescriptorSets(device,descriptorWrites.size(),descriptorWrites.data(),0,nullptr);
+
+
 }
 
 void MainPipeline::DestoryMaterialInstanceData(MaterialInstanceData &instance_data) {

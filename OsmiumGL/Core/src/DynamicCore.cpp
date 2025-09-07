@@ -660,12 +660,14 @@ TextureHandle OsmiumGLDynamicInstance::LoadTexture(const std::filesystem::path &
     return LoadedTextures->Add(textureData);
 }
 
-void OsmiumGLDynamicInstance::UnloadTexture(TextureHandle textureHandle) const {
+void OsmiumGLDynamicInstance::UnloadTexture(TextureHandle textureHandle) {
+    auto lock = std::unique_lock(TextureDataMutex);
     TextureData textData = LoadedTextures->get(textureHandle);
     vkDestroySampler(device,textData.Sampler,nullptr);
     vkDestroyImageView(device,textData.ImageView,nullptr);
     vkDestroyImage(device,textData.ImageHandle,nullptr);
     vmaFreeMemory(allocator,textData.ImageAllocation);
+    LoadedTextures->Remove(textureHandle);
 }
 
 MatInstanceHandle OsmiumGLDynamicInstance::CreateBlinnPhongMaterialInstance(MaterialHandle material) {
@@ -1319,7 +1321,7 @@ bool OsmiumGLDynamicInstance::AddRenderedObject(RenderedObject rendered_object) 
             std::cout << "attempted to register a rendered object with an unloaded material instance";
             return false;
         }
-        material_binding->matInstances.push_back(MaterialInstanceBindings(rendered_object.material));
+        material_binding->matInstances.push_back(MaterialInstanceBindings(rendered_object.matInstance));
         mat_instance_binding = &material_binding->matInstances.back();
     }
     for (auto& mesh : mat_instance_binding->meshes) {
