@@ -7,8 +7,7 @@
 #include <glm/glm.hpp>
 
 struct DirectionalLightUniform {
+    alignas(16) glm::vec4 DirLightColor;
     alignas(16) glm::vec3 VLightDirection;
-    alignas(16) glm::vec3 DirLightColor;
-    float DirLightIntensity;
 };
 #endif //DIRECTIONALLIGHT_H

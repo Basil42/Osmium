@@ -13,7 +13,7 @@ layout(input_attachment_index = 2,set = 1, binding = 3)uniform subpassInput Spec
 layout(set = 2, binding = 0)uniform sampler2D alebedoMap;
 layout(set = 2, binding = 1)uniform sampler2D specularMap;
 
-layout(location = 3)out vec4 outColor;
+layout(location = 0)out vec4 outColor;
 void main() {
     vec3 viewDir = normalize(-viewPos);
     vec4 albedo = texture(alebedoMap,TexCoord);

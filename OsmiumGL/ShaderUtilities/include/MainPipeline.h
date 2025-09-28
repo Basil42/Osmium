@@ -33,7 +33,7 @@ class MainPipeline {
 
     //global
     VkDescriptorPool GlobalDescriptorPool;//small size pool to allocate unique blobabl descriptors
-    std::array<UniformBufferStruct,MAX_FRAMES_IN_FLIGHT> UniformPointLightCameraInfo{}, UniformShadingAmbientLight{};
+    std::array<UniformBufferStruct,MAX_FRAMES_IN_FLIGHT> UniformClipSpaceInfo{}, UniformShadingAmbientLight{};
     //instance descriptors, index should line up with the ones in the pass bindings
     VkDescriptorPool InstanceDescriptorPool;//larger pool to accomodate instances of the "material"
     std::vector<std::array<UniformSamplerStruct,MAX_FRAMES_IN_FLIGHT>> SamplerNormalSmoothness{}, SamplerShadingAlbedo{}, SamplerShadingSpecular{};
@@ -51,7 +51,7 @@ class MainPipeline {
         VkDescriptorSetLayout instanceDescriptorLayout;
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
-    }NormalSpreadPass,PointLightPass,ShadingPass;
+    }NormalSpreadPass,PointLightPass,DirectionalLightPass,ShadingPass;
 
     struct {
         OsmiumGLDynamicInstance::Attachment NormalSpread, Diffuse, Specular,depthSencil,colorResolve;
@@ -66,8 +66,11 @@ class MainPipeline {
     void DestroyNormalPassDescriptorLayouts() const;
     void CreatePointLightDecriptorLayouts();
     void DestroyPointLightDecriptorLayouts() const;
+    void CreateDirLightDescriptorLayouts();//some overlap with point lighta
+    void CreateDirLightDescriptorLayouts() const;
     void CreateShadingDescriptorLayouts();
     void DestroyShadingDescriptorLayouts() const;
+
 
     void CreateDescriptorLayouts();
     void DestroyDescriptorLayouts() const;
