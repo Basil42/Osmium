@@ -516,7 +516,7 @@ void MainPipeline::CreatePipelines(VkFormat swapchainFormat, VkSampleCountFlagBi
 
 
     //Shading pass
-    std::array<uint32_t, 4> colorAttachmentIndexes{0, 1, 2,VK_ATTACHMENT_UNUSED};
+    std::array<uint32_t, 4> colorAttachmentIndexes{0, 1, 2,3};
     VkRenderingInputAttachmentIndexInfoKHR renderingInputAttachmentIndexInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO_KHR,
         .pNext = nullptr,
