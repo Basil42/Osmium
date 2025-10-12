@@ -10,7 +10,7 @@ struct PointLightPushConstants {
     struct {
         alignas(16)glm::mat4 model;
     }vertConstant;
-        float radius;//TODO move it inside the parent struct, it can be shared by both stage(align it to 16, I imagine everything must be in there)
+        float radius;
     struct {
         alignas(16)glm::vec4 color;
     }fragConstant;

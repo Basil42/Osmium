@@ -2,7 +2,6 @@
 // Created by nicolas.gerard on 2025-03-19.
 //
 #define NOMINMAX //disables some ill named windows macros
-#include "../include/Serialization.h"
 #include <cassert>
 #include <fstream>
 #include <MeshSerialization.h>
@@ -112,7 +111,7 @@ bool Serialization::ImportMeshAsset(const std::filesystem::path &filePath, const
     }
     std::ofstream ofs(destination.string() + "/" + metaData.guid.str(), std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
     if (!ofs.is_open()) {
-        std::cerr << "Failed to open file " << strerror(errno) << std::endl;
+        std::cerr << "Failed to open file " << std::endl;
         throw std::runtime_error("Failed to open file");
     }
     ofs.write(reinterpret_cast<char *>(&data.vertexCount),sizeof(data.vertexCount));

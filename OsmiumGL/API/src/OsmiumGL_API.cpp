@@ -120,7 +120,7 @@ void OsmiumGL::TestDynamicRenderer(const std::string &str) {
     dynamicInstance->Shutdown();
 }
 
-void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {
+void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {//TODO swap with the push constant setup
     instance->UpdateDirectionalLightData(direction,color,intensity);
 }
 
@@ -157,6 +157,10 @@ void OsmiumGL::DestroyMaterialInstance(MatInstanceHandle material_instance) {
 void OsmiumGL::SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding,
                                             TextureHandle texture) {
     instance->SetShadingStageTextureOnBlinnPhongMaterialInstance(material_instance,binding,texture);
+}
+
+void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> &dirLightData) {
+    instance->UpdateDirectionalLights(dirLightData);
 }
 
 

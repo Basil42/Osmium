@@ -19,6 +19,7 @@
 #include <glm/ext/matrix_clip_space.hpp>
 
 #include "DefaultSceneDescriptorSets.h"
+#include "DirectionalLights.h"
 #include "ErrorChecking.h"
 #include "InitUtilVk.h"
 #include "MainPipeline.h"
@@ -415,6 +416,12 @@ void OsmiumGLDynamicInstance::UpdateDynamicPointLights(const std::span<PointLigh
     pointLightPushConstants[currentFrame].resize(lightCount);
 
     memcpy(pointLightPushConstants[currentFrame].data(),LightArray.data(),lightCount*sizeof(PointLightPushConstants));
+}
+
+void OsmiumGLDynamicInstance::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> &LightArray) {
+    const unsigned int lightCount = LightArray.size();
+    directionalLightPushConstants[currentFrame].resize(lightCount);
+    memcpy(directionalLightPushConstants[currentFrame].data(),LightArray.data(),lightCount*sizeof(DirectionalLightPushConstants));
 }
 
 void OsmiumGLDynamicInstance::UpdateDirectionalLightData(const glm::vec3 direction, const glm::vec3 color, const float intensity) {

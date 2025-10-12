@@ -22,12 +22,12 @@
 #include "MeshData.h"
 #include "PassBindings.h"
 #include "PointLights.h"
+#include "DirectionalLights.h"
 #include "RenderedObject.h"
 #include "SyncUtils.h"
 #include "TextureData.h"
 struct PassBindings;
 struct CameraUniformValue;
-struct PointLightPushConstants;
 class DefaultSceneDescriptorSets;
 enum DefaultVertexAttributeFlags : unsigned int;
 typedef unsigned long MeshHandle;
@@ -52,6 +52,7 @@ class OsmiumGLDynamicInstance {
 
     //render data update functions
     void UpdateDynamicPointLights(const std::span<PointLightPushConstants> &LightArray);
+    void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& LightArray);
     void UpdateDirectionalLightData(glm::vec3 direction, glm::vec3 color, float intensity);
 
     void UpdateCameraData(const glm::mat4 &updatedViewMatrix,float radianFoV);
@@ -90,6 +91,7 @@ class OsmiumGLDynamicInstance {
     void SetShadingStageTextureOnBlinnPhongMaterialInstance(MatInstanceHandle mat_instance_handle, unsigned int binding, TextureHandle texture);
 
     MaterialHandle GetBlinnPhongHandle() const;
+
 
 private:
     vkb::Instance instance;//I'll have the api actually keep a forward decalred reference to the instance instead of making everything static
@@ -159,6 +161,7 @@ private:
     MainPipeline* MainPipelineInstance;
 
     std::array<std::vector<PointLightPushConstants>,MAX_FRAMES_IN_FLIGHT> pointLightPushConstants;
+    std::array<std::vector<DirectionalLightPushConstants>,MAX_FRAMES_IN_FLIGHT> directionalLightPushConstants;
     //old material system data
     PassBindings*passTree = nullptr;
     LightPassBindings* lightPassBindings = nullptr;

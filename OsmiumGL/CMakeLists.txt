@@ -41,6 +41,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Initialization/Capabilities/DeviceCapabilities.h
         Core/include/vk_mem_alloc.h
         Core/include/TextureData.h
+        ShaderUtilities/include/DirectionalLights.h
 
 )
 add_library(OsmiumGL STATIC

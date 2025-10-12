@@ -16,6 +16,7 @@
 #include "SyncUtils.h"
 
 
+struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
 class OsmiumGLDynamicInstance;
 struct DefaultVertex;
@@ -108,6 +109,7 @@ namespace  OsmiumGL {
 
     void SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding, TextureHandle texture);
 
+    void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& dirLightData);
 };
 
 
