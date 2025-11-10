@@ -42,6 +42,13 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/vk_mem_alloc.h
         Core/include/TextureData.h
         ShaderUtilities/include/DirectionalLights.h
+        BindlessCore/OsmiumBindlessInstance.cpp
+        BindlessCore/OsmiumBindlessInstance.h
+        BindlessCore/Utilities/shader_io.h
+        BindlessCore/Utilities/commonStructs.h
+        BindlessCore/Utilities/utilities.h
+        BindlessCore/Utilities/debugUtilities.h
+        BindlessCore/Utilities/logger.h
 
 )
 add_library(OsmiumGL STATIC
