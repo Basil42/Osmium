@@ -1,129 +1,117 @@
 //
-// Created by Basil on 2025-10-26.
+// Created by Basil on 2025-12-13.
 //
 
-#ifndef OSMIUMBINDLESSINSTANCE_H
-#define OSMIUMBINDLESSINSTANCE_H
-#include <cassert>
+#ifndef OSMIUMBINDLESSCORE_H
+#define OSMIUMBINDLESSCORE_H
 #include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#include "Utilities/commonStructs.h"
+#include "Utilities/CoreUtils.h"
 
+class GLFWwindow;
 
 class OsmiumBindlessInstance {
 public:
     OsmiumBindlessInstance() = default;
 
-    ~OsmiumBindlessInstance() { assert(m_device == VK_NULL_HANDLE); }
+    OsmiumBindlessInstance(VkExtent2D size = {800, 600});
 
-    void Init();
+    ~OsmiumBindlessInstance();
 
-    void Deinit();
-
-    VkDevice getDevice() const { return m_device; }
-    VkPhysicalDevice getPhysicalDevice() const { return m_physicalDevice; }
-    VkInstance getInstance() const { return m_instance; }
-    const common::QueueInfo &getGraphicsQueue() const { return m_queues[0]; }
-    uint32_t getApiVersion() const { return m_apiVersion; }
-
-    [[nodiscard]] VkPhysicalDeviceFeatures2 getPhysicalDeviceFeatures() const { return m_deviceFeatures; }
-    [[nodiscard]] VkPhysicalDeviceVulkan11Features getVulkan11Features() const { return m_features11; }
-    [[nodiscard]] VkPhysicalDeviceVulkan12Features getVulkan12Features() const { return m_features12; }
-    [[nodiscard]] VkPhysicalDeviceVulkan13Features getVulkan13Features() const { return m_features13; }
-    [[nodiscard]] VkPhysicalDeviceVulkan14Features getVulkan14Features() const { return m_features14; }
-
-    [[nodiscard]] VkPhysicalDeviceExtendedDynamicStateFeaturesEXT getDynamicStateFeatures() const {
-        return m_dynamicStateFeatures;
-    }
-
-    [[nodiscard]] VkPhysicalDeviceExtendedDynamicState2FeaturesEXT getDynamicState2Features() const {
-        return m_dynamicState2Features;
-    }
-
-    [[nodiscard]] VkPhysicalDeviceExtendedDynamicState3FeaturesEXT getDynamicState3Features() const {
-        return m_dynamicState3Features;
-    }
-
-    [[nodiscard]] VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT getSwapchainFeatures() const {
-        return m_swapchainFeatures;
-    }
+    void run();
 
 private:
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                                                        VkDebugUtilsMessageTypeFlagsEXT,
-                                                        const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
-                                                        void *);
+    void init();
 
-    void initInstance();
+    void destroy();
 
-    void selectPhysicalDevice();
+    void createTransientCommandPool();
 
-    [[nodiscard]] common::QueueInfo getQueue(VkQueueFlagBits flags) const;
+    void createFrameSubmission(uint32_t NumFrames);
 
-    void initLogicalDevice();
+    void drawFrame(VkCommandBuffer cmd);
 
-    void GetAvailableDeviceExtensions();
+    void endFrame(VkCommandBuffer cmd);
 
-    void GetAvailablInstanceExtensions();
+    void onViewportSizeChange(VkExtent2D size);
 
-    bool extensionIsAvailable(const std::string &name, const std::vector<VkExtensionProperties> &Extensions);
+    void beginDynamicRenderingToSwapchain(VkCommandBuffer cmd) const;
 
-    // --- Members ------------------------------------------------------------------------------------------------------------
-    uint32_t m_apiVersion{0}; // The Vulkan API version
+    void endDynamicRenderingToSwapchain(VkCommandBuffer cmd);
 
-    // Instance extension, extra extensions can be added here
-    std::vector<const char *> m_instanceExtensions = {VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME};
-    std::vector<const char *> m_instanceLayers = {}; // Add extra layers here
+    void RecordComputeCommands(VkCommandBuffer cmd) const; //might be sepcific to the sample
 
-    // Device features, extra features can be added here
-    VkPhysicalDeviceFeatures2 m_deviceFeatures{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-    VkPhysicalDeviceVulkan11Features m_features11{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
-    VkPhysicalDeviceVulkan12Features m_features12{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
-    VkPhysicalDeviceVulkan13Features m_features13{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
-    VkPhysicalDeviceVulkan14Features m_features14{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES};
-    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT m_swapchainFeatures{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT
+    void updateSCeenBuffer(VkCommandBuffer cmd) const;
+
+    void RecordGraphicsCommands(VkCommandBuffer cmd);
+
+    void createGraphicsPipeline();
+
+    void initImGui();
+
+    void createDescriptorPool(); //should on used for textures and imgui
+
+    void createGraphicsDescriptorSet();
+
+    void updateGraphicsDescriptorSet();
+
+    utils::ImageResource loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename);
+
+    void createComputeShaderPipeline();
+
+    //members
+
+    GLFWwindow *m_window{}; // The window
+    utils::Context m_context; // The Vulkan context
+    utils::ResourceAllocator m_allocator; // The VMA allocator
+    utils::Swapchain m_swapchain; // The swapchain
+    utils::Buffer m_vertexBuffer; // The vertex buffer (two triangles) (SSBO)
+    utils::Buffer m_pointsBuffer; // The data buffer (SSBO)
+    utils::Buffer m_sceneInfoBuffer; // The buffer used to pass data to the shader (UBO)
+    utils::ImageResource m_image[2]; // The loaded image
+    utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
+
+    utils::Gbuffer m_gBuffer; // The G-Buffer
+
+    VkSurfaceKHR m_surface{}; // The window surface
+    VkExtent2D m_windowSize{800, 600}; // The window size
+    VkExtent2D m_viewportSize{800, 600}; // The viewport area in the window
+
+    VkPipelineLayout m_graphicPipelineLayout{}; // The pipeline layout use with graphics pipeline
+    VkPipelineLayout m_computePipelineLayout{}; // The pipeline layout use with compute pipeline
+    VkPipeline m_computePipeline{}; // The compute pipeline
+    VkPipeline m_graphicsPipelineWithTexture{}; // The graphics pipeline with texture
+    VkPipeline m_graphicsPipelineWithoutTexture{}; // The graphics pipeline without texture
+    VkCommandPool m_transientCmdPool{}; // The command pool
+    VkDescriptorPool m_descriptorPool{}; // Texture/shader descriptor pool
+    VkDescriptorPool m_uiDescriptorPool{}; // Ui descriptor pool
+    VkDescriptorSetLayout m_textureDescriptorSetLayout{}; // Descriptor set layout for all textures (set 0)
+    VkDescriptorSetLayout m_graphicDescriptorSetLayout{}; // Descriptor set layout for the scene info (set 1)
+    VkDescriptorSet m_textureDescriptorSet{}; // Application descriptor set (storing all textures)
+
+    // Frame resources and synchronization
+    struct FrameData {
+        VkCommandPool cmdPool; // Command pool for recording commands for this frame
+        VkCommandBuffer cmdBuffer; // Command buffer containing the frame's rendering commands
+        uint64_t frameNumber; // Timeline value for synchronization (increases each frame)
     };
-    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT m_dynamicStateFeatures{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT
-    };
-    VkPhysicalDeviceExtendedDynamicState2FeaturesEXT m_dynamicState2Features{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT
-    };
-    VkPhysicalDeviceExtendedDynamicState3FeaturesEXT m_dynamicState3Features{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
-    };
 
-    // Properties: how much a feature can do
-    VkPhysicalDevicePushDescriptorPropertiesKHR m_pushDescriptorProperties{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR
-    };
+    std::vector<FrameData> m_frameData{}; // Collection of per-frame resources to support multiple frames in flight
+    VkSemaphore m_frameTimelineSemaphore{}; // Timeline semaphore used to synchronize CPU submission with GPU completion
+    uint32_t m_frameRingCurrent{0}; // Current frame index in the ring buffer (cycles through available frames)
+    utils::FramePacer m_framePacer; // Utility to pace the frame rate
 
-    std::vector<VkBaseOutStructure *> m_linkedDeviceProperties{
-        reinterpret_cast<VkBaseOutStructure *>(&m_pushDescriptorProperties)
-    };
+    bool m_vSync{false}; // VSync on or off
+    int m_imageID{0}; // The current image to display
+    uint32_t m_maxTextures{10000}; // Maximum textures allowed in the application
+    VkClearColorValue m_clearColor{{0.2f, 0.2f, 0.3f, 1.0f}}; // The clear color
 
+    bool prepareFrameResources();
 
-    // Device extension, extra extensions can be added here
-    std::vector<const char *> m_deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME, // Needed for display on the screen
-    };
-
-    VkInstance m_instance{}; // The Vulkan instance
-    VkPhysicalDevice m_physicalDevice{}; // The physical device (GPU)
-    VkDevice m_device{}; // The logical device (interface to the physical device)
-    std::vector<common::QueueInfo> m_queues{}; // The queue used to submit command buffers to the GPU
-    VkDebugUtilsMessengerEXT m_callback{VK_NULL_HANDLE}; // The debug callback
-    std::vector<VkExtensionProperties> m_instanceExtensionsAvailable{};
-    std::vector<VkExtensionProperties> m_deviceExtensionsAvailable{};
-#ifdef NDEBUG
-  bool m_enableValidationLayers = false;
-#else
-    bool m_enableValidationLayers = true;
-#endif
+    VkCommandBuffer beginCommandRecording();
 };
 
 
-#endif //OSMIUMBINDLESSINSTANCE_H
+#endif //OSMIUMBINDLESSCORE_H
