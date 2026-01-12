@@ -210,4 +210,12 @@ VkCommandBuffer OsmiumBindlessInstance::beginCommandRecording() {
 
     auto& frame = m_frameData[m_frameRingCurrent];
 
+    VK_CHECK(vkResetCommandPool(device,frame.cmdPool,0));
+    VkCommandBuffer cmd = frame.cmdBuffer;
+
+    const VkCommandBufferBeginInfo beginInfo = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+    return cmd;
 }
