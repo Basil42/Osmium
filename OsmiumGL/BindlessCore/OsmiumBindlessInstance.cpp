@@ -96,7 +96,7 @@ throw std::runtime_error(message);                                              
 #include "Utilities/CoreUtils.h"
 
 
-OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size) : m_windowSize(size){
+OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size) : m_windowSize(size) {
     // Vulkan Loader
     VK_CHECK(volkInitialize());
     // Create the GLTF Window
@@ -104,7 +104,7 @@ OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size) : m_windowSize(s
 #ifdef USE_SLANG
     const char* windowTitle = "Minimal Latest (Slang)";
 #else
-    const char* windowTitle = "Minimal Latest (GLSL)";
+    const char *windowTitle = "Minimal Latest (GLSL)";
 #endif
     m_window = glfwCreateWindow(m_windowSize.width, m_windowSize.height, windowTitle, nullptr, nullptr);
     init();
@@ -116,12 +116,11 @@ OsmiumBindlessInstance::~OsmiumBindlessInstance() {
 }
 
 void OsmiumBindlessInstance::run() {
-    while (!glfwWindowShouldClose(m_window))
-    {
+    while (!glfwWindowShouldClose(m_window)) {
         m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
         glfwPollEvents();
         if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
-            ImGui_ImplGlfw_Sleep(10);//we minimized so we just wait now
+            ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
             continue;
         }
         ImGui_ImplVulkan_NewFrame();
@@ -129,25 +128,25 @@ void OsmiumBindlessInstance::run() {
         ImGui::NewFrame();
 
         //docking in imgui, lifted from the bindless example
-        const ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingInCentralNode;
-        ImGuiID dockID = ImGui::DockSpaceOverViewport(0,ImGui::GetMainViewport(), dockFlags);
+        const ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
+                                             ImGuiDockNodeFlags_NoDockingInCentralNode;
+        ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
         //conditionally create docking layout, might need to be moved to init
-        if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport"))
-        {
-            ImGui::DockBuilderDockWindow("Viewport", dockID);  // Dock "Viewport" to  central node
-            ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;  // Remove "Tab" from the central node
-            ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);  // Split the central node
-            ImGui::DockBuilderDockWindow("Settings", leftID);  // Dock "Settings" to the left node
+        if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
+            ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
+            ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+            // Remove "Tab" from the central node
+            ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
+            // Split the central node
+            ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
         }
         // [optional] Show the menu bar
-        if(ImGui::BeginMainMenuBar())
-        {
-            if(ImGui::BeginMenu("File"))
-            {
-                if(ImGui::MenuItem("vSync", "", &m_vSync))
-                    m_swapchain.requestRebuild();  // Recreate the swapchain with the new vSync setting
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("vSync", "", &m_vSync))
+                    m_swapchain.requestRebuild(); // Recreate the swapchain with the new vSync setting
                 ImGui::Separator();
-                if(ImGui::MenuItem("Exit"))
+                if (ImGui::MenuItem("Exit"))
                     glfwSetWindowShouldClose(m_window, true);
                 ImGui::EndMenu();
             }
@@ -162,11 +161,53 @@ void OsmiumBindlessInstance::run() {
 
         // Verify if the viewport has a new size and resize the G-Buffer accordingly.
         const VkExtent2D viewportSize = {uint32_t(windowSize.x), uint32_t(windowSize.y)};
-        if(m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height)
-        {
+        if (m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
             onViewportSizeChange(viewportSize);
         }
 
         // ImGui::ShowDemoWindow();
+        // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
+        if (prepareFrameResources()) {
+            VkCommandBuffer cmd = beginCommandRecording();
+
+            drawFrame(cmd);
+
+            endFrame(cmd);
+        }
+
+        ImGui::EndFrame();
+        if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
     }
+}
+
+bool OsmiumBindlessInstance::prepareFrameResources() {
+    auto& frame = m_frameData[m_frameRingCurrent];//TODO should probably contain handles to various framebuffers used in deffered rendering
+
+    if (m_swapchain.needRebuilding()) {
+        m_windowSize = m_swapchain.reinitResources(m_vSync);//we'll hang until we process all in flight frames
+    }
+    //no more fence for the swapchain, we now use semaphore as CPU barrier ??
+    const VkSemaphoreWaitInfo waitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+        .semaphoreCount = 1,
+        .pSemaphores = &m_frameTimelineSemaphore,
+        .pValues = &frame.frameNumber,
+    };
+
+    vkWaitSemaphores(m_context.getDevice(), &waitInfo, std::numeric_limits<uint64_t>::max());
+
+    VkResult result = m_swapchain.acquireNextImage(m_context.getDevice());
+    return (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR);
+
+
+}
+
+VkCommandBuffer OsmiumBindlessInstance::beginCommandRecording() {
+    VkDevice device = m_context.getDevice();
+
+    auto& frame = m_frameData[m_frameRingCurrent];
+
 }

@@ -4,8 +4,40 @@
 
 #ifndef COMMONSTRUCTS_H
 #define COMMONSTRUCTS_H
-#include "Volk/volk.h"
+//#include "volk.h"
+#include <array>
+#include <cassert>
+#include <span>
+#include <Volk/volk.h>
+
+#include "debug_utils.h"
+#include "imgui.h"
+#include "logger.h"
+#include "VkCheck.h"
+#include "backends/imgui_impl_vulkan.h"
+#include "GLFW/glfw3.h"
 #include "vma/vk_mem_alloc.h"
+
+// The frame pacer uses Windows APIs if available to get more precise timing.
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#undef APIENTRY  // GLFW defines this but Windows tries to redefine it
+#include <Windows.h>
+#include <timeapi.h>
+#endif
+
+#ifdef NDEBUG
+#define ASSERT(condition, message)                                                                                     \
+do                                                                                                                   \
+{                                                                                                                    \
+if(!(condition))                                                                                                   \
+{                                                                                                                  \
+throw std::runtime_error(message);                                                                               \
+}                                                                                                                  \
+} while(false)
+#else
+#define ASSERT(condition, message) assert((condition) && (message))
+#endif
 
 namespace utils {
 
