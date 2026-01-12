@@ -128,7 +128,45 @@ void OsmiumBindlessInstance::run() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        //docking in imgui
+        //docking in imgui, lifted from the bindless example
+        const ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingInCentralNode;
+        ImGuiID dockID = ImGui::DockSpaceOverViewport(0,ImGui::GetMainViewport(), dockFlags);
+        //conditionally create docking layout, might need to be moved to init
+        if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport"))
+        {
+            ImGui::DockBuilderDockWindow("Viewport", dockID);  // Dock "Viewport" to  central node
+            ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;  // Remove "Tab" from the central node
+            ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);  // Split the central node
+            ImGui::DockBuilderDockWindow("Settings", leftID);  // Dock "Settings" to the left node
+        }
+        // [optional] Show the menu bar
+        if(ImGui::BeginMainMenuBar())
+        {
+            if(ImGui::BeginMenu("File"))
+            {
+                if(ImGui::MenuItem("vSync", "", &m_vSync))
+                    m_swapchain.requestRebuild();  // Recreate the swapchain with the new vSync setting
+                ImGui::Separator();
+                if(ImGui::MenuItem("Exit"))
+                    glfwSetWindowShouldClose(m_window, true);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+        // We define "viewport" with no padding an retrieve the rendering area
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::Begin("Viewport");
+        ImVec2 windowSize = ImGui::GetContentRegionAvail();
+        ImGui::End();
+        ImGui::PopStyleVar();
 
+        // Verify if the viewport has a new size and resize the G-Buffer accordingly.
+        const VkExtent2D viewportSize = {uint32_t(windowSize.x), uint32_t(windowSize.y)};
+        if(m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height)
+        {
+            onViewportSizeChange(viewportSize);
+        }
+
+        // ImGui::ShowDemoWindow();
     }
 }
