@@ -4,11 +4,11 @@
 
 #ifndef MAINPIPELINE_H
 #define MAINPIPELINE_H
-#include <vk_mem_alloc.h>
+#include <vma/vk_mem_alloc.h>
+#include <vulkan/vulkan_core.h>
 
-#include "DynamicCore.h"
 #include "OsmiumGL_API.h"
-#include "Texture.h"
+
 
 struct PointLightUniformValue;
 

@@ -3,23 +3,28 @@ project(OsmiumGL)
 
 set(CMAKE_CXX_STANDARD 20)
 
-
+message(STATUS "Fetching Volk...")
+FetchContent_Declare(
+        volk
+        GIT_REPOSITORY https://github.com/zeux/volk.git
+        GIT_TAG master
+)
+FetchContent_MakeAvailable(volk)
+message(STATUS "Volk ready at: ${volk_SOURCE_DIR}")
+set_property(TARGET volk PROPERTY FOLDER "ThirdParty")
 
 set(OSMIUMGL_SOURCES
-        Core/src/Descriptors.cpp
         API/src/OsmiumGL_API.cpp
         API/src/RenderedObject.cpp
         Core/src/MaterialData.cpp
-        ShaderUtilities/src/DefaultSceneDescriptorSets.cpp
-        Core/src/DynamicCore.cpp
-        ShaderUtilities/src/MainPipeline.cpp
+        #ShaderUtilities/src/MainPipeline.cpp
         ShaderUtilities/src/spirv_reflect.c
         ShaderUtilities/src/spirv_reflect.cpp
+        BindlessCore/OsmiumBindlessInstance.cpp
 )
 #this is here for the IDE
 set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/DefaultVertex.h
-        Core/include/Descriptors.h
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
         Core/include/PassBindings.h
@@ -28,13 +33,11 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/config.h
         Core/include/MeshData.h
         ShaderUtilities/include/VertexDescriptor.h
-        ShaderUtilities/include/DefaultSceneDescriptorSets.h
         Common/include/UniformBufferObject.h
-        Core/include/DynamicCore.h
         DebugUtils/ErrorChecking.h
         ShaderUtilities/include/PointLights.h
         ShaderUtilities/include/DirectionalLight.h
-        ShaderUtilities/include/MainPipeline.h
+        #ShaderUtilities/include/MainPipeline.h
         ShaderUtilities/include/spirv.h
         ShaderUtilities/include/spirv_reflect.h
         Common/include/Texture.h
@@ -43,12 +46,12 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         Core/include/TextureData.h
         ShaderUtilities/include/DirectionalLights.h
         BindlessCore/Utilities/logger.h
-        BindlessCore/OsmiumBindlessInstance.cpp
         BindlessCore/OsmiumBindlessInstance.h
         BindlessCore/Utilities/logger.h
         BindlessCore/Utilities/debug_utils.h
         BindlessCore/Utilities/VkCheck.h
         BindlessCore/Utilities/CoreUtils.h
+        ShaderUtilities/include/SceneData.h
 
 )
 add_library(OsmiumGL STATIC
@@ -80,8 +83,13 @@ target_include_directories(OsmiumGL PUBLIC
 target_link_libraries(OsmiumGL PUBLIC glfw)
 find_package(Vulkan REQUIRED)
 
+if(WIN32)
+    target_link_libraries(OsmiumGL PRIVATE winmm.lib)
+endif()
+
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
 target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers)
+target_link_libraries(OsmiumGL PRIVATE volk)
 target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
 target_link_libraries(OsmiumGL PRIVATE vk-bootstrap)
 #target_link_libraries(OsmiumGL PRIVATE vk-bootstrap-compiler-warnings)

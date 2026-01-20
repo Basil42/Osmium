@@ -4,10 +4,13 @@
 
 #ifndef UTILITIES_H
 #define UTILITIES_H
+#include <array>
+#include <cassert>
+#include <span>
+#include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 
 #include "debugUtilities.h"
-#include "MainPipeline.h"
 
 namespace utilities {
     //Taken from the minimum bindless implementation of NVidia

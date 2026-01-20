@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 #include <GLFW/glfw3.h>
-#include <vulkan/vulkan_core.h>
 #include <set>
+#include <Volk/volk.h>
 
 extern PFN_vkCmdPushDescriptorSetKHR descriptorPushFuncPtr;
 #define vkCmdPushDescriptorSetKHR descriptorPushFuncPtr;

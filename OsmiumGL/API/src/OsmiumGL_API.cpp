@@ -7,15 +7,13 @@
 #include <mutex>
 #include <filesystem>
 
-#include "DefaultSceneDescriptorSets.h"
-#include "DynamicCore.h"
 #include "../../../OsmiumCore/Base/config.h"
 #include "crossguid/guid.hpp"
 
 
 void OsmiumGL::Init(const std::string &appName) {
-    instance = new OsmiumGLDynamicInstance();
-    instance->Initialize(appName);
+    //instance = new OsmiumGLDynamicInstance();
+    //instance->Initialize(appName);
 }
 
 
@@ -23,7 +21,7 @@ void OsmiumGL::Init(const std::string &appName) {
 
 
 void OsmiumGL::SubmitPushConstantBuffers() {
-    instance->SubmitObjectPushDataBuffers(pushConstantStagingVectors);
+    //instance->SubmitObjectPushDataBuffers(pushConstantStagingVectors);
 }
 #ifndef DYNAMIC_RENDERING
 void OsmiumGL::StartFrame() {
@@ -39,12 +37,13 @@ void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,
 #endif
 
 void OsmiumGL::Shutdown() {
-    instance->Shutdown();
+    //instance->Shutdown();
 
 }
 
 MaterialHandle OsmiumGL::GetBlinnPhongHandle() {
-    return instance->GetBlinnPhongHandle();
+    //return instance->GetBlinnPhongHandle();
+    return 0;
 }
 
 
@@ -62,105 +61,107 @@ void OsmiumGL::ClearGOPushConstantBuffers() {
 }
 
 void OsmiumGL::UpdateMainCameraData(const glm::mat4 &mat, const float radianVFoV) {
-    instance->UpdateCameraData(mat, radianVFoV);
+    //instance->UpdateCameraData(mat, radianVFoV);
 }
 
 MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
-    return instance->GetLoadedMaterialDefaultInstance(material);
+    //return instance->GetLoadedMaterialDefaultInstance(material);
+    return 0;
 }
 
 MeshHandle OsmiumGL::LoadMesh(const xg::Guid &id) {
-    return instance->LoadMesh(ResourceFolder / id.str());
+    //return instance->LoadMesh(ResourceFolder / id.str());
 
-
+    return 0;
 }
 
 
 bool OsmiumGL::RegisterRenderedObject(const RenderedObject &rendered_object) {
-    return instance->AddRenderedObject(rendered_object);
+    return false;//return instance->AddRenderedObject(rendered_object);
 }
 
 void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {
     pushConstantStagingVectors.erase(rendered_object);
-    instance->RemoveRenderedObject(rendered_object);
+    //instance->RemoveRenderedObject(rendered_object);
 }
 
 void OsmiumGL::UnloadMesh(unsigned long mesh_handle,bool immediate = false) {
-    instance->UnloadMesh(mesh_handle, immediate);
+    //instance->UnloadMesh(mesh_handle, immediate);
 }
 
 
 void OsmiumGL::LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned int vertex_count,
     const std::vector<VertexBufferDescriptor> &bufferDescriptors,DefaultVertexAttributeFlags attribute_flags, const std::vector<unsigned int> &indices) {
-    mesh_handle = instance->LoadMesh(verticesData,attribute_flags,vertex_count,bufferDescriptors, indices);
+    //mesh_handle = instance->LoadMesh(verticesData,attribute_flags,vertex_count,bufferDescriptors, indices);
 }
 
 unsigned long OsmiumGL::LoadTexture(const xg::Guid &id) {
-    return instance->LoadTexture(ResourceFolder / id.str());
+    return 0;//instance->LoadTexture(ResourceFolder / id.str());
 }
 
 void OsmiumGL::UnloadTexture(unsigned long texture_handle) {
-    instance->UnloadTexture(texture_handle);
+    //instance->UnloadTexture(texture_handle);
 }
 
 void OsmiumGL::ImguiEndImGuiFrame() {
-    instance->endImgGuiFrame();
+    //instance->endImgGuiFrame();
 }
 
 bool OsmiumGL::ShouldClose() {
-    return instance->ShouldClose();
+    //return instance->ShouldClose();
+    return false;
 }
 
 void OsmiumGL::TestDynamicRenderer(const std::string &str) {
-    auto* dynamicInstance = new OsmiumGLDynamicInstance();
-    dynamicInstance->Initialize(str);
-    // while (!dynamicInstance->ShouldClose()) {
-    //
-    // }
-    dynamicInstance->Shutdown();
+    // auto* dynamicInstance = new OsmiumGLDynamicInstance();
+    // dynamicInstance->Initialize(str);
+    // // while (!dynamicInstance->ShouldClose()) {
+    // //
+    // // }
+    // dynamicInstance->Shutdown();
 }
 
 void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {//TODO swap with the push constant setup
-    instance->UpdateDirectionalLightData(direction,color,intensity);
+    //instance->UpdateDirectionalLightData(direction,color,intensity);
 }
 
 void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants> &pointLightData) {
-    instance->UpdateDynamicPointLights(pointLightData);
+    //instance->UpdateDynamicPointLights(pointLightData);
 }
 
 void OsmiumGL::RenderFrame(Sync::SyncBoolCondition &imgui_update_sync) {
     SubmitPushConstantBuffers();//I'll probably end doing thsi somewhere better suited to it
-    instance->RenderFrame(imgui_update_sync);
+    //instance->RenderFrame(imgui_update_sync);
     ClearGOPushConstantBuffers();
 }
 
 MaterialHandle OsmiumGL::GetDefaultMaterial() {
-    return instance->GetDefaultMaterialHandle();
+    return 0;//instance->GetDefaultMaterialHandle();
 }
 
 MatInstanceHandle OsmiumGL::GetDefaultMaterialInstance(MaterialHandle material) {
-    return instance->GetLoadedMaterialDefaultInstance(material);
+    return 0;//instance->GetLoadedMaterialDefaultInstance(material);
 }
 
 void OsmiumGL::RegisterPointLightLightShape(MeshHandle mesh_handle) {
-    instance->RegisterPointLightShapeMesh(mesh_handle);
+    //instance->RegisterPointLightShapeMesh(mesh_handle);
 }
 
 MatInstanceHandle OsmiumGL::CreateMaterialInstance(MaterialHandle material) {
-    return instance->CreateBlinnPhongMaterialInstance(material);
+    return 0;//instance->CreateBlinnPhongMaterialInstance(material);
 }
 
 void OsmiumGL::DestroyMaterialInstance(MatInstanceHandle material_instance) {
-     instance->DestroyBlinnPhongMaterialInstance(material_instance);
+     //instance->DestroyBlinnPhongMaterialInstance(material_instance);
 }
 
 void OsmiumGL::SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding,
                                             TextureHandle texture) {
-    instance->SetShadingStageTextureOnBlinnPhongMaterialInstance(material_instance,binding,texture);
+    //instance->SetShadingStageTextureOnBlinnPhongMaterialInstance(material_instance,binding,texture);
 }
 
 void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> &dirLightData) {
-    instance->UpdateDirectionalLights(dirLightData);
+    //instance->UpdateDirectionalLights(dirLightData);
 }
 
 

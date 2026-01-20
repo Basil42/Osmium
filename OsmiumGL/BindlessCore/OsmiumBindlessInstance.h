@@ -6,7 +6,6 @@
 #define OSMIUMBINDLESSCORE_H
 #include <string>
 #include <vector>
-#include <vulkan/vulkan_core.h>
 
 #include "Utilities/CoreUtils.h"
 
@@ -16,7 +15,7 @@ class OsmiumBindlessInstance {
 public:
     OsmiumBindlessInstance() = default;
 
-    OsmiumBindlessInstance(VkExtent2D size = {800, 600});
+    explicit OsmiumBindlessInstance(VkExtent2D size = {800, 600});
 
     ~OsmiumBindlessInstance();
 
@@ -69,7 +68,8 @@ private:
     utils::Swapchain m_swapchain; // The swapchain
     utils::Buffer m_vertexBuffer; // The vertex buffer (two triangles) (SSBO)
     utils::Buffer m_pointsBuffer; // The data buffer (SSBO)
-    utils::Buffer m_sceneInfoBuffer; // The buffer used to pass data to the shader (UBO)
+    utils::Buffer m_CameraInfoBuffer; // The buffer used to pass data to the shader (UBO)
+    utils::Buffer m_clipSpaceInfoBuffer; //buffer for clip space struc for position reconstruciton from depth
     utils::ImageResource m_image[2]; // The loaded image
     utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
 
