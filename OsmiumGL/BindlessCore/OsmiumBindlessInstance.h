@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "ResourceArray.h"
+#include "SceneData.h"
 #include "Utilities/CoreUtils.h"
 
 class GLFWwindow;
@@ -21,6 +23,8 @@ public:
 
     void run();
 
+    void UpdateCameraInfo(glm::mat4 view, glm::mat4 proj);
+
 private:
     void init();
 
@@ -32,21 +36,17 @@ private:
 
     void drawFrame(VkCommandBuffer cmd);
 
-    void endFrame(VkCommandBuffer cmd);
+    void SubmitFrame(VkCommandBuffer cmd);
 
     void onViewportSizeChange(VkExtent2D size);
 
-    void beginDynamicRenderingToSwapchain(VkCommandBuffer cmd) const;
+    //void RecordComputeCommands(VkCommandBuffer cmd) const; //we don't need any compute step atm
 
-    void endDynamicRenderingToSwapchain(VkCommandBuffer cmd);
-
-    void RecordComputeCommands(VkCommandBuffer cmd) const; //might be sepcific to the sample
-
-    void updateSCeenBuffer(VkCommandBuffer cmd) const;
+    void updateSceneBuffers(VkCommandBuffer cmd) const;
 
     void RecordGraphicsCommands(VkCommandBuffer cmd);
 
-    void createGraphicsPipeline();
+    void createGraphicsPipelines(const std::filesystem::path &vertexShaderFile, const std::filesystem::path &fragmentShaderFile);//could have overload to manage extra step, although I think modern pipeline can be boiled to mesh+frag shaders
 
     void initImGui();
 
@@ -57,6 +57,8 @@ private:
     void updateGraphicsDescriptorSet();
 
     utils::ImageResource loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename);
+
+    void createDefaultTextureImage(VkCommandBuffer cmd);
 
     void createComputeShaderPipeline();
 
@@ -70,8 +72,12 @@ private:
     utils::Buffer m_pointsBuffer; // The data buffer (SSBO)
     utils::Buffer m_CameraInfoBuffer; // The buffer used to pass data to the shader (UBO)
     utils::Buffer m_clipSpaceInfoBuffer; //buffer for clip space struc for position reconstruciton from depth
+    //TODO remove the sample image array
     utils::ImageResource m_image[2]; // The loaded image
     utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
+    ResourceArray<utils::ImageResource,255> textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
+    unsigned int defaultTextureIndex; // index for a white 1x1 texture used as a default
+
 
     utils::Gbuffer m_gBuffer; // The G-Buffer
 
@@ -79,10 +85,10 @@ private:
     VkExtent2D m_windowSize{800, 600}; // The window size
     VkExtent2D m_viewportSize{800, 600}; // The viewport area in the window
 
-    VkPipelineLayout m_graphicPipelineLayout{}; // The pipeline layout use with graphics pipeline
+    VkPipelineLayout m_NormalSpecPipelineLayout{}; // The pipeline layout use with graphics pipeline
     VkPipelineLayout m_computePipelineLayout{}; // The pipeline layout use with compute pipeline
     VkPipeline m_computePipeline{}; // The compute pipeline
-    VkPipeline m_graphicsPipelineWithTexture{}; // The graphics pipeline with texture
+    VkPipeline m_NormalSpecPipeline{}; // The graphics pipeline with texture
     VkPipeline m_graphicsPipelineWithoutTexture{}; // The graphics pipeline without texture
     VkCommandPool m_transientCmdPool{}; // The command pool
     VkDescriptorPool m_descriptorPool{}; // Texture/shader descriptor pool
@@ -107,6 +113,9 @@ private:
     int m_imageID{0}; // The current image to display
     uint32_t m_maxTextures{10000}; // Maximum textures allowed in the application
     VkClearColorValue m_clearColor{{0.2f, 0.2f, 0.3f, 1.0f}}; // The clear color
+
+    //Core scene data
+    SceneCameraInfo m_CameraInfoStruct;
 
     bool prepareFrameResources();
 
