@@ -27,5 +27,5 @@ target_include_directories(OsmiumCommon PUBLIC include)
 target_link_libraries(OsmiumCommon PUBLIC crossguid)
 target_link_libraries(OsmiumCommon PUBLIC glm::glm)
 target_link_libraries(OsmiumCommon PUBLIC Vulkan::Headers)
-
+target_compile_definitions(OsmiumCommon PRIVATE VK_NO_PROTOTYPES)
 

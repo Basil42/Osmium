@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+
 #include "ResourceArray.h"
 #include "SceneData.h"
 #include "Utilities/CoreUtils.h"
@@ -46,7 +47,7 @@ private:
 
     void RecordGraphicsCommands(VkCommandBuffer cmd);
 
-    void createGraphicsPipelines(const std::filesystem::path &vertexShaderFile, const std::filesystem::path &fragmentShaderFile);//could have overload to manage extra step, although I think modern pipeline can be boiled to mesh+frag shaders
+    void createGraphicsPipelines();//could have overload to manage extra step, although I think modern pipeline can be boiled to mesh+frag shaders
 
     void initImGui();
 
@@ -75,7 +76,7 @@ private:
     //TODO remove the sample image array
     utils::ImageResource m_image[2]; // The loaded image
     utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
-    ResourceArray<utils::ImageResource,255> textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
+    std::unique_ptr<ResourceArray<utils::ImageResource,255>> textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
     unsigned int defaultTextureIndex; // index for a white 1x1 texture used as a default
 
 

@@ -287,14 +287,15 @@ void OsmiumBindlessInstance::init() {
     createGraphicsDescriptorSet();
 
 
-    //sample loaded graphics and compute pipeline here, I'll load them dynamically
-    //creating example ressources
+    //loading core pipelines
+    createGraphicsPipelines();
+
+
     //TODO remove all non global ressoruce from this
     {
         VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
         //example vertex buffer
         //example textures
-        //TODO texture manager
         //TODO Mesh manager
     }
     m_CameraInfoBuffer = m_allocator.createBuffer(sizeof(SceneCameraInfo),
@@ -695,10 +696,10 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     utils::cmdTransitionImageLayout(cmd,m_gBuffer.getColorImage(),VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,VK_IMAGE_LAYOUT_GENERAL);
 }
 
-void OsmiumBindlessInstance::createGraphicsPipelines(const std::filesystem::path &vertexShaderFile,
-    const std::filesystem::path &fragmentShaderFile) {
+void OsmiumBindlessInstance::createGraphicsPipelines(
+) {
     auto device = m_context.getDevice();
-    VkShaderModule vertexModule = ShaderUtils::createShaderModule(vertexShaderFile.string(), device);
+    VkShaderModule vertexModule = ShaderUtils::createShaderModule( vertexShaderFile.string(), device);
     VkShaderModule FragmentModule = ShaderUtils::createShaderModule(fragmentShaderFile.string(), device);
 
     //the sample uses specialization constants here, I don't need it
@@ -1123,7 +1124,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
 
     //add to descriptor and ressource array
 
-    defaultTextureIndex = textures.Add(image);
+    defaultTextureIndex = textures->Add(image);
 
     //send to descriptor
 

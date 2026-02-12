@@ -1,4 +1,7 @@
 #version 450
+
+#extension GL_EXT_nonuniform_qualifier : require
+
 layout(set = 0,binding = 0)uniform sampler2D Textures[];
 layout(push_constant)uniform NormSpecData{
     layout(offset = 64) uint SmoothnessMapIndex;
@@ -14,7 +17,7 @@ layout(location = 3)out vec4 finalColor;
 
 
 void main() {
-    Normal_smoothness = vec4(normalize(inNormal),texture(smoothnessMap,inTexcoordinate).r);
+    Normal_smoothness = vec4(normalize(inNormal),texture(Textures[SmoothnessMapIndex],inTexcoordinate).r);
     Diffuse = vec4(0.0);
     Specular = vec4(0.0);
     finalColor = vec4(0.0);
