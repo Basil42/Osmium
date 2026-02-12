@@ -699,8 +699,8 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 void OsmiumBindlessInstance::createGraphicsPipelines(
 ) {
     auto device = m_context.getDevice();
-    VkShaderModule vertexModule = ShaderUtils::createShaderModule( vertexShaderFile.string(), device);
-    VkShaderModule FragmentModule = ShaderUtils::createShaderModule(fragmentShaderFile.string(), device);
+    VkShaderModule normalSpecVertexModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.vert.spv",device);
+    VkShaderModule normalSpecFragmentModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.frag.spv", device);
 
     //the sample uses specialization constants here, I don't need it
 
@@ -709,13 +709,13 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                .module = vertexModule,
+                .module = normalSpecVertexModule,
                 .pName = "main",
             },
             {//fragment
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .module = FragmentModule,
+                .module = normalSpecFragmentModule,
                 .pName = "main",
             }
         }
@@ -841,8 +841,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
     VK_CHECK(vkCreateGraphicsPipelines(m_context.getDevice(),nullptr, 1, &normalSpecGraphicsPipelineInfo,nullptr,&m_NormalSpecPipeline));
     DBG_VK_NAME(m_NormalSpecPipeline);
 
-    vkDestroyShaderModule(m_context.getDevice(),vertexModule,nullptr);
-    vkDestroyShaderModule(m_context.getDevice(),FragmentModule,nullptr);
+    vkDestroyShaderModule(m_context.getDevice(),normalSpecVertexModule,nullptr);
+    vkDestroyShaderModule(m_context.getDevice(),normalSpecFragmentModule,nullptr);
 
     //TODO light passes pipelines
 
