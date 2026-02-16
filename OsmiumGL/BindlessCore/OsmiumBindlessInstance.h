@@ -4,6 +4,7 @@
 
 #ifndef OSMIUMBINDLESSCORE_H
 #define OSMIUMBINDLESSCORE_H
+#include <map>
 #include <string>
 #include <vector>
 
@@ -12,7 +13,14 @@
 #include "SceneData.h"
 #include "Utilities/CoreUtils.h"
 
+struct RenderObjectHandle;
+struct RenderedObjectPushData;
+struct MeshData;
+struct BindlessRenderedObject;
 class GLFWwindow;
+using MeshHandle = unsigned int;
+using TextureHandle = unsigned int;
+
 
 class OsmiumBindlessInstance {
 public:
@@ -25,6 +33,18 @@ public:
     void run();
 
     void UpdateCameraInfo(glm::mat4 view, glm::mat4 proj);
+
+    TextureHandle LoadTexture(const std::string &filename);
+
+    void UnloadTexture(TextureHandle textureHandle) const;
+
+    MeshHandle LoadMesh(const std::string &filename);
+
+    void UnloadMesh(MeshHandle meshHandle);
+
+    RenderObjectHandle RegisterRenderedObjectInstance(BindlessRenderedObject& renderedObject);
+
+    void UnregisterRenderedObjectInstance(RenderObjectHandle& renderedObject);
 
 private:
     void init();
@@ -41,11 +61,12 @@ private:
 
     void onViewportSizeChange(VkExtent2D size);
 
-    //void RecordComputeCommands(VkCommandBuffer cmd) const; //we don't need any compute step atm
 
     void updateSceneBuffers(VkCommandBuffer cmd) const;
 
     void RecordGraphicsCommands(VkCommandBuffer cmd);
+
+    //void RecordComputeCommands(VkCommandBuffer cmd) const; //we don't need any compute step atm
 
     void createGraphicsPipelines();//could have overload to manage extra step, although I think modern pipeline can be boiled to mesh+frag shaders
 
@@ -61,7 +82,7 @@ private:
 
     void createDefaultTextureImage(VkCommandBuffer cmd);
 
-    void createComputeShaderPipeline();
+    //void createComputeShaderPipeline();//might use one eventually
 
     //members
 
@@ -70,15 +91,18 @@ private:
     utils::ResourceAllocator m_allocator; // The VMA allocator
     utils::Swapchain m_swapchain; // The swapchain
     utils::Buffer m_vertexBuffer; // The vertex buffer (two triangles) (SSBO)
+    //TODO get rid of the point buffer
     utils::Buffer m_pointsBuffer; // The data buffer (SSBO)
     utils::Buffer m_CameraInfoBuffer; // The buffer used to pass data to the shader (UBO)
     utils::Buffer m_clipSpaceInfoBuffer; //buffer for clip space struc for position reconstruciton from depth
     //TODO remove the sample image array
     utils::ImageResource m_image[2]; // The loaded image
     utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
-    std::unique_ptr<ResourceArray<utils::ImageResource,255>> textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
-    unsigned int defaultTextureIndex; // index for a white 1x1 texture used as a default
 
+    std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;
+    std::map<MeshHandle, ResourceArray<RenderedObjectPushData,255>> m_renderedObjects;
+    std::unique_ptr<ResourceArray<utils::ImageResource,255>> m_textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
+    unsigned int defaultTextureIndex; // index for a white 1x1 texture used as a default
 
     utils::Gbuffer m_gBuffer; // The G-Buffer
 

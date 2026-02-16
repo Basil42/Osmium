@@ -4,6 +4,7 @@
 
 #include "OsmiumBindlessInstance.h"
 
+#include "MeshFileLoading.h"
 #include "volk.h"
 
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
@@ -188,6 +189,49 @@ void OsmiumBindlessInstance::UpdateCameraInfo(glm::mat4 view, glm::mat4 proj) {
     };
 }
 
+TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
+    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(),m_transientCmdPool);
+    utils::ImageResource resource = loadAndCreateImage(cmd, filename);
+    utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_transientCmdPool,m_context.getGraphicsQueue().queue);
+    return m_textures->Add(resource);
+}
+
+void OsmiumBindlessInstance::UnloadTexture(TextureHandle textureHandle) const {
+    m_allocator.destroyImageResource(m_textures->get(textureHandle));
+    m_textures->Remove(textureHandle);
+}
+
+MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename) {
+    std::vector<DefaultVertex> vertices;
+    std::vector<uint32_t> indices;
+    MeshFileLoading::LoadFromObj(vertices, indices,filename);
+
+    utils::MeshResource resource;
+    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(),m_transientCmdPool);
+    resource.VertexBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(vertices),VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    resource.IndicesBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(indices),VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_transientCmdPool,m_context.getGraphicsQueue().queue);
+
+    return m_meshes->Add(resource);
+}
+
+void OsmiumBindlessInstance::UnloadMesh(MeshHandle meshHandle) {
+    auto resource = m_meshes->get(meshHandle);
+    m_allocator.destroyBuffer(resource.VertexBuffer);
+    m_allocator.destroyBuffer(resource.IndicesBuffer);
+    m_meshes->Remove(meshHandle);
+}
+
+RenderObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(BindlessRenderedObject &renderedObject) {
+    m_renderedObjects[renderedObject.mesh].Add(renderedObject.pushData);
+}
+
+void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(RenderObjectHandle &renderedObject) {
+    auto pushdata = m_renderedObjects.at(renderedObject.mesh);
+    pushdata.Remove(renderedObject.index);
+    if (pushdata.GetCount() == 0) m_renderedObjects.erase(renderedObject.mesh);
+}
+
 
 bool OsmiumBindlessInstance::prepareFrameResources() {
     auto &frame = m_frameData[m_frameRingCurrent];
@@ -308,6 +352,12 @@ void OsmiumBindlessInstance::init() {
     DBG_VK_NAME(m_clipSpaceInfoBuffer.buffer);
 
     updateGraphicsDescriptorSet(); //probably going to replace this by an initilization of the camera data
+
+    //resource arrays
+
+    m_meshes = std::make_unique<ResourceArray<utils::MeshResource,255>>();
+    m_textures = std::make_unique<ResourceArray<utils::ImageResource,255>>();
+    m_renderedObjects = std::make_unique<ResourceArray<BindlessRenderedObject,255>>();
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -597,7 +647,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
             .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
             .layout = m_NormalSpecPipelineLayout,//null here for some reason
-            .set = 0, //TODO have constants scene uniforms
+            .set = 1,
             .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
             .pDescriptorWrites = writeDescriptorSet.data(),
         };
@@ -654,7 +704,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     };
 
     //swapchain layout transition, probably needed by the spec, although apparently it is ignored by the driver
-    utils::cmdTransitionImageLayout(cmd,m_gBuffer.getColorImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL);
+    utils::cmdTransitionImageLayout(cmd,m_gBuffer.getColorImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     //I don't need to transition the light buffers
     vkCmdBeginRendering(cmd,&renderingInfo);
 
@@ -674,7 +724,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
 
     //sample binds a buffer containing all vertices
-    vkCmdBindVertexBuffers(cmd, 0,1,&m_vertexBuffer.buffer, offsets.data());
+    vkCmdBindVertexBuffers(cmd, 0,1,&m_vertexBuffer.buffer, offsets.data());//TODO replace by rendered objects
 
     //TODO loop through all objects
 
@@ -1124,7 +1174,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
 
     //add to descriptor and ressource array
 
-    defaultTextureIndex = textures->Add(image);
+    defaultTextureIndex = m_textures->Add(image);
 
     //send to descriptor
 

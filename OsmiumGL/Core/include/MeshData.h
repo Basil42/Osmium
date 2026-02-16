@@ -4,6 +4,8 @@
 #ifndef MESHDATA_H
 #define MESHDATA_H
 #include "VertexDescriptor.h"
+#include <volk.h>
+#include <vma/vk_mem_alloc.h>
 #include <map>
 
 struct MeshData {

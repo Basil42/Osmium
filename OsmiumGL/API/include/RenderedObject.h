@@ -42,9 +42,6 @@ inline bool operator<(const RenderedObject r1, const RenderedObject r2) noexcept
 }
 
 
-// struct RenderedEntity {
-//
-// };
 
 
 

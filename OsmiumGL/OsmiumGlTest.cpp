@@ -17,6 +17,9 @@ int main(int argc, char *argv[]) {
         ASSERT(glfwVulkanSupported(), "GLFW: Vulkan is not supported");
 
         OsmiumBindlessInstance app({800,600});
+        app.LoadMesh("DefaultResources/models/viking_room.obj");
+        app.LoadTexture("DefaultResources/textures/viking_room.png");
+        //TODO add rendered object
         app.run();
         glfwTerminate();
     }

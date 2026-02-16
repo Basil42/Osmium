@@ -75,6 +75,11 @@ struct ImageResource : Image
   VkImageLayout layout{};  // Layout of the image (color attachment, shader read, ...)
 };
 
+  struct MeshResource {
+    Buffer VertexBuffer{};
+    Buffer IndicesBuffer{};
+  };
+
 /*- Not implemented here -*/
 struct AccelerationStructure
 {

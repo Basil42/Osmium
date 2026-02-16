@@ -33,10 +33,11 @@ namespace MeshFileLoading{
             std::getline(file, line);
             lineNum++;
             //tiny obj trims the line here, I'm going to try to detect when the line has no relevant data
-            char* current = &line[line.find_first_not_of('\t')];//switch to the more broadly applicalt strspn
-            if (line.empty() || current[0] == '#') {//empty or comment
+            if (line.empty()) {//empty
                 continue;
             }
+            char* current = &line[line.find_first_not_of('\t')];//switch to the more broadly applicalt strspn
+            if (current[0] == '#')continue;//comment
             if (current[0] == 's' || current[0] == 'u' || current[0] == 'o') {
                 continue;//unssupported or unrelevant lines
             }
@@ -104,7 +105,6 @@ namespace MeshFileLoading{
         std::unordered_map<DefaultVertex, uint32_t> uniqueVertices {};
         for (glm::ivec3& i : indicesData) {
              auto vertex = DefaultVertex(positions[i[0]-1],
-                 glm::vec3(1.0f),
                  i[1] == -1 ? glm::vec2(0.0f) :texCoords[i[1] -1],
                  i[2] == -1 ? glm::vec3(0.0f) : normals[i[2]-1]);
             if (!uniqueVertices.contains(vertex)) {
