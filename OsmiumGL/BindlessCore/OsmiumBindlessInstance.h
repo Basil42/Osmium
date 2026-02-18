@@ -90,13 +90,8 @@ private:
     utils::Context m_context; // The Vulkan context
     utils::ResourceAllocator m_allocator; // The VMA allocator
     utils::Swapchain m_swapchain; // The swapchain
-    utils::Buffer m_vertexBuffer; // The vertex buffer (two triangles) (SSBO)
-    //TODO get rid of the point buffer
-    utils::Buffer m_pointsBuffer; // The data buffer (SSBO)
     utils::Buffer m_CameraInfoBuffer; // The buffer used to pass data to the shader (UBO)
     utils::Buffer m_clipSpaceInfoBuffer; //buffer for clip space struc for position reconstruciton from depth
-    //TODO remove the sample image array
-    utils::ImageResource m_image[2]; // The loaded image
     utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
 
     std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;

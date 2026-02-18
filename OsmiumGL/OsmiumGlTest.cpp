@@ -1,8 +1,10 @@
 #include <iostream>
 
+#include "RenderedObjectData.h"
 #include "BindlessCore/OsmiumBindlessInstance.h"
 #include "BindlessCore/Utilities/CoreUtils.h"
 #include "BindlessCore/Utilities/logger.h"
+#include "glm/ext/matrix_clip_space.hpp"
 
 //
 // Created by nicolas.gerard on 2024-12-02.
@@ -17,9 +19,18 @@ int main(int argc, char *argv[]) {
         ASSERT(glfwVulkanSupported(), "GLFW: Vulkan is not supported");
 
         OsmiumBindlessInstance app({800,600});
-        app.LoadMesh("DefaultResources/models/viking_room.obj");
-        app.LoadTexture("DefaultResources/textures/viking_room.png");
+        auto mesh = app.LoadMesh("DefaultResources/models/viking_room.obj");
+        auto texture = app.LoadTexture("DefaultResources/textures/viking_room.png");
+        BindlessRenderedObject renderedObjectExample{
+        .mesh = mesh,
+        .pushData = {
+        .normalSpecPushData = {
+        .model = {1.0f},
+        .SmoothnessMapIndex = texture,}}};
         //TODO add rendered object
+        renderedObjectExample.pushData.normalSpecPushData.model[3][3] = -4.0f;
+        app.RegisterRenderedObjectInstance(renderedObjectExample);
+        app.UpdateCameraInfo(glm::mat4(1.0f),glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f));
         app.run();
         glfwTerminate();
     }

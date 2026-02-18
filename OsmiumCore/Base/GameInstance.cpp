@@ -80,11 +80,6 @@ void GameInstance::run(const std::string &appName) {
     OsmiumGL::Init(appName);
     //load the initial assets, probably in its own thread
     AssetManager::LoadAssetDatabase();
-    //LoadInitialScene()
-    //editor camera
-    GameObjectCreateInfo CameraInfo;
-    CameraInfo.name = "Camera";
-    CameraInfo.parent = 0;
     auto SimulationThread = std::thread(&GameInstance::GameLoop,this);
     // auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
     auto LoadingThread = std::thread(&GameInstance::LoadingRoutine,this);//maybe I need some kind of staging method here

@@ -15,7 +15,7 @@ struct RenderedObjectPushData {
 };
 
 struct RenderObjectHandle {
-    MeshHandle mesh;
+    unsigned int mesh;
     unsigned int index;
 };
 

@@ -223,7 +223,10 @@ void OsmiumBindlessInstance::UnloadMesh(MeshHandle meshHandle) {
 }
 
 RenderObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(BindlessRenderedObject &renderedObject) {
-    m_renderedObjects[renderedObject.mesh].Add(renderedObject.pushData);
+    return {
+        .mesh = renderedObject.mesh,
+        .index = m_renderedObjects[renderedObject.mesh].Add(renderedObject.pushData)
+    };
 }
 
 void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(RenderObjectHandle &renderedObject) {
@@ -357,7 +360,6 @@ void OsmiumBindlessInstance::init() {
 
     m_meshes = std::make_unique<ResourceArray<utils::MeshResource,255>>();
     m_textures = std::make_unique<ResourceArray<utils::ImageResource,255>>();
-    m_renderedObjects = std::make_unique<ResourceArray<BindlessRenderedObject,255>>();
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -395,12 +397,8 @@ void OsmiumBindlessInstance::destroy() {
     vkDestroySemaphore(device, m_frameTimelineSemaphore, nullptr);
 
 
-    m_allocator.destroyBuffer(m_vertexBuffer); //TODO: replace with own vertex buffers
-    m_allocator.destroyBuffer(m_pointsBuffer);
     m_allocator.destroyBuffer(m_CameraInfoBuffer);
     m_allocator.destroyBuffer(m_clipSpaceInfoBuffer);
-    m_allocator.destroyImageResource(m_image[0]); //TODO: replace with own texture resdsources
-    m_allocator.destroyImageResource(m_image[1]);
 
     m_gBuffer.deinit();
     m_allocator.deinit();
@@ -522,7 +520,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
 
     //endDynamicRenderingToSwapchain(cmd);
     vkCmdEndRendering(cmd);
-    utils::cmdTransitionImageLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+    utils::cmdTransitionImageLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 }
 
@@ -658,15 +656,14 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     //the sample prepares the push constants here, I should prepare the model push struct here
 
     //I'll probably have a list of model data, with model matrix, pointer to the vertex buffer
-    NormalSpecData modelData; //placeholder to initialize with
+    NormalSpecData normalSpecPushData; //placeholder to initialize with
     const VkPushConstantsInfo NormalSpecPushInfo{
         .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
         .layout = m_NormalSpecPipelineLayout,
-        //TODO refine pipeline layouts (some shaders don't need the model matrix for example
         .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
         .offset = 0,
         .size = sizeof(NormalSpecData),
-        .pValues = &modelData,
+        .pValues = &normalSpecPushData,
         //previously I would essentially change this value for each draw call, I'd be cool to move to an indirect draw method
     };
 
@@ -724,19 +721,22 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
 
     //sample binds a buffer containing all vertices
-    vkCmdBindVertexBuffers(cmd, 0,1,&m_vertexBuffer.buffer, offsets.data());//TODO replace by rendered objects
 
-    //TODO loop through all objects
+    for (auto mesh : m_renderedObjects) {
+        auto& meshResource = m_meshes->get(mesh.first);
+        auto& pushDataCollection = mesh.second;
+        vkCmdBindVertexBuffers(cmd,0,1,&meshResource.VertexBuffer.buffer, offsets.data());
+        vkCmdBindIndexBuffer(cmd,meshResource.IndicesBuffer.buffer,0,VK_INDEX_TYPE_UINT32);
+        vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_NormalSpecPipeline);
+        for (RenderedObjectPushData &pushData: pushDataCollection) {
+            normalSpecPushData = pushData.normalSpecPushData;
+            vkCmdPushConstants2(cmd,&NormalSpecPushInfo);
+            //I feel like I should be able to push all the constant in one call and then do one draw call to get all the instances on that mesh
+            vkCmdDrawIndexed(cmd,meshResource.IndexCount,1,0,0,0);
+        }
+    }
 
-    //update push constant
-    //modelData.model = modelMat;
-    //vkCmdPushConstants2(cmd, &pushInfo);
-
-    //draw command - geometry pass
-    //vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_graphicsPipelineWithTexture);
-    //vkCmdDraw(cmd,3,1,0,0); // Here I can probably index into the big vertex buffer without rebinding anything
-    //vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_graphicsPipelineWithTexture);
-
+    //TODO LIght passes and rendering
     //draw command - light type 1
     //draw command - light type 2
     //draw command - light type 3

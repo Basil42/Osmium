@@ -77,7 +77,9 @@ struct ImageResource : Image
 
   struct MeshResource {
     Buffer VertexBuffer{};
+    unsigned int VertexCount{};
     Buffer IndicesBuffer{};
+    unsigned int IndexCount{};
   };
 
 /*- Not implemented here -*/
