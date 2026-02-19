@@ -123,6 +123,7 @@ static std::tuple<VkPipelineStageFlags2, VkAccessFlags2> makePipelineStageAccess
     case VK_IMAGE_LAYOUT_UNDEFINED:
       return std::make_tuple(VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE);
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
       return std::make_tuple(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                              VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
@@ -136,6 +137,8 @@ static std::tuple<VkPipelineStageFlags2, VkAccessFlags2> makePipelineStageAccess
                              VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT);
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
       return std::make_tuple(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE);
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+      return std::make_tuple(VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
     default: {
       ASSERT(false, "Unsupported layout transition!");
       return std::make_tuple(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT);
@@ -1763,6 +1766,7 @@ private:
       };
       vkCreateImageView(m_createInfo.device, &viewInfo, nullptr, &m_res.depthView);
       dutil.setObjectName(m_res.depthView, "G-Depth");
+      cmdTransitionImageLayout(cmd,m_res.gBufferDepth.image,VK_IMAGE_LAYOUT_UNDEFINED,VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
     {  // Change color image layout
