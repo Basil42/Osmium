@@ -494,7 +494,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .imageView = m_swapchain.getImageView(),
-                .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                 .clearValue = {{{0.0f, 0.0f, 0.0, 1.0f}}},
@@ -510,8 +510,8 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
         .colorAttachmentCount = colorAttachments.size(),
         .pColorAttachments = colorAttachments.data(),
     };
-    utils::cmdTransitionImageLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                    VK_IMAGE_LAYOUT_GENERAL);
     //It seems that this ended up doing nothing(missed prediction of the work group ?)
     vkCmdBeginRendering(cmd, &renderingInfo);
 
@@ -520,7 +520,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
 
     //endDynamicRenderingToSwapchain(cmd);
     vkCmdEndRendering(cmd);
-    utils::cmdTransitionImageLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_GENERAL,
                                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 }
 
@@ -673,7 +673,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .imageView = m_gBuffer.getColorImageView(),
-                .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                 .clearValue = {{m_clearColor}},
@@ -684,7 +684,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     const VkRenderingAttachmentInfo depthAttachmentInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .imageView = m_gBuffer.getDepthImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         //could have been the issue in the previous renderer, maybe the laight buffer were aggressively cleared ?
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -700,8 +700,6 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         .pDepthAttachment = &depthAttachmentInfo,
     };
 
-    //swapchain layout transition, probably needed by the spec, although apparently it is ignored by the driver
-    utils::cmdTransitionImageLayout(cmd,m_gBuffer.getColorImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     //I don't need to transition the light buffers
     vkCmdBeginRendering(cmd,&renderingInfo);
 
@@ -743,7 +741,6 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     //draw command - geometry pass 2
 
     vkCmdEndRendering(cmd);
-    utils::cmdTransitionImageLayout(cmd,m_gBuffer.getColorImage(),VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,VK_IMAGE_LAYOUT_GENERAL);
 }
 
 void OsmiumBindlessInstance::createGraphicsPipelines(

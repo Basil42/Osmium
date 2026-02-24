@@ -116,77 +116,80 @@ static std::size_t hashCombine(std::size_t seed, auto const& value)
 /*--
  * This returns the pipeline and access flags for a given layout, use for changing the image layout
 -*/
-static std::tuple<VkPipelineStageFlags2, VkAccessFlags2> makePipelineStageAccessTuple(VkImageLayout state)
+static void cmdInitImageLayout(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT)
 {
-  switch(state)
-  {
-    case VK_IMAGE_LAYOUT_UNDEFINED:
-      return std::make_tuple(VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE);
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
-      return std::make_tuple(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                             VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-      return std::make_tuple(VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
-                                 | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT,
-                             VK_ACCESS_2_SHADER_READ_BIT);
-    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-      return std::make_tuple(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
-    case VK_IMAGE_LAYOUT_GENERAL:
-      return std::make_tuple(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                             VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT);
-    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-      return std::make_tuple(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE);
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-      return std::make_tuple(VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
-    default: {
-      ASSERT(false, "Unsupported layout transition!");
-      return std::make_tuple(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT);
-    }
-  }
+  const VkImageMemoryBarrier2 barrier{
+    .sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+    .srcAccessMask = VK_ACCESS_2_NONE,
+    .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout     = VK_IMAGE_LAYOUT_GENERAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image               = image,
+    .subresourceRange    = {aspectMask, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS}};
+
+  const VkDependencyInfo depInfo{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .imageMemoryBarrierCount = 1, .pImageMemoryBarriers = &barrier};
+
+  vkCmdPipelineBarrier2(cmd, &depInfo);
 };
 
-/*--
- * Return the barrier with the most common pair of stage and access flags for a given layout
--*/
-static VkImageMemoryBarrier2 createImageMemoryBarrier(VkImage       image,
-                                                      VkImageLayout oldLayout,
-                                                      VkImageLayout newLayout,
-                                                      VkImageSubresourceRange subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT,
-                                                                                                  0, 1, 0, 1})
-{
-  const auto [srcStage, srcAccess] = makePipelineStageAccessTuple(oldLayout);
-  const auto [dstStage, dstAccess] = makePipelineStageAccessTuple(newLayout);
 
-  VkImageMemoryBarrier2 barrier{.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-                                .srcStageMask        = srcStage,
-                                .srcAccessMask       = srcAccess,
-                                .dstStageMask        = dstStage,
-                                .dstAccessMask       = dstAccess,
-                                .oldLayout           = oldLayout,
-                                .newLayout           = newLayout,
-                                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                                .image               = image,
-                                .subresourceRange    = subresourceRange};
-  return barrier;
-}
-
-/*--
- * A helper function to transition an image from one layout to another.
- * In the pipeline, the image must be in the correct layout to be used, and this function is used to transition the image to the correct layout.
--*/
-static void cmdTransitionImageLayout(VkCommandBuffer    cmd,
-                                     VkImage            image,
-                                     VkImageLayout      oldLayout,
-                                     VkImageLayout      newLayout,
-                                     VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT)
+static void cmdTransitionSwapchainLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
-  const VkImageMemoryBarrier2 barrier = createImageMemoryBarrier(image, oldLayout, newLayout, {aspectMask, 0, 1, 0, 1});
+  VkPipelineStageFlags2 srcStage = 0, dstStage = 0;
+  VkAccessFlags2        srcAccess = 0, dstAccess = 0;
+
+  if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+  {
+    // Swapchain initialization
+    srcStage  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    srcAccess = VK_ACCESS_2_NONE;
+    dstStage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dstAccess = VK_ACCESS_2_NONE;
+  }
+  else if(oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_GENERAL)
+  {
+    // Before rendering
+    srcStage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    srcAccess = VK_ACCESS_2_NONE;
+    dstStage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    dstAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+  }
+  else if(oldLayout == VK_IMAGE_LAYOUT_GENERAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+  {
+    // After rendering
+    srcStage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    srcAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+    dstStage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dstAccess = VK_ACCESS_2_NONE;
+  }
+  else
+  {
+    ASSERT(false, "Unsupported swapchain layout transition!");
+    srcStage = dstStage = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    srcAccess = dstAccess = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+  }
+
+  const VkImageMemoryBarrier2 barrier{.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                                      .srcStageMask        = srcStage,
+                                      .srcAccessMask       = srcAccess,
+                                      .dstStageMask        = dstStage,
+                                      .dstAccessMask       = dstAccess,
+                                      .oldLayout           = oldLayout,
+                                      .newLayout           = newLayout,
+                                      .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                      .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                      .image               = image,
+                                      .subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+
   const VkDependencyInfo depInfo{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .imageMemoryBarrierCount = 1, .pImageMemoryBarriers = &barrier};
 
   vkCmdPipelineBarrier2(cmd, &depInfo);
 }
+
 
 /*--
  *  This helper returns the access mask for a given stage mask.
@@ -959,7 +962,7 @@ public:
       VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_device, m_cmdPool);
       for(uint32_t i = 0; i < m_maxFramesInFlight; i++)
       {
-        cmdTransitionImageLayout(cmd, m_nextImages[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        cmdTransitionSwapchainLayout(cmd, m_nextImages[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
       }
       utils::endSingleTimeCommands(cmd, m_device, m_cmdPool, m_queue.queue);
     }
@@ -1451,17 +1454,14 @@ public:
     Image image = createImage(imageInfo);
 
     // Transition image layout for copying data
-    cmdTransitionImageLayout(cmd, image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    cmdInitImageLayout(cmd, image.image);
 
     // Copy buffer data to the image
     const std::array<VkBufferImageCopy, 1> copyRegion{
         {{.imageSubresource = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .layerCount = 1}, .imageExtent = imageInfo.extent}}};
 
-    vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, image.image, VK_IMAGE_LAYOUT_GENERAL,
                            uint32_t(copyRegion.size()), copyRegion.data());
-
-    // Transition image layout to final layout
-    cmdTransitionImageLayout(cmd, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, finalLayout);
 
     ImageResource resultImage(image);
     resultImage.layout = finalLayout;
@@ -1766,13 +1766,13 @@ private:
       };
       vkCreateImageView(m_createInfo.device, &viewInfo, nullptr, &m_res.depthView);
       dutil.setObjectName(m_res.depthView, "G-Depth");
-      cmdTransitionImageLayout(cmd,m_res.gBufferDepth.image,VK_IMAGE_LAYOUT_UNDEFINED,VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,VK_IMAGE_ASPECT_DEPTH_BIT);
+      cmdInitImageLayout(cmd,m_res.gBufferDepth.image,VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
     {  // Change color image layout
       for(uint32_t c = 0; c < numColor; c++)
       {
-        cmdTransitionImageLayout(cmd, m_res.gBufferColor[c].image, VK_IMAGE_LAYOUT_UNDEFINED, layout);
+        cmdInitImageLayout(cmd, m_res.gBufferColor[c].image);
         m_res.descriptor[c].imageLayout = layout;
 
         // Clear to avoid garbage data
