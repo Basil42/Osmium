@@ -375,6 +375,16 @@ void OsmiumBindlessInstance::destroy() {
 
     vkFreeDescriptorSets(device, m_descriptorPool, 1, &m_textureDescriptorSet);
 
+    //unloading Textures
+    for (auto texture : *m_textures) {
+        m_allocator.destroyImageResource(texture);
+    }
+    //unloading meshes
+    for (auto mesh : *m_meshes) {
+        m_allocator.destroyBuffer(mesh.IndicesBuffer);
+        m_allocator.destroyBuffer(mesh.VertexBuffer);
+    }
+
     //TODO replace with my actual loaded pipeline, or a check that the engine already unloaded everything
     vkDestroyPipeline(device, m_computePipeline, nullptr);
     vkDestroyPipeline(device, m_NormalSpecPipeline, nullptr);
@@ -401,6 +411,7 @@ void OsmiumBindlessInstance::destroy() {
     m_allocator.destroyBuffer(m_clipSpaceInfoBuffer);
 
     m_gBuffer.deinit();
+    m_allocator.freeStagingBuffers();
     m_allocator.deinit();
     m_context.deinit();
 }
