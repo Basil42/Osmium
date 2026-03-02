@@ -68,8 +68,6 @@ printf("\n");                                                                   
 #include <span>           // For std::span
 #include <vector>         // For std::vector
 
-//TODO checkout the shader io stuff. I'd rather not embed the shader code in the c++
-
 //assertion macro, might want to move it to a more globally accessible spot
 #ifdef NDEBUG
 #define ASSERT(condition, message)                                                                                     \
@@ -99,7 +97,7 @@ OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size) : m_windowSize(s
     // Create the GLTF Window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #ifdef USE_SLANG
-    const char* windowTitle = "Minimal Latest (Slang)";
+    const char *windowTitle = "Minimal Latest (Slang)";
 #else
     // ReSharper disable once CppUseAuto
     const char *windowTitle = "Minimal Latest (GLSL)";
@@ -190,9 +188,9 @@ void OsmiumBindlessInstance::UpdateCameraInfo(glm::mat4 view, glm::mat4 proj) {
 }
 
 TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
-    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(),m_transientCmdPool);
+    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
     utils::ImageResource resource = loadAndCreateImage(cmd, filename);
-    utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_transientCmdPool,m_context.getGraphicsQueue().queue);
+    utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool, m_context.getGraphicsQueue().queue);
     return m_textures->Add(resource);
 }
 
@@ -204,13 +202,17 @@ void OsmiumBindlessInstance::UnloadTexture(TextureHandle textureHandle) const {
 MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename) {
     std::vector<DefaultVertex> vertices;
     std::vector<uint32_t> indices;
-    MeshFileLoading::LoadFromObj(vertices, indices,filename);
+    MeshFileLoading::LoadFromObj(vertices, indices, filename);
 
     utils::MeshResource resource;
-    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(),m_transientCmdPool);
-    resource.VertexBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(vertices),VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    resource.IndicesBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(indices),VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_transientCmdPool,m_context.getGraphicsQueue().queue);
+    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
+    resource.VertexBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(vertices),
+                                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    resource.IndicesBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(indices),
+                                                                   VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool, m_context.getGraphicsQueue().queue);
 
     return m_meshes->Add(resource);
 }
@@ -322,7 +324,7 @@ void OsmiumBindlessInstance::init() {
             .device = m_context.getDevice(),
             .alloc = &m_allocator,
             .size = m_windowSize,
-            .color = {VK_FORMAT_R8G8B8A8_UNORM},
+            .color = {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM},
             .depth = depthFormat,
             .linearSampler = linearSampler,
         };
@@ -358,8 +360,8 @@ void OsmiumBindlessInstance::init() {
 
     //resource arrays
 
-    m_meshes = std::make_unique<ResourceArray<utils::MeshResource,255>>();
-    m_textures = std::make_unique<ResourceArray<utils::ImageResource,255>>();
+    m_meshes = std::make_unique<ResourceArray<utils::MeshResource, 255> >();
+    m_textures = std::make_unique<ResourceArray<utils::ImageResource, 255> >();
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -376,11 +378,11 @@ void OsmiumBindlessInstance::destroy() {
     vkFreeDescriptorSets(device, m_descriptorPool, 1, &m_textureDescriptorSet);
 
     //unloading Textures
-    for (auto texture : *m_textures) {
+    for (auto texture: *m_textures) {
         m_allocator.destroyImageResource(texture);
     }
     //unloading meshes
-    for (auto mesh : *m_meshes) {
+    for (auto mesh: *m_meshes) {
         m_allocator.destroyBuffer(mesh.IndicesBuffer);
         m_allocator.destroyBuffer(mesh.VertexBuffer);
     }
@@ -503,13 +505,14 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
     const std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
         {
             {
+                //color output
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .imageView = m_swapchain.getImageView(),
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                 .clearValue = {{{0.0f, 0.0f, 0.0, 1.0f}}},
-            }
+            },
         }
     };
     const VkRenderingInfo renderingInfo = {
@@ -522,8 +525,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
         .pColorAttachments = colorAttachments.data(),
     };
     utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                    VK_IMAGE_LAYOUT_GENERAL);
-    //It seems that this ended up doing nothing(missed prediction of the work group ?)
+                                        VK_IMAGE_LAYOUT_GENERAL);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
 
@@ -532,7 +534,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
     //endDynamicRenderingToSwapchain(cmd);
     vkCmdEndRendering(cmd);
     utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_GENERAL,
-                                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+                                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 }
 
 void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
@@ -629,7 +631,8 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
     updateSceneBuffers(cmd);
 
-    constexpr std::array<VkDeviceSize, 1> offsets = {0};//this would be constructerd from the rendered object collection to index correctly into the vertex buffer ?
+    constexpr std::array<VkDeviceSize, 1> offsets = {0};
+    //this would be constructerd from the rendered object collection to index correctly into the vertex buffer ?
     const VkViewport viewport = {
         0.0F, 0.0F, static_cast<float>(m_viewportSize.width), static_cast<float>(m_viewportSize.height), 0.0F, 1.0F
     };
@@ -655,7 +658,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         const VkPushDescriptorSetInfo pushDescriptorSetInfo = {
             .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
             .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
-            .layout = m_NormalSpecPipelineLayout,//null here for some reason
+            .layout = m_NormalSpecPipelineLayout, //null here for some reason
             .set = 1,
             .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
             .pDescriptorWrites = writeDescriptorSet.data(),
@@ -678,12 +681,36 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         //previously I would essentially change this value for each draw call, I'd be cool to move to an indirect draw method
     };
 
-    const std::array<VkRenderingAttachmentInfo, 1> colorAttachmentInfo = {
+    const std::array<VkRenderingAttachmentInfo, 4> colorAttachmentInfo = {
         //TODO add light buffers, probably inside the struct that currently hold the g buffer
         {
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = m_gBuffer.getColorImageView(),
+                .imageView = m_gBuffer.getColorImageView(0),
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = {{m_clearColor}},
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = m_gBuffer.getColorImageView(1),
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = {{m_clearColor}},
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = m_gBuffer.getColorImageView(2),
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = {{m_clearColor}},
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = m_gBuffer.getColorImageView(2),
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -712,10 +739,10 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     };
 
     //I don't need to transition the light buffers
-    vkCmdBeginRendering(cmd,&renderingInfo);
+    vkCmdBeginRendering(cmd, &renderingInfo);
 
     //dynamic states
-    vkCmdSetViewportWithCount(cmd,1, &viewport);
+    vkCmdSetViewportWithCount(cmd, 1, &viewport);
     vkCmdSetScissorWithCount(cmd, 1, &scissor);
 
     //binding the texture data
@@ -727,21 +754,21 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         .descriptorSetCount = 1,
         .pDescriptorSets = &m_textureDescriptorSet,
     };
-    vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
+    vkCmdBindDescriptorSets2(cmd, &bindDescriptorSetsInfo);
 
     //sample binds a buffer containing all vertices
 
-    for (auto mesh : m_renderedObjects) {
-        auto& meshResource = m_meshes->get(mesh.first);
-        auto& pushDataCollection = mesh.second;
-        vkCmdBindVertexBuffers(cmd,0,1,&meshResource.VertexBuffer.buffer, offsets.data());
-        vkCmdBindIndexBuffer(cmd,meshResource.IndicesBuffer.buffer,0,VK_INDEX_TYPE_UINT32);
-        vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_NormalSpecPipeline);
+    for (auto mesh: m_renderedObjects) {
+        auto &meshResource = m_meshes->get(mesh.first);
+        auto &pushDataCollection = mesh.second;
+        vkCmdBindVertexBuffers(cmd, 0, 1, &meshResource.VertexBuffer.buffer, offsets.data());
+        vkCmdBindIndexBuffer(cmd, meshResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_NormalSpecPipeline);
         for (RenderedObjectPushData &pushData: pushDataCollection) {
             normalSpecPushData = pushData.normalSpecPushData;
-            vkCmdPushConstants2(cmd,&NormalSpecPushInfo);
+            vkCmdPushConstants2(cmd, &NormalSpecPushInfo);
             //I feel like I should be able to push all the constant in one call and then do one draw call to get all the instances on that mesh
-            vkCmdDrawIndexed(cmd,meshResource.IndexCount,1,0,0,0);
+            vkCmdDrawIndexed(cmd, meshResource.IndexCount, 1, 0, 0, 0);
         }
     }
 
@@ -757,20 +784,24 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 void OsmiumBindlessInstance::createGraphicsPipelines(
 ) {
     auto device = m_context.getDevice();
-    VkShaderModule normalSpecVertexModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.vert.spv",device);
-    VkShaderModule normalSpecFragmentModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.frag.spv", device);
+    VkShaderModule normalSpecVertexModule = ShaderUtils::createShaderModule(
+        "../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.vert.spv", device);
+    VkShaderModule normalSpecFragmentModule = ShaderUtils::createShaderModule(
+        "../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.frag.spv", device);
 
     //the sample uses specialization constants here, I don't need it
 
     const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{
-        {//vert, I might do full screen passes on compute
+        {
+            //vert, I might do full screen passes on compute
             {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
                 .module = normalSpecVertexModule,
                 .pName = "main",
             },
-            {//fragment
+            {
+                //fragment
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
                 .module = normalSpecFragmentModule,
@@ -781,7 +812,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
 
     //normal and spec pass
     const VkVertexInputBindingDescription &bindingDescription = DefaultVertex::getBindingDescription();
-    const auto& attributesDescriptions = DefaultVertex::getAttributeDescriptions();
+    const auto &attributesDescriptions = DefaultVertex::getAttributeDescriptions();
     const VkPipelineVertexInputStateCreateInfo vertexInputInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .vertexBindingDescriptionCount = 1,
@@ -801,7 +832,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT,
     };
 
-    const VkPipelineDynamicStateCreateInfo dynamicStateInfo {
+    const VkPipelineDynamicStateCreateInfo dynamicStateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
         .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
         .pDynamicStates = dynamicStates.data(),
@@ -817,25 +848,62 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
 
     const VkPipelineMultisampleStateCreateInfo multisamplingInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,//I think I used higher multisample in the previous iteration, might change it later
+        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        //I think I used higher multisample in the previous iteration, might change it later
     };
 
-    const VkPipelineColorBlendAttachmentState NormalAndSpecColorBlendAttachment{
-        .blendEnable = VK_TRUE,//given transparency would happen in a separate pass anyway, it might make sense to disbale blending on the first pass
+    const std::array<VkPipelineColorBlendAttachmentState,4> NormalAndSpecColorBlendAttachment{
+        {
+            {
+                .blendEnable = VK_TRUE,
+        //given transparency would happen in a separate pass anyway, it might make sense to disbale blending on the first pass
         .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
         .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-        .colorBlendOp        = VK_BLEND_OP_ADD,
+        .colorBlendOp = VK_BLEND_OP_ADD,
         .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
         .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-        .alphaBlendOp        = VK_BLEND_OP_ADD,
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+        .alphaBlendOp = VK_BLEND_OP_ADD,
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                          VK_COLOR_COMPONENT_A_BIT,
+            },
+            {
+            .blendEnable = VK_TRUE,
+            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+            .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            .colorBlendOp = VK_BLEND_OP_ADD,
+            .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+            .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            .alphaBlendOp = VK_BLEND_OP_ADD,
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,},
+            {
+                .blendEnable = VK_TRUE,
+                .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .colorBlendOp = VK_BLEND_OP_ADD,
+                .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .alphaBlendOp = VK_BLEND_OP_ADD,
+                .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,},
+            {
+                .blendEnable = VK_TRUE,
+                .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .colorBlendOp = VK_BLEND_OP_ADD,
+                .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .alphaBlendOp = VK_BLEND_OP_ADD,
+                .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,},
+        }
     };
     const VkPipelineColorBlendStateCreateInfo colorBlendInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .logicOpEnable = VK_FALSE,
         .logicOp = VK_LOGIC_OP_COPY,
-        .attachmentCount = 1,//TODO : check if I have to carry all attachment from pass to pass
-        .pAttachments = &NormalAndSpecColorBlendAttachment,
+        .attachmentCount = 4, //TODO : check if I have to carry all attachment from pass to pass
+        .pAttachments = NormalAndSpecColorBlendAttachment.data(),
     };
 
     const VkPushConstantRange pushConstantRange{
@@ -845,8 +913,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
     };
 
     const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
-        m_textureDescriptorSetLayout,//Texture descriptor
-        m_graphicDescriptorSetLayout,//Camera data
+        m_textureDescriptorSetLayout, //Texture descriptor
+        m_graphicDescriptorSetLayout, //Camera data
     };
 
     const VkPipelineLayoutCreateInfo normalSpecPipelineLayoutInfo{
@@ -857,17 +925,23 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .pPushConstantRanges = &pushConstantRange,
     };
 
-    VK_CHECK(vkCreatePipelineLayout(m_context.getDevice(),&normalSpecPipelineLayoutInfo,nullptr, &m_NormalSpecPipelineLayout));
+    VK_CHECK(
+        vkCreatePipelineLayout(m_context.getDevice(),&normalSpecPipelineLayoutInfo,nullptr, &m_NormalSpecPipelineLayout
+        ));
     DBG_VK_NAME(m_NormalSpecPipelineLayout);
 
     //output for this pass, might need to add the light buffer here, holding off for now
-    const std::array<VkFormat,1> imageFormats{{
+    const std::array<VkFormat, 4> imageFormats{
         {
-            m_gBuffer.getColorFormat()
-        },}
+                m_gBuffer.getColorFormat(0),
+                m_gBuffer.getColorFormat(1),
+                m_gBuffer.getColorFormat(2),
+                m_gBuffer.getColorFormat(3),
+        }
     };
 
-    const VkPipelineRenderingCreateInfo normalSpecRenderingInfo{//TODO extend to the light passes, probably do all passes in a single rendering info
+    const VkPipelineRenderingCreateInfo normalSpecRenderingInfo{
+        //TODO extend to the light passes, probably do all passes in a single rendering info
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = imageFormats.size(),
         .pColorAttachmentFormats = imageFormats.data(),
@@ -896,14 +970,15 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .layout = m_NormalSpecPipelineLayout,
     };
 
-    VK_CHECK(vkCreateGraphicsPipelines(m_context.getDevice(),nullptr, 1, &normalSpecGraphicsPipelineInfo,nullptr,&m_NormalSpecPipeline));
+    VK_CHECK(
+        vkCreateGraphicsPipelines(m_context.getDevice(),nullptr, 1, &normalSpecGraphicsPipelineInfo,nullptr,&
+            m_NormalSpecPipeline));
     DBG_VK_NAME(m_NormalSpecPipeline);
 
-    vkDestroyShaderModule(m_context.getDevice(),normalSpecVertexModule,nullptr);
-    vkDestroyShaderModule(m_context.getDevice(),normalSpecFragmentModule,nullptr);
+    vkDestroyShaderModule(m_context.getDevice(), normalSpecVertexModule, nullptr);
+    vkDestroyShaderModule(m_context.getDevice(), normalSpecFragmentModule, nullptr);
 
     //TODO light passes pipelines
-
 
 
     //TODO shading pass
@@ -953,7 +1028,8 @@ void OsmiumBindlessInstance::createDescriptorPool() {
         uint32_t maxDescriptorSets = std::min(20U, deviceProperties.limits.maxDescriptorSetUniformBuffers);
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+            .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT |
+                     VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
             .maxSets = maxDescriptorSets,
             .poolSizeCount = 1,
             .pPoolSizes = &poolSize,
@@ -1164,11 +1240,12 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
         .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
     };
 
-    std::array<uint8_t,4> data {255,255,255,255};
+    std::array<uint8_t, 4> data{255, 255, 255, 255};
     const std::span dataSpan(data.data(), 4);
-    utils::ImageResource image = m_allocator.createImageAndUploadData(cmd,dataSpan,imageInfo,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    utils::ImageResource image = m_allocator.createImageAndUploadData(cmd, dataSpan, imageInfo,
+                                                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     DBG_VK_NAME(image.image);
-    image.extent = {1,1};
+    image.extent = {1, 1};
 
     const VkImageViewCreateInfo viewInfo = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1213,7 +1290,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
         .pImageInfo = &descriptorImageInfo,
     };
 
-    vkUpdateDescriptorSets(m_context.getDevice(), 1, &writeDescriptorInfo, 0,nullptr);
+    vkUpdateDescriptorSets(m_context.getDevice(), 1, &writeDescriptorInfo, 0, nullptr);
 
     //TODO check if some sync is necessary here
 }
