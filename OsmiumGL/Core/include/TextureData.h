@@ -6,7 +6,7 @@
 #define TEXTUREDATA_H
 #include <vulkan/vulkan_core.h>
 
-#include "vk_mem_alloc.h"
+#include "../../Common/include/vk_mem_alloc.h"
 
 struct TextureData {
     VmaAllocation ImageAllocation;

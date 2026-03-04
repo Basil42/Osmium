@@ -4,11 +4,10 @@
 
 #ifndef COMMONSTRUCTS_H
 #define COMMONSTRUCTS_H
-//#include "volk.h"
 #include <array>
 #include <cassert>
 #include <span>
-#include <Volk/volk.h>
+#include <volk.h>
 
 #include "debug_utils.h"
 #include "imgui.h"
@@ -16,7 +15,7 @@
 #include "VkCheck.h"
 #include "backends/imgui_impl_vulkan.h"
 #include "GLFW/glfw3.h"
-#include "vma/vk_mem_alloc.h"
+#include "vk_mem_alloc.h"
 
 // The frame pacer uses Windows APIs if available to get more precise timing.
 #ifdef _WIN32

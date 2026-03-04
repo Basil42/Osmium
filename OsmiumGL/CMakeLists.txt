@@ -42,12 +42,11 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         ShaderUtilities/include/spirv_reflect.h
         Common/include/Texture.h
         Initialization/Capabilities/DeviceCapabilities.h
-        Core/include/vk_mem_alloc.h
+        Common/include/vk_mem_alloc.h
         Core/include/TextureData.h
         ShaderUtilities/include/DirectionalLights.h
         BindlessCore/Utilities/logger.h
         BindlessCore/OsmiumBindlessInstance.h
-        BindlessCore/Utilities/logger.h
         BindlessCore/Utilities/debug_utils.h
         BindlessCore/Utilities/VkCheck.h
         BindlessCore/Utilities/CoreUtils.h
@@ -70,15 +69,16 @@ target_compile_definitions(OsmiumGL PRIVATE VK_NO_PROTOTYPES)
 #I should have an interface class to not require all these public header and only use one public entry point
 
 target_include_directories(OsmiumGL PRIVATE
-        Core/include
         Initialization
         DebugUtils
         DefaultResources
-        Common/include
         ShaderUtilities/include
+        Core/include
 )
 target_include_directories(OsmiumGL PUBLIC
         API/include
+        Common/include
+        BindlessCore/Utilities
         ShaderUtilities/include)
 
 target_link_libraries(OsmiumGL PUBLIC glfw)

@@ -11,7 +11,7 @@
 
 #include "ResourceArray.h"
 #include "SceneData.h"
-#include "Utilities/CoreUtils.h"
+#include "CoreUtils.h"
 
 struct RenderObjectHandle;
 struct RenderedObjectPushData;
