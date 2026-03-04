@@ -326,7 +326,7 @@ void OsmiumBindlessInstance::init() {
             .device = m_context.getDevice(),
             .alloc = &m_allocator,
             .size = m_windowSize,
-            .color = {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM},
+            .color = {VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM},
             .depth = depthFormat,
             .linearSampler = linearSampler,
         };
@@ -859,8 +859,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             {
                 .blendEnable = VK_TRUE,
         //given transparency would happen in a separate pass anyway, it might make sense to disbale blending on the first pass
-        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .colorBlendOp = VK_BLEND_OP_ADD,
         .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
         .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
