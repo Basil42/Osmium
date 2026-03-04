@@ -212,6 +212,8 @@ MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename) {
     resource.IndicesBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(indices),
                                                                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
                                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    resource.VertexCount = static_cast<uint32_t>(vertices.size());
+    resource.IndexCount = static_cast<uint32_t>(indices.size());
     utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool, m_context.getGraphicsQueue().queue);
 
     return m_meshes->Add(resource);
