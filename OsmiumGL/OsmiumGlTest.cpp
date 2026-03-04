@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
         .model = {1.0f},
         .SmoothnessMapIndex = texture,}}};
         //TODO add rendered object
-        renderedObjectExample.pushData.normalSpecPushData.model[3][3] = -4.0f;
+        renderedObjectExample.pushData.normalSpecPushData.model[3][2] = -4.0f;
         app.RegisterRenderedObjectInstance(renderedObjectExample);
         app.UpdateCameraInfo(glm::mat4(1.0f),glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f));
         app.run();
