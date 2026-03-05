@@ -480,7 +480,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
 
     //TODO: move out the docking stuff to the editor
     if (ImGui::Begin("ViewPort")) {
-        ImGui::Image(m_gBuffer.getImTextureID(0), ImGui::GetContentRegionAvail());
+        ImGui::Image(m_gBuffer.getImTextureID(2), ImGui::GetContentRegionAvail());//image index can be changed here to render one of the framebuffer in the viewport
 
         //overlay stuff, might remove later
         ImGui::SetCursorPos(ImVec2(0, 0));
@@ -857,7 +857,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
     const std::array<VkPipelineColorBlendAttachmentState,4> NormalAndSpecColorBlendAttachment{
         {
             {
-                .blendEnable = VK_TRUE,
+                .blendEnable = VK_FALSE,
         //given transparency would happen in a separate pass anyway, it might make sense to disbale blending on the first pass
         .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
