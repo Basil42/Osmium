@@ -13,6 +13,7 @@
 #include "SceneData.h"
 #include "CoreUtils.h"
 
+struct PointLightPushConstants;
 struct RenderObjectHandle;
 struct RenderedObjectPushData;
 struct MeshData;
@@ -32,7 +33,9 @@ public:
 
     void run();
 
-    void UpdateCameraInfo(glm::mat4 view, glm::mat4 proj);
+    void UpdateCameraInfo(glm::mat4 view);
+
+    void UpdateCameraSettings(float radianVFOV);
 
     TextureHandle LoadTexture(const std::string &filename);
 
@@ -96,8 +99,10 @@ private:
 
     std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;
     std::map<MeshHandle, ResourceArray<RenderedObjectPushData,255>> m_renderedObjects;
+    std::unique_ptr<ResourceArray<PointLightPushConstants,255>> m_pointLightInstances;
     std::unique_ptr<ResourceArray<utils::ImageResource,255>> m_textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
-    unsigned int defaultTextureIndex; // index for a white 1x1 texture used as a default
+    unsigned int m_DefaultTextureIndex; // index for a white 1x1 texture used as a default
+    unsigned int m_DefaultSphereHandle;//TODO load the default sphere
 
     utils::Gbuffer m_gBuffer; // The G-Buffer
 
@@ -106,15 +111,20 @@ private:
     VkExtent2D m_viewportSize{800, 600}; // The viewport area in the window
 
     VkPipelineLayout m_NormalSpecPipelineLayout{}; // The pipeline layout use with graphics pipeline
-    VkPipelineLayout m_computePipelineLayout{}; // The pipeline layout use with compute pipeline
-    VkPipeline m_computePipeline{}; // The compute pipeline
-    VkPipeline m_NormalSpecPipeline{}; // The graphics pipeline with texture
-    VkPipeline m_graphicsPipelineWithoutTexture{}; // The graphics pipeline without texture
+    VkPipelineLayout m_PointLightPipelineLayout{};
+    VkPipelineLayout m_DirectionalLightPipelineLayout{};
+    VkPipelineLayout m_ShadingPipelineLayout{};
+
+    VkPipeline m_NormalSpecPipeline{};
+    VkPipeline m_PointLightPipeline{};
+    VkPipeline m_DirectionalLightPipeline{};
+    VkPipeline m_ShadingPipeline{};
+
     VkCommandPool m_transientCmdPool{}; // The command pool
     VkDescriptorPool m_descriptorPool{}; // Texture/shader descriptor pool
     VkDescriptorPool m_uiDescriptorPool{}; // Ui descriptor pool
     VkDescriptorSetLayout m_textureDescriptorSetLayout{}; // Descriptor set layout for all textures (set 0)
-    VkDescriptorSetLayout m_graphicDescriptorSetLayout{}; // Descriptor set layout for the scene info (set 1)
+    VkDescriptorSetLayout m_CameraDescriptorSetLayout{}; // Descriptor set layout for the scene info (set 1)
     VkDescriptorSet m_textureDescriptorSet{}; // Application descriptor set (storing all textures)
 
     // Frame resources and synchronization
@@ -136,6 +146,8 @@ private:
 
     //Core scene data
     SceneCameraInfo m_CameraInfoStruct;
+    ClipSpaceInfo m_ClipSpaceInfoStruct;
+
 
     bool prepareFrameResources();
 

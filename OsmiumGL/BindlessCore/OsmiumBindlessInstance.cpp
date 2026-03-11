@@ -86,6 +86,7 @@ throw std::runtime_error(message);                                              
 #include "RenderedObjectData.h"
 #include "SceneData.h"
 #include "ShaderUtilities.h"
+#include "PointLights.h"
 #include "Utilities/VkCheck.h"
 
 #include "Utilities/CoreUtils.h"
@@ -180,10 +181,24 @@ void OsmiumBindlessInstance::run() {
     }
 }
 
-void OsmiumBindlessInstance::UpdateCameraInfo(glm::mat4 view, glm::mat4 proj) {
-    m_CameraInfoStruct = {
-        .viewMatrix = view,
-        .projectionMatrix = proj
+void OsmiumBindlessInstance::UpdateCameraInfo(glm::mat4 view) {
+    //per frame camera update
+    m_CameraInfoStruct.viewMatrix = view;
+}
+
+//setup and setting changes for the camera (fov only for now, but we could send an arbitrary struct in
+void OsmiumBindlessInstance::UpdateCameraSettings(float radianVFOV) {
+    auto ViewportSize = glm::vec2(m_viewportSize.width, m_viewportSize.height);
+    m_CameraInfoStruct.projectionMatrix = glm::perspective(radianVFOV,ViewportSize.x / ViewportSize.y,0.1f,100.0f);
+
+    //there is an option to cache this
+    m_ClipSpaceInfoStruct = {
+        //vertex
+        .ScreenSize = ViewportSize,
+        .halfSizeNearPlane = {glm::tan((radianVFOV/2.0f) * (ViewportSize.x / ViewportSize.y)), glm::tan(radianVFOV/2.0)},
+        //fragment, previously divided in two subn structure, makes no difference
+        .invProjectionMatrix = glm::inverse(m_CameraInfoStruct.projectionMatrix),
+        .depthRange = glm::vec2(0.0f,1.0f)
     };
 }
 
@@ -191,8 +206,39 @@ TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
     VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
     utils::ImageResource resource = loadAndCreateImage(cmd, filename);
     utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool, m_context.getGraphicsQueue().queue);
-    //TODO might need to update the texture descriptor here
-    return m_textures->Add(resource);
+    auto resourceIndex =  m_textures->Add(resource);
+
+    const VkSampler sampler = m_samplerPool.acquireSampler({
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = VK_FILTER_LINEAR,
+        .minFilter = VK_FILTER_LINEAR,
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .maxLod = VK_LOD_CLAMP_NONE,
+    });
+    DBG_VK_NAME(sampler);
+
+    VkDescriptorImageInfo descriptorImageInfo = {
+        .sampler = sampler,
+        .imageView = resource.view,
+        .imageLayout = resource.layout,
+    };
+
+    VkWriteDescriptorSet writeDescriptorInfo = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = m_textureDescriptorSet,
+        .dstBinding = 0,
+        .dstArrayElement = resourceIndex,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = &descriptorImageInfo,
+    };
+
+    vkUpdateDescriptorSets(m_context.getDevice(), 1, &writeDescriptorInfo, 0, nullptr);
+
+    //should probably do some kind of error handling here if an accident happens
+    return resourceIndex;
 }
 
 void OsmiumBindlessInstance::UnloadTexture(TextureHandle textureHandle) const {
@@ -356,6 +402,7 @@ void OsmiumBindlessInstance::init() {
 
     m_meshes = std::make_unique<ResourceArray<utils::MeshResource, 255> >();
     m_textures = std::make_unique<ResourceArray<utils::ImageResource, 255> >();
+    m_pointLightInstances = std::make_unique<ResourceArray<PointLightPushConstants, 255> >();
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -381,19 +428,21 @@ void OsmiumBindlessInstance::destroy() {
         m_allocator.destroyBuffer(mesh.VertexBuffer);
     }
 
-    vkDestroyPipeline(device, m_computePipeline, nullptr);//TODO remove stub compute pipeline
     vkDestroyPipeline(device, m_NormalSpecPipeline, nullptr);
-    //TODO clean lighting and shading pipelines
-    vkDestroyPipeline(device, m_graphicsPipelineWithoutTexture, nullptr);//TODO remove sample pipelines refs
+    vkDestroyPipeline(device,m_PointLightPipeline, nullptr);
+    vkDestroyPipeline(device,m_DirectionalLightPipeline, nullptr);
+    vkDestroyPipeline(device,m_ShadingPipeline, nullptr);
+
     vkDestroyPipelineLayout(device, m_NormalSpecPipelineLayout, nullptr);
-    //clean up light pipeline layouts
-    vkDestroyPipelineLayout(device, m_computePipelineLayout, nullptr);
+    vkDestroyPipelineLayout(device, m_PointLightPipelineLayout, nullptr);
+    vkDestroyPipelineLayout(device, m_DirectionalLightPipelineLayout, nullptr);
+    vkDestroyPipelineLayout(device, m_ShadingPipelineLayout, nullptr);
 
     vkDestroyCommandPool(device, m_transientCmdPool, nullptr);
     vkDestroySurfaceKHR(m_context.getInstance(), m_surface, nullptr);
 
     vkDestroyDescriptorSetLayout(device, m_textureDescriptorSetLayout, nullptr);
-    vkDestroyDescriptorSetLayout(device, m_graphicDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, m_CameraDescriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
     vkDestroyDescriptorPool(device, m_uiDescriptorPool, nullptr);
 
@@ -614,9 +663,14 @@ void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {
     vkCmdUpdateBuffer(cmd, m_CameraInfoBuffer.buffer, 0, sizeof(SceneCameraInfo), &m_CameraInfoStruct);
     utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
                                   VK_PIPELINE_STAGE_2_TRANSFER_BIT); //ensure buffer is updated before running shader
+    //Shouldn't these stage be inverted on the second barrier ?
 
     //Update any other scene wide data here, probably the clip space data for example
-    //TODO clip space data
+    utils::cmdBufferMemoryBarrier(cmd, m_clipSpaceInfoBuffer.buffer, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT);
+    vkCmdUpdateBuffer(cmd, m_clipSpaceInfoBuffer.buffer,0,sizeof(ClipSpaceInfo), &m_ClipSpaceInfoStruct);
+    utils::cmdBufferMemoryBarrier(cmd, m_clipSpaceInfoBuffer.buffer, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_2_TRANSFER_BIT);
 }
 
 void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
@@ -629,8 +683,9 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     const VkViewport viewport = {
         0.0F, 0.0F, static_cast<float>(m_viewportSize.width), static_cast<float>(m_viewportSize.height), 0.0F, 1.0F
     };
-    const VkRect2D scissor = {{0, 0}, m_viewportSize}; {
-        const VkDescriptorBufferInfo bufferInfo{
+    const VkRect2D scissor = {{0, 0}, m_viewportSize};
+    {
+        const VkDescriptorBufferInfo cameraBufferInfo{
             .buffer = m_CameraInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
         };
         const std::array<VkWriteDescriptorSet, 1> writeDescriptorSet = {
@@ -643,7 +698,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                     .dstArrayElement = 0,
                     .descriptorCount = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .pBufferInfo = &bufferInfo,
+                    .pBufferInfo = &cameraBufferInfo,
                 }
             }
         };
@@ -651,7 +706,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         const VkPushDescriptorSetInfo pushDescriptorSetInfo = {
             .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
             .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
-            .layout = m_NormalSpecPipelineLayout, //null here for some reason
+            .layout = m_NormalSpecPipelineLayout,
             .set = 1,
             .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
             .pDescriptorWrites = writeDescriptorSet.data(),
@@ -716,7 +771,6 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         .imageView = m_gBuffer.getDepthImageView(),
         .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        //could have been the issue in the previous renderer, maybe the laight buffer were aggressively cleared ?
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .clearValue = {{1.0f, 0.0f}},
     };
@@ -750,12 +804,12 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
     //sample binds a buffer containing all vertices
 
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_NormalSpecPipeline);
     for (auto mesh: m_renderedObjects) {
         auto &meshResource = m_meshes->get(mesh.first);
         auto &pushDataCollection = mesh.second;
         vkCmdBindVertexBuffers(cmd, 0, 1, &meshResource.VertexBuffer.buffer, offsets.data());
         vkCmdBindIndexBuffer(cmd, meshResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_NormalSpecPipeline);
         for (RenderedObjectPushData &pushData: pushDataCollection) {
             normalSpecPushData = pushData.normalSpecPushData;
             vkCmdPushConstants2(cmd, &NormalSpecPushInfo);
@@ -765,7 +819,59 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     }
 
     //TODO LIght passes and rendering
-    //draw command - light type 1
+    //light type 1
+    //push descriptor
+    {
+        const VkDescriptorBufferInfo ClipSpaceBufferInfo{
+            .buffer = m_clipSpaceInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
+        };
+        const std::array<VkWriteDescriptorSet, 1> writeDescriptorSet = {
+            {
+                //TODO add clip space data
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = nullptr,
+                    .dstBinding = 0,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,//there are technically two bindings there, validation layers will likely help sort it out
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .pBufferInfo = &ClipSpaceBufferInfo,
+                }
+            }
+        };
+
+        const VkPushDescriptorSetInfo pushDescriptorSetInfo = {
+            .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
+            .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+            .layout = m_PointLightPipelineLayout,
+            .set = 2,
+            .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
+            .pDescriptorWrites = writeDescriptorSet.data(),
+        };
+
+        vkCmdPushDescriptorSet2(cmd, &pushDescriptorSetInfo);
+
+
+        //pushconstants
+        PointLightPushConstants PointLightPushConstantData;
+        const VkPushConstantsInfo PointLightPushConstantInfo{
+            .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+            .layout = m_PointLightPipelineLayout,
+            .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+            .offset = 0,
+            .size = sizeof(PointLightPushConstantData),
+            .pValues = &PointLightPushConstantData,
+        };
+        auto &pointLightResource = m_meshes->get(m_DefaultSphereHandle);
+        vkCmdBindVertexBuffers(cmd,0,1,&pointLightResource.VertexBuffer.buffer, offsets.data());
+        vkCmdBindIndexBuffer(cmd, pointLightResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        for (auto &light : *m_pointLightInstances) {
+            PointLightPushConstantData = light;
+            vkCmdPushConstants2(cmd, &PointLightPushConstantInfo);
+            vkCmdDrawIndexed(cmd, pointLightResource.IndexCount, 1, 0, 0, 0);
+        }
+    }
+
     //draw command - light type 2
     //draw command - light type 3
     //draw command - geometry pass 2
@@ -884,7 +990,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
 
     const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
         m_textureDescriptorSetLayout, //Texture descriptor
-        m_graphicDescriptorSetLayout, //Camera data
+        m_CameraDescriptorSetLayout, //Camera data
     };
 
     const VkPipelineLayoutCreateInfo normalSpecPipelineLayoutInfo{
@@ -1106,8 +1212,8 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             .pBindings = layoutBindings.data(),
         };
         VK_CHECK(
-            vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_graphicDescriptorSetLayout));
-        DBG_VK_NAME(m_graphicDescriptorSetLayout);
+            vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_CameraDescriptorSetLayout));
+        DBG_VK_NAME(m_CameraDescriptorSetLayout);
     }
 }
 
@@ -1229,7 +1335,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
 
     //add to descriptor and ressource array
 
-    defaultTextureIndex = m_textures->Add(image);
+    m_DefaultTextureIndex = m_textures->Add(image);
 
     //send to descriptor
 
@@ -1255,7 +1361,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = m_textureDescriptorSet,
         .dstBinding = 0,
-        .dstArrayElement = defaultTextureIndex,
+        .dstArrayElement = m_DefaultTextureIndex,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .pImageInfo = &descriptorImageInfo,
     };

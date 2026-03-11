@@ -30,7 +30,8 @@ int main(int argc, char *argv[]) {
         //TODO add rendered object
         renderedObjectExample.pushData.normalSpecPushData.model[3][2] = -4.0f;
         app.RegisterRenderedObjectInstance(renderedObjectExample);
-        app.UpdateCameraInfo(glm::mat4(1.0f),glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f));
+        app.UpdateCameraSettings(45.0f);
+        app.UpdateCameraInfo(glm::mat4(1.0f));
         app.run();
         glfwTerminate();
     }

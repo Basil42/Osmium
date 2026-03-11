@@ -16,16 +16,4 @@ struct PointLightPushConstants {
     }fragConstant;
 
 };
-struct PointLightUniformValue{
-    //used in the vertex shader
-    struct ClipInfo {
-        glm::vec2 ScreenSize;
-        glm::vec2 halfSizeNearPlane;
-    }clipUniform;
-    //used in the fragment shader
-    struct PositionReconstructionData {
-        glm::mat4 invProjection;
-        glm::vec2 depthRange;
-    }reconstructUniform;
-  };
 #endif //POINTLIGHTS_H
