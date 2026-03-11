@@ -827,7 +827,6 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         };
         const std::array<VkWriteDescriptorSet, 1> writeDescriptorSet = {
             {
-                //TODO add clip space data
                 {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                     .dstSet = nullptr,
