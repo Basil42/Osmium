@@ -6,7 +6,7 @@
 #define DIRECTIONALLIGHT_H
 #include <glm/glm.hpp>
 
-struct DirectionalLightUniform {
+struct DirectionalLightUniform {//TODO clean this up
     alignas(16) glm::vec4 DirLightColor;
     alignas(16) glm::vec3 VLightDirection;
 };

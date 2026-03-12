@@ -13,6 +13,7 @@
 #include "SceneData.h"
 #include "CoreUtils.h"
 
+struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
 struct RenderObjectHandle;
 struct RenderedObjectPushData;
@@ -93,13 +94,16 @@ private:
     utils::Context m_context; // The Vulkan context
     utils::ResourceAllocator m_allocator; // The VMA allocator
     utils::Swapchain m_swapchain; // The swapchain
+    //I could merge the three scene buffers into one and address them through offset (and save 2 pushes)
     utils::Buffer m_CameraInfoBuffer; // The buffer used to pass data to the shader (UBO)
     utils::Buffer m_clipSpaceInfoBuffer; //buffer for clip space struc for position reconstruciton from depth
+    utils::Buffer m_ShadingUniformBuffer;//buffer for the ambient light buffer
     utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
 
     std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;
     std::map<MeshHandle, ResourceArray<RenderedObjectPushData,255>> m_renderedObjects;
     std::unique_ptr<ResourceArray<PointLightPushConstants,255>> m_pointLightInstances;
+    std::unique_ptr<ResourceArray<DirectionalLightPushConstants,255>> m_directionalLightInstances;
     std::unique_ptr<ResourceArray<utils::ImageResource,255>> m_textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
     unsigned int m_DefaultTextureIndex; // index for a white 1x1 texture used as a default
     unsigned int m_DefaultSphereHandle;//TODO load the default sphere

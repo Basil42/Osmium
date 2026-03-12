@@ -1,9 +1,11 @@
 //
 // Created by Basil on 2025-12-13.
 //
-
+//TODO: check if some of the framebuffer (all but the shading output could have their store op set to don't care as ideally they should not exist on vram
 #include "OsmiumBindlessInstance.h"
 
+#include "DirectionalLight.h"
+#include "DirectionalLights.h"
 #include "MeshFileLoading.h"
 #include "volk.h"
 
@@ -690,7 +692,6 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         };
         const std::array<VkWriteDescriptorSet, 1> writeDescriptorSet = {
             {
-                //TODO add clip space data
                 {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                     .dstSet = nullptr,
@@ -718,14 +719,14 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     //the sample prepares the push constants here, I should prepare the model push struct here
 
     //I'll probably have a list of model data, with model matrix, pointer to the vertex buffer
-    NormalSpecData normalSpecPushData; //placeholder to initialize with
+    RenderedObjectPushData PushData; //placeholder to initialize with
     const VkPushConstantsInfo NormalSpecPushInfo{
         .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
         .layout = m_NormalSpecPipelineLayout,
         .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
         .offset = 0,
-        .size = sizeof(NormalSpecData),
-        .pValues = &normalSpecPushData,
+        .size =  sizeof(RenderedObjectPushData),// might be sizeof(glm::mat4) + sizeof(NormalSpecData),
+        .pValues = &PushData,
         //previously I would essentially change this value for each draw call, I'd be cool to move to an indirect draw method
     };
 
@@ -805,23 +806,22 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     //sample binds a buffer containing all vertices
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_NormalSpecPipeline);
-    for (auto mesh: m_renderedObjects) {
+    for (const auto& mesh: m_renderedObjects) {
         auto &meshResource = m_meshes->get(mesh.first);
         auto &pushDataCollection = mesh.second;
         vkCmdBindVertexBuffers(cmd, 0, 1, &meshResource.VertexBuffer.buffer, offsets.data());
         vkCmdBindIndexBuffer(cmd, meshResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-        for (RenderedObjectPushData &pushData: pushDataCollection) {
-            normalSpecPushData = pushData.normalSpecPushData;
+        for (const RenderedObjectPushData &pushData: pushDataCollection) {
+            PushData = pushData;
             vkCmdPushConstants2(cmd, &NormalSpecPushInfo);
             //I feel like I should be able to push all the constant in one call and then do one draw call to get all the instances on that mesh
             vkCmdDrawIndexed(cmd, meshResource.IndexCount, 1, 0, 0, 0);
         }
     }
 
-    //TODO LIght passes and rendering
-    //light type 1
-    //push descriptor
+    //Point lights
     {
+    //push descriptor
         const VkDescriptorBufferInfo ClipSpaceBufferInfo{
             .buffer = m_clipSpaceInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
         };
@@ -852,7 +852,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
 
         //pushconstants
-        PointLightPushConstants PointLightPushConstantData;
+        PointLightPushConstants PointLightPushConstantData{};
         const VkPushConstantsInfo PointLightPushConstantInfo{
             .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
             .layout = m_PointLightPipelineLayout,
@@ -871,9 +871,83 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         }
     }
 
-    //draw command - light type 2
-    //draw command - light type 3
-    //draw command - geometry pass 2
+    //Directional lights
+    {
+        //push descriptor is still valid, only push constants are different
+        DirectionalLightPushConstants DirLightPushConstantData{};
+        const VkPushConstantsInfo PushConstantInfo{
+            .sType =  VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+            .pNext = nullptr,
+            .layout = m_DirectionalLightPipelineLayout,
+            .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+            .offset = 0,
+            .size = sizeof(DirectionalLightPushConstants),
+            .pValues = &DirLightPushConstantData,
+        };
+        //should not need to rebind a vertex buffer (there should not be a vertex input available)
+        for (auto &light : *m_directionalLightInstances) {
+            DirLightPushConstantData = light;
+            vkCmdPushConstants2(cmd, &PushConstantInfo);
+            vkCmdDraw(cmd,0,1,0,0);//maybe 4 vertices for a full screen pass ?
+        }
+    }
+    //TODO: Spot Lights pass
+    //Shading pass
+    {
+        const  VkDescriptorBufferInfo AmbientLightBufferInfo{
+            .buffer = m_ShadingUniformBuffer.buffer,
+            .offset = 0,
+            .range = VK_WHOLE_SIZE
+        };
+        const std::array<VkWriteDescriptorSet, 1> writeDescriptorSet = {
+            {
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = nullptr,
+                    .dstBinding = 0,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .pBufferInfo = &AmbientLightBufferInfo,
+                }
+            }
+        };
+        const VkPushDescriptorSetInfo PushDescriptorSetInfo{
+            .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .layout = m_ShadingPipelineLayout,
+            .set = 2,
+            .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
+            .pDescriptorWrites = writeDescriptorSet.data(),
+        };
+
+        vkCmdPushDescriptorSet2(cmd, &PushDescriptorSetInfo);
+
+        //push constants
+        RenderedObjectPushData renderedObjectPushData;
+        const VkPushConstantsInfo RenderedObjectPushConstantInfo{
+            .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+            .pNext = nullptr,
+            .layout = m_ShadingPipelineLayout,
+            .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+            .offset = 0,
+            .size = sizeof(renderedObjectPushData),//should skip over the normal spec data through constant ranges definitions
+            .pValues = &renderedObjectPushData,
+        };
+
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadingPipeline);
+        for (const auto& mesh : m_renderedObjects) {
+            auto &meshResource = m_meshes->get(mesh.first);
+            auto &pushDataCollection = mesh.second;
+            vkCmdBindVertexBuffers(cmd,0,1,&meshResource.VertexBuffer.buffer, offsets.data());
+            vkCmdBindIndexBuffer(cmd, meshResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+            for (const RenderedObjectPushData &pushData : pushDataCollection) {
+                renderedObjectPushData = pushData;
+                vkCmdPushConstants2(cmd, &RenderedObjectPushConstantInfo);
+                vkCmdDrawIndexed(cmd, meshResource.IndexCount, 1, 0, 0, 0);
+            }
+        }
+    }
 
     vkCmdEndRendering(cmd);
 }
@@ -981,10 +1055,19 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .pAttachments = NormalAndSpecColorBlendAttachment.data(),
     };
 
-    const VkPushConstantRange pushConstantRange{
-        .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
-        .offset = 0,
-        .size = sizeof(NormalSpecData),
+    const std::array<VkPushConstantRange,2> normalSpecPushConstantRanges = {
+        {
+            {
+                .stageFlags = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+                .offset = 0,
+                .size = sizeof(glm::mat4),
+            },
+            {
+                .stageFlags = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                .offset = sizeof(glm::mat4),//offset might have alignement requirement, almost certainly valid here
+                .size = sizeof(NormalSpecData)
+            }
+        }
     };
 
     const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
@@ -996,8 +1079,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
         .pSetLayouts = descriptorSetLayouts.data(),
-        .pushConstantRangeCount = 1,
-        .pPushConstantRanges = &pushConstantRange,
+        .pushConstantRangeCount = normalSpecPushConstantRanges.size(),
+        .pPushConstantRanges = normalSpecPushConstantRanges.data(),
     };
 
     VK_CHECK(
@@ -1016,7 +1099,6 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
     };
 
     const VkPipelineRenderingCreateInfo normalSpecRenderingInfo{
-        //TODO extend to the light passes, probably do all passes in a single rendering info
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .colorAttachmentCount = imageFormats.size(),
         .pColorAttachmentFormats = imageFormats.data(),
