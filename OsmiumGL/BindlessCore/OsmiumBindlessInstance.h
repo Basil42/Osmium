@@ -129,6 +129,7 @@ private:
     VkDescriptorPool m_uiDescriptorPool{}; // Ui descriptor pool
     VkDescriptorSetLayout m_textureDescriptorSetLayout{}; // Descriptor set layout for all textures (set 0)
     VkDescriptorSetLayout m_CameraDescriptorSetLayout{}; // Descriptor set layout for the scene info (set 1)
+    VkDescriptorSetLayout m_ClipSpaceDescriptorLayout{};
     VkDescriptorSet m_textureDescriptorSet{}; // Application descriptor set (storing all textures)
 
     // Frame resources and synchronization

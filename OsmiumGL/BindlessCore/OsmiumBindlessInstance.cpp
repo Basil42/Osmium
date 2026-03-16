@@ -128,8 +128,8 @@ void OsmiumBindlessInstance::run() {
         ImGui::NewFrame();
 
         //docking in imgui, lifted from the bindless example
-        const ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
-                                             ImGuiDockNodeFlags_NoDockingInCentralNode;
+        constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
+                                                 ImGuiDockNodeFlags_NoDockingInCentralNode;
         ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
         //conditionally create docking layout, might need to be moved to init
         if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
@@ -317,7 +317,7 @@ VkCommandBuffer OsmiumBindlessInstance::beginCommandRecording() {
     VK_CHECK(vkResetCommandPool(device,frame.cmdPool,0));
     VkCommandBuffer cmd = frame.cmdBuffer;
 
-    const VkCommandBufferBeginInfo beginInfo = {
+    constexpr VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
@@ -357,7 +357,7 @@ void OsmiumBindlessInstance::init() {
     initImGui();
 
     //Getting sampler for the gbuffer
-    const VkSamplerCreateInfo samplerInfo = {
+    constexpr VkSamplerCreateInfo samplerInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
         .magFilter = VK_FILTER_LINEAR,
         .minFilter = VK_FILTER_LINEAR,
@@ -955,50 +955,14 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 void OsmiumBindlessInstance::createGraphicsPipelines(
 ) {
     auto device = m_context.getDevice();
-    VkShaderModule normalSpecVertexModule = ShaderUtils::createShaderModule(
-        "../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.vert.spv", device);
-    VkShaderModule normalSpecFragmentModule = ShaderUtils::createShaderModule(
-        "../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.frag.spv", device);
 
-    //the sample uses specialization constants here, I don't need it
-
-    const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{
-        {
-            //vert, I might do full screen passes on compute
-            {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                .module = normalSpecVertexModule,
-                .pName = "main",
-            },
-            {
-                //fragment
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .module = normalSpecFragmentModule,
-                .pName = "main",
-            }
-        }
-    };
-
-    //normal and spec pass
-    const VkVertexInputBindingDescription &bindingDescription = DefaultVertex::getBindingDescription();
-    const auto &attributesDescriptions = DefaultVertex::getAttributeDescriptions();
-    const VkPipelineVertexInputStateCreateInfo vertexInputInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 1,
-        .pVertexBindingDescriptions = &bindingDescription,
-        .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesDescriptions.size()),
-        .pVertexAttributeDescriptions = attributesDescriptions.data(),
-    };
-
-    const VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{
+    constexpr VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         .primitiveRestartEnable = VK_FALSE,
     };
 
-    const std::array<VkDynamicState, 2> dynamicStates = {
+    constexpr std::array<VkDynamicState, 2> dynamicStates = {
         VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT,
         VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT,
     };
@@ -1009,132 +973,308 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .pDynamicStates = dynamicStates.data(),
     };
 
-    const VkPipelineRasterizationStateCreateInfo rasterizerInfo = {
+    constexpr VkPipelineRasterizationStateCreateInfo rasterizerInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .polygonMode = VK_POLYGON_MODE_FILL,
         .cullMode = VK_CULL_MODE_BACK_BIT, //strangely the sample doesn't enable back culling
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .lineWidth = 1.0f,
     };
-
-    const VkPipelineMultisampleStateCreateInfo multisamplingInfo = {
+    constexpr VkPipelineMultisampleStateCreateInfo multisamplingInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
         //I think I used higher multisample in the previous iteration, might change it later
     };
+    //normal spec pass
+    {
+        VkShaderModule normalSpecVertexModule = ShaderUtils::createShaderModule(
+            "../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.vert.spv", device);
+        VkShaderModule normalSpecFragmentModule = ShaderUtils::createShaderModule(
+            "../OsmiumGL/DefaultResources/shaders/NormalSpecSpreadPassDLBindless.frag.spv", device);
 
-    const std::array<VkPipelineColorBlendAttachmentState,4> NormalAndSpecColorBlendAttachment{
-        {
-            {
-                .blendEnable = VK_FALSE,
-        // .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-        // .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
-        // .colorBlendOp = VK_BLEND_OP_ADD,
-        // .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-        // .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-        // .alphaBlendOp = VK_BLEND_OP_ADD,
-        // .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-        //                   VK_COLOR_COMPONENT_A_BIT,
-            },
-            {
-            .blendEnable = VK_FALSE,
-            },
-            {
-                .blendEnable = VK_FALSE,
-                },
-            {
-                .blendEnable = VK_FALSE,
-                },
-        }
-    };
-    const VkPipelineColorBlendStateCreateInfo colorBlendInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .logicOpEnable = VK_FALSE,
-        .logicOp = VK_LOGIC_OP_COPY,
-        .attachmentCount = 4, //TODO : separate color blending per pipeline, possibly separate the attachment collections
-        .pAttachments = NormalAndSpecColorBlendAttachment.data(),
-    };
+        //the sample uses specialization constants here, I don't need it
 
-    const std::array<VkPushConstantRange,2> normalSpecPushConstantRanges = {
-        {
+        const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{
             {
-                .stageFlags = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
-                .offset = 0,
-                .size = sizeof(glm::mat4),
-            },
-            {
-                .stageFlags = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-                .offset = sizeof(glm::mat4),//offset might have alignement requirement, almost certainly valid here
-                .size = sizeof(NormalSpecData)
+                //vert, I might do full screen passes on compute
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                    .module = normalSpecVertexModule,
+                    .pName = "main",
+                },
+                {
+                    //fragment
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .module = normalSpecFragmentModule,
+                    .pName = "main",
+                }
             }
-        }
-    };
+        };
 
-    const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
-        m_textureDescriptorSetLayout, //Texture descriptor
-        m_CameraDescriptorSetLayout, //Camera data
-    };
+        const VkVertexInputBindingDescription &bindingDescription = DefaultVertex::getBindingDescription();
+        const auto &attributesDescriptions = DefaultVertex::getAttributeDescriptions();
+        const VkPipelineVertexInputStateCreateInfo vertexInputInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &bindingDescription,
+            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesDescriptions.size()),
+            .pVertexAttributeDescriptions = attributesDescriptions.data(),
+        };
 
-    const VkPipelineLayoutCreateInfo normalSpecPipelineLayoutInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
-        .pSetLayouts = descriptorSetLayouts.data(),
-        .pushConstantRangeCount = normalSpecPushConstantRanges.size(),
-        .pPushConstantRanges = normalSpecPushConstantRanges.data(),
-    };
 
-    VK_CHECK(
-        vkCreatePipelineLayout(m_context.getDevice(),&normalSpecPipelineLayoutInfo,nullptr, &m_NormalSpecPipelineLayout
-        ));
-    DBG_VK_NAME(m_NormalSpecPipelineLayout);
 
-    //output for this pass, might need to add the light buffer here, holding off for now
-    const std::array<VkFormat, 4> imageFormats{
-        {
+
+        constexpr std::array<VkPipelineColorBlendAttachmentState,4> NormalAndSpecColorBlendAttachment{
+            {
+                {
+                    .blendEnable = VK_FALSE,
+                    // .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    // .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    // .colorBlendOp = VK_BLEND_OP_ADD,
+                    // .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                    // .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                    // .alphaBlendOp = VK_BLEND_OP_ADD,
+                    // .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                    //                   VK_COLOR_COMPONENT_A_BIT,
+                },
+                {
+                    .blendEnable = VK_FALSE,
+                },
+                {
+                    .blendEnable = VK_FALSE,
+                },
+                {
+                    .blendEnable = VK_FALSE,
+                },
+            }
+        };
+        const VkPipelineColorBlendStateCreateInfo colorBlendInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = 4, //TODO : separate color blending per pipeline, possibly separate the attachment collections
+            .pAttachments = NormalAndSpecColorBlendAttachment.data(),
+        };
+
+        constexpr std::array<VkPushConstantRange,2> normalSpecPushConstantRanges = {
+            {
+                {
+                    .stageFlags = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+                    .offset = 0,
+                    .size = sizeof(glm::mat4),
+                },
+                {
+                    .stageFlags = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                    .offset = sizeof(glm::mat4),//offset might have alignement requirement, almost certainly valid here
+                    .size = sizeof(NormalSpecData)
+                }
+            }
+        };
+
+        const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
+            m_textureDescriptorSetLayout, //Texture descriptor
+            m_CameraDescriptorSetLayout, //Camera data
+        };
+
+        const VkPipelineLayoutCreateInfo normalSpecPipelineLayoutInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = normalSpecPushConstantRanges.size(),
+            .pPushConstantRanges = normalSpecPushConstantRanges.data(),
+        };
+
+        VK_CHECK(
+            vkCreatePipelineLayout(m_context.getDevice(),&normalSpecPipelineLayoutInfo,nullptr, &m_NormalSpecPipelineLayout
+            ));
+        DBG_VK_NAME(m_NormalSpecPipelineLayout);
+
+        //output for this pass, I might try to just have the actual output later
+        const std::array<VkFormat, 4> imageFormats{
+            {
                 m_gBuffer.getColorFormat(0),
                 m_gBuffer.getColorFormat(1),
                 m_gBuffer.getColorFormat(2),
                 m_gBuffer.getColorFormat(3),
-        }
-    };
+            }
+        };
 
-    const VkPipelineRenderingCreateInfo normalSpecRenderingInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .colorAttachmentCount = imageFormats.size(),
-        .pColorAttachmentFormats = imageFormats.data(),
-        .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
-    };
+        const VkPipelineRenderingCreateInfo normalSpecRenderingInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount = imageFormats.size(),
+            .pColorAttachmentFormats = imageFormats.data(),
+            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
+        };
 
-    const VkPipelineDepthStencilStateCreateInfo depthStateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        .depthTestEnable = VK_TRUE,
-        .depthWriteEnable = VK_TRUE,
-        .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
-    };
+        constexpr VkPipelineDepthStencilStateCreateInfo depthStateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_TRUE,
+            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+        };
 
-    const VkGraphicsPipelineCreateInfo normalSpecGraphicsPipelineInfo{
-        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .pNext = &normalSpecRenderingInfo,
-        .stageCount = uint32_t(shaderStages.size()),
-        .pStages = shaderStages.data(),
-        .pVertexInputState = &vertexInputInfo,
-        .pInputAssemblyState = &inputAssemblyInfo,
-        .pRasterizationState = &rasterizerInfo,
-        .pMultisampleState = &multisamplingInfo,
-        .pDepthStencilState = &depthStateInfo,
-        .pColorBlendState = &colorBlendInfo,
-        .pDynamicState = &dynamicStateInfo,
-        .layout = m_NormalSpecPipelineLayout,
-    };
+        const VkGraphicsPipelineCreateInfo normalSpecGraphicsPipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &normalSpecRenderingInfo,
+            .stageCount = uint32_t(shaderStages.size()),
+            .pStages = shaderStages.data(),
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssemblyInfo,
+            .pRasterizationState = &rasterizerInfo,
+            .pMultisampleState = &multisamplingInfo,
+            .pDepthStencilState = &depthStateInfo,
+            .pColorBlendState = &colorBlendInfo,
+            .pDynamicState = &dynamicStateInfo,
+            .layout = m_NormalSpecPipelineLayout,
+        };
 
-    VK_CHECK(
-        vkCreateGraphicsPipelines(m_context.getDevice(),nullptr, 1, &normalSpecGraphicsPipelineInfo,nullptr,&
-            m_NormalSpecPipeline));
-    DBG_VK_NAME(m_NormalSpecPipeline);
+        VK_CHECK(
+            vkCreateGraphicsPipelines(m_context.getDevice(),nullptr, 1, &normalSpecGraphicsPipelineInfo,nullptr,&
+                m_NormalSpecPipeline));
+        DBG_VK_NAME(m_NormalSpecPipeline);
 
-    vkDestroyShaderModule(m_context.getDevice(), normalSpecVertexModule, nullptr);
-    vkDestroyShaderModule(m_context.getDevice(), normalSpecFragmentModule, nullptr);
+        vkDestroyShaderModule(m_context.getDevice(), normalSpecVertexModule, nullptr);
+        vkDestroyShaderModule(m_context.getDevice(), normalSpecFragmentModule, nullptr);
+    }
 
+    //point light pass
+    {
+        VkShaderModule pointLightVertexModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/PointLightDLBindless.vert.spv",device);
+        VkShaderModule pointLightFragmentModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/PointLightDLBindless.frag.spv",device);
+        DBG_VK_NAME(pointLightVertexModule);
+        DBG_VK_NAME(pointLightFragmentModule);
+
+        const std::array<VkPipelineShaderStageCreateInfo,2> shaderStages{
+            {
+             {
+                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                 .module = pointLightVertexModule,
+                 .pName = "main",
+             },
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                 .module = pointLightFragmentModule,
+                 .pName = "main",
+                },
+            }
+        };
+
+        const VkVertexInputBindingDescription &vertexInputBindingDescriptions = DefaultVertex::getBindingDescription();//It coudl be a position only vertex buffer but it should be accepted by the shader, if I had a LOT of point light, might be worth getting rid of the extra data
+        const auto &attributeDescriptions = DefaultVertex::getAttributeDescriptions();
+
+        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &vertexInputBindingDescriptions,
+            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),//TODO try replacing this by 1
+            .pVertexAttributeDescriptions = attributeDescriptions.data(),
+        };
+
+        constexpr VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            .primitiveRestartEnable = VK_FALSE,
+        };
+
+        constexpr std::array<VkPipelineColorBlendAttachmentState, 2> blendAttachmentStates = {//diffuse and specular, my first implementation kept all 4
+            {
+                {
+                    .blendEnable = VK_TRUE,
+                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .colorBlendOp = VK_BLEND_OP_ADD,
+                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .alphaBlendOp = VK_BLEND_OP_ADD,
+                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                          VK_COLOR_COMPONENT_A_BIT
+                },
+                {
+                    .blendEnable = VK_TRUE,
+                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .colorBlendOp = VK_BLEND_OP_ADD,
+                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .alphaBlendOp = VK_BLEND_OP_ADD,
+                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                          VK_COLOR_COMPONENT_A_BIT
+                }
+            }
+        };
+
+        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = blendAttachmentStates.size(),
+            .pAttachments = blendAttachmentStates.data(),
+        };
+
+        constexpr std::array<VkPushConstantRange,3> pushConstantRanges = {
+            {
+                {
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                    .offset = 0,
+                    .size = sizeof(glm::mat4),
+                },
+                {
+                .stageFlags = VK_SHADER_STAGE_ALL,
+                .offset = offsetof(PointLightPushConstants,radius),
+                .size = sizeof(float),
+                },
+                {
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .offset = offsetof(PointLightPushConstants,fragConstant),
+                    .size = sizeof(PointLightPushConstants::fragConstant),
+                }
+            }
+        };
+
+        const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
+            m_textureDescriptorSetLayout,//not actually6 used but I'll leave to ensure it stays bound
+            m_CameraDescriptorSetLayout,
+            m_ClipSpaceDescriptorLayout, //TODO: create this one
+        };
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = descriptorSetLayouts.size(),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = pushConstantRanges.size(),
+            .pPushConstantRanges = pushConstantRanges.data(),
+        };
+
+        VK_CHECK(vkCreatePipelineLayout(device,&pipelineLayoutInfo,nullptr,&m_PointLightPipelineLayout));
+        DBG_VK_NAME(m_PointLightPipelineLayout);
+
+        const std::array<VkFormat, 4> imageFormat{
+            {
+                m_gBuffer.getColorFormat(0),
+                m_gBuffer.getColorFormat(1),
+                m_gBuffer.getColorFormat(2),
+                m_gBuffer.getColorFormat(3),//might remove the color output on this pass later
+            }
+        };
+
+        const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount = imageFormat.size(),
+            .pColorAttachmentFormats = imageFormat.data(),
+            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
+        };
+
+        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
+          .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_FALSE,
+            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+        };
+    }
     //TODO light passes pipelines
 
 
@@ -1244,7 +1384,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             // does not need to be entirely valid (we can unload entries and load new one)
         };
 
-        const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
+        constexpr VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
             .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
             .pBindingFlags = flags.data(),
@@ -1274,7 +1414,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
     }
     //Camera descriptor, pushed before the frame recording
     {
-        const std::array<VkDescriptorSetLayoutBinding, 1> layoutBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 1> layoutBindings{
             {
                 {
                     .binding = 0,
@@ -1386,7 +1526,7 @@ utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer 
 void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
     constexpr VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
 
-    const VkImageCreateInfo imageInfo = {
+    constexpr VkImageCreateInfo imageInfo = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
         .format = format,
