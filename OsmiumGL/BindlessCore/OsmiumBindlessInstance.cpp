@@ -1118,7 +1118,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         const VkGraphicsPipelineCreateInfo normalSpecGraphicsPipelineInfo{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = &normalSpecRenderingInfo,
-            .stageCount = uint32_t(shaderStages.size()),
+            .stageCount = static_cast<uint32_t>(shaderStages.size()),
             .pStages = shaderStages.data(),
             .pVertexInputState = &vertexInputInfo,
             .pInputAssemblyState = &inputAssemblyInfo,
@@ -1274,6 +1274,105 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .depthWriteEnable = VK_FALSE,
             .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
         };
+
+        const VkGraphicsPipelineCreateInfo pointLightPipelineCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &pipelineRenderingInfo,
+            .stageCount = static_cast<uint32_t>(shaderStages.size()),
+            .pStages = shaderStages.data(),
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssemblyInfo,
+            .pRasterizationState = &rasterizerInfo,
+            .pMultisampleState = &multisamplingInfo,
+            .pDepthStencilState = &depthStencilStateInfo,
+            .pColorBlendState = &colorBlendStateInfo,
+            .pDynamicState = &dynamicStateInfo,
+            .layout = m_PointLightPipelineLayout,
+        };
+
+        VK_CHECK(
+            vkCreateGraphicsPipelines(device,nullptr,1,&pointLightPipelineCreateInfo,nullptr,&m_PointLightPipeline));
+        DBG_VK_NAME(m_PointLightPipeline);
+
+        vkDestroyShaderModule(device,pointLightVertexModule,nullptr);
+        vkDestroyShaderModule(device,pointLightFragmentModule,nullptr);
+    }
+    //Directional light pass
+    {
+        VkShaderModule dirLightVertexShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/DirectionalLightDLBindless.vert.spv",device);
+        VkShaderModule dirLightFragmentShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/DirectionalLightDLBindless.frag.spv",device);
+
+        DBG_VK_NAME(dirLightVertexShader);
+        DBG_VK_NAME(dirLightFragmentShader);
+
+        const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
+            {
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                    .module = dirLightVertexShader,
+                    .pName = "main",
+                },
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .module = dirLightFragmentShader,
+                    .pName = "main",
+                }
+            }
+        };
+
+        //no vertex input
+        //no vertex attributes
+
+        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 0,
+            .vertexAttributeDescriptionCount = 0,
+        };
+
+        constexpr VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            .primitiveRestartEnable = VK_FALSE,
+        };
+
+        constexpr std::array<VkPipelineColorBlendAttachmentState, 2> blendAttachmentStates = {
+            {
+                {
+                    .blendEnable = VK_TRUE,
+                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .colorBlendOp = VK_BLEND_OP_ADD,
+                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .alphaBlendOp = VK_BLEND_OP_ADD,
+                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                          VK_COLOR_COMPONENT_A_BIT
+                },
+                {
+                    .blendEnable = VK_TRUE,
+                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .colorBlendOp = VK_BLEND_OP_ADD,
+                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .alphaBlendOp = VK_BLEND_OP_ADD,
+                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                          VK_COLOR_COMPONENT_A_BIT
+                }
+            }
+        };
+
+        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = blendAttachmentStates.size(),
+            .pAttachments = blendAttachmentStates.data(),
+        };
+
+        //push constant ranges
     }
     //TODO light passes pipelines
 
