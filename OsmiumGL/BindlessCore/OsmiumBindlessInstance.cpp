@@ -1374,6 +1374,77 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         };
 
         //push constant ranges
+        const std::array<VkPushConstantRange,1> pushConstantRanges = {
+            {
+
+                {
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .offset = 0,
+                    .size = sizeof(DirectionalLightPushConstants)
+                }
+            }
+        };
+
+        const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
+            m_textureDescriptorSetLayout,//not used but I probablyu want to keep it bound
+            m_CameraDescriptorSetLayout,
+            m_ClipSpaceDescriptorLayout,
+        };
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = descriptorSetLayouts.size(),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = pushConstantRanges.size(),
+            .pPushConstantRanges = pushConstantRanges.data(),
+        };
+
+        VK_CHECK(
+            vkCreatePipelineLayout(m_context.getDevice(), &pipelineLayoutInfo, nullptr,&m_DirectionalLightPipelineLayout));
+        DBG_VK_NAME(m_DirectionalLightPipelineLayout);
+
+        const std::array<VkFormat,4> imageFormats = {//TODO if passing all framebuffers through, I can move the image formats on top of this
+            m_gBuffer.getColorFormat(0),
+            m_gBuffer.getColorFormat(1),
+            m_gBuffer.getColorFormat(2),
+            m_gBuffer.getColorFormat(3),//again, might remove the final output attechment from this pass
+        };
+
+        const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount = imageFormats.size(),
+            .pColorAttachmentFormats = imageFormats.data(),
+            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
+        };
+
+        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_FALSE,
+            .depthWriteEnable = VK_FALSE,
+        };
+
+        const VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &pipelineRenderingInfo,
+            .stageCount = static_cast<uint32_t>(shaderStages.size()),
+            .pStages = shaderStages.data(),
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssemblyInfo,
+            .pRasterizationState = &rasterizerInfo,
+            .pMultisampleState = &multisamplingInfo,
+            .pDepthStencilState = &depthStencilStateInfo,
+            .pColorBlendState = &colorBlendStateInfo,
+            .pDynamicState = &dynamicStateInfo,
+            .layout = m_DirectionalLightPipelineLayout,
+        };
+
+        VK_CHECK(
+            vkCreateGraphicsPipelines(device,nullptr,1, &pipelineCreateInfo, nullptr,&m_DirectionalLightPipeline));
+        DBG_VK_NAME(m_DirectionalLightPipeline);
+
+        vkDestroyShaderModule(device, dirLightVertexShader,nullptr);
+        vkDestroyShaderModule(device, dirLightFragmentShader,nullptr);
+
     }
     //TODO light passes pipelines
 
