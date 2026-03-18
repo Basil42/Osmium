@@ -1446,10 +1446,143 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         vkDestroyShaderModule(device, dirLightFragmentShader,nullptr);
 
     }
-    //TODO light passes pipelines
+    //TODO spot light pass
 
 
     //TODO shading pass
+    {
+        VkShaderModule shadingVertexShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/ShadingPassDLBindless.vert.spv",device);
+        VkShaderModule shadingFragmentShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/ShadingPassDLBindless.frag.spv",device);
+
+        DBG_VK_NAME(shadingVertexShader);
+        DBG_VK_NAME(shadingFragmentShader);
+
+        const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
+            {
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                    .module = shadingVertexShader,
+                    .pName = "main",
+                },
+                {
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                .module = shadingFragmentShader,
+                .pName = "main",
+                }
+            }
+        };
+
+        const VkVertexInputBindingDescription &bindingDescription = DefaultVertex::getBindingDescription();
+        const auto &attributeDescriptions = DefaultVertex::getAttributeDescriptions();
+        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &bindingDescription,
+            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
+            .pVertexAttributeDescriptions = attributeDescriptions.data(),
+        };
+
+        constexpr std::array<VkPipelineColorBlendAttachmentState, 4> ShadingColorBlendAttachment {
+            {
+                {
+                    .blendEnable = VK_FALSE,//read only
+                },
+                {
+                    .blendEnable = VK_FALSE, //read only
+                },
+                {
+                    .blendEnable = VK_FALSE,//read only
+                },
+                {
+                    .blendEnable = VK_FALSE,//one time write
+                }
+            }};
+
+        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = static_cast<uint32_t>(ShadingColorBlendAttachment.size()),
+            .pAttachments = ShadingColorBlendAttachment.data(),
+        };
+
+        constexpr std::array<VkPushConstantRange, 2> ShadingPushConstantRanges {
+            {
+                {
+                  .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                    .offset = 0,
+                    .size = sizeof(RenderedObjectPushData::model),
+                },
+                {
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .offset = offsetof(RenderedObjectPushData,shadingData),
+                    .size = sizeof(RenderedObjectPushData::shadingData),
+                }
+            }};
+
+        const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
+            m_textureDescriptorSetLayout,
+            m_CameraDescriptorSetLayout,
+            m_ambientLightDescriptorSetLayout,//TODO ambiant light descriptor
+        };
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = ShadingPushConstantRanges.size(),
+            .pPushConstantRanges = ShadingPushConstantRanges.data(),
+        };
+
+        VK_CHECK(vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr,&m_ShadingPipelineLayout));
+        DBG_VK_NAME(m_ShadingPipelineLayout);
+
+        const std::array<VkFormat, 4> imageFormats = {
+            {
+                m_gBuffer.getColorFormat(0),
+                m_gBuffer.getColorFormat(1),
+                m_gBuffer.getColorFormat(2),
+                m_gBuffer.getColorFormat(3),
+            }
+        };
+
+        const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount = imageFormats.size(),
+            .pColorAttachmentFormats = imageFormats.data(),
+            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
+        };
+
+        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_FALSE,//should not be required, depth buffer should still be valid
+            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+        };
+
+        const VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &pipelineRenderingCreateInfo,
+            .stageCount = static_cast<uint32_t>(shaderStages.size()),
+            .pStages = shaderStages.data(),
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssemblyInfo,
+            .pRasterizationState = &rasterizerInfo,
+            .pMultisampleState = &multisamplingInfo,
+            .pDepthStencilState = &depthStencilStateInfo,
+            .pColorBlendState = &colorBlendStateInfo,
+            .pDynamicState = &dynamicStateInfo,
+            .layout = m_ShadingPipelineLayout,
+        };
+
+        VK_CHECK(vkCreateGraphicsPipelines(device,nullptr,1, &pipelineCreateInfo,nullptr,&m_ShadingPipeline));
+        DBG_VK_NAME(m_ShadingPipeline);
+
+        vkDestroyShaderModule(device,shadingVertexShader,nullptr);
+        vkDestroyShaderModule(device,shadingFragmentShader,nullptr);
+    }
 }
 
 void OsmiumBindlessInstance::initImGui() {
