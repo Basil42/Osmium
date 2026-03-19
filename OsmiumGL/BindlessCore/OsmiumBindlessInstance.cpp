@@ -443,7 +443,7 @@ void OsmiumBindlessInstance::destroy() {
     vkDestroyCommandPool(device, m_transientCmdPool, nullptr);
     vkDestroySurfaceKHR(m_context.getInstance(), m_surface, nullptr);
 
-    vkDestroyDescriptorSetLayout(device, m_textureDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, m_TextureDescriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, m_CameraDescriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
     vkDestroyDescriptorPool(device, m_uiDescriptorPool, nullptr);
@@ -714,6 +714,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         };
 
         vkCmdPushDescriptorSet2(cmd, &pushDescriptorSetInfo);
+
     }
 
     //the sample prepares the push constants here, I should prepare the model push struct here
@@ -1074,7 +1075,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         };
 
         const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts{
-            m_textureDescriptorSetLayout, //Texture descriptor
+            m_TextureDescriptorSetLayout, //Texture descriptor
             m_CameraDescriptorSetLayout, //Camera data
         };
 
@@ -1236,9 +1237,9 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         };
 
         const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
-            m_textureDescriptorSetLayout,//not actually6 used but I'll leave to ensure it stays bound
+            m_TextureDescriptorSetLayout,//not actually6 used but I'll leave to ensure it stays bound
             m_CameraDescriptorSetLayout,
-            m_ClipSpaceDescriptorLayout, //TODO: create this one
+            m_ClipSpaceDescriptorLayout,
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
@@ -1499,14 +1500,14 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             .pBindings = layoutBindings.data(),
         };
         VK_CHECK(
-            vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_textureDescriptorSetLayout));
-        DBG_VK_NAME(m_textureDescriptorSetLayout);
+            vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_TextureDescriptorSetLayout));
+        DBG_VK_NAME(m_TextureDescriptorSetLayout);
 
         const VkDescriptorSetAllocateInfo allocInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
             .descriptorPool = m_descriptorPool,
             .descriptorSetCount = 1, //one set for all textures
-            .pSetLayouts = &m_textureDescriptorSetLayout,
+            .pSetLayouts = &m_TextureDescriptorSetLayout,
         };
         VK_CHECK(vkAllocateDescriptorSets(m_context.getDevice(),&allocInfo,&m_textureDescriptorSet));
         DBG_VK_NAME(m_textureDescriptorSet);
@@ -1535,9 +1536,56 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_CameraDescriptorSetLayout));
         DBG_VK_NAME(m_CameraDescriptorSetLayout);
     }
+    //clip space
+    {
+        constexpr std::array<VkDescriptorSetLayoutBinding, 1> layoutBindings{
+            {
+             {
+                 .binding = 0,
+                 .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                 .descriptorCount = 1,
+                 .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+             }
+            }
+        };
+
+        const VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT,
+            .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
+            .pBindings = layoutBindings.data()
+        };
+
+        VK_CHECK(
+            vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_ClipSpaceDescriptorLayout));
+        DBG_VK_NAME(m_ClipSpaceDescriptorLayout);
+    }
     //ambient light push descriptor
     {
+        constexpr std::array<VkDescriptorSetLayoutBinding, 1> layoutBindings{
+                {
+                    {
+                        .binding = 0,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    },
+                }
+        };
 
+        const VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT,
+            .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
+            .pBindings = layoutBindings.data(),
+        };
+
+         VK_CHECK(
+             vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_AmbientLightDescriptorSetLayout));
+        DBG_VK_NAME(m_AmbientLightDescriptorSetLayout);
+        //push descriptor, no need to create the actual set
     }
 }
 
