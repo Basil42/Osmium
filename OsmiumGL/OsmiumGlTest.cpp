@@ -24,11 +24,15 @@ int main(int argc, char *argv[]) {
         BindlessRenderedObject renderedObjectExample{
         .mesh = mesh,
         .pushData = {
-        .normalSpecPushData = {
-        .model = {1.0f},
-        .SmoothnessMapIndex = texture,}}};
+            .model = glm::mat4(1.0f),
+            .normalSpecPushData = {
+                .SmoothnessMapIndex = texture,},
+        // .shadingData = {
+        // .albedoMapIndex = ,
+        // .specularMapIndex = },
+        }};
         //TODO add rendered object
-        renderedObjectExample.pushData.normalSpecPushData.model[3][2] = -4.0f;
+        renderedObjectExample.pushData.model[3][2] = -4.0f;
         app.RegisterRenderedObjectInstance(renderedObjectExample);
         app.UpdateCameraSettings(45.0f);
         app.UpdateCameraInfo(glm::mat4(1.0f));

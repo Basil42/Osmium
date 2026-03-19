@@ -1483,11 +1483,11 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             // does not need to be entirely valid (we can unload entries and load new one)
         };
 
-        constexpr VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
+        const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
-            .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
+            .pNext = nullptr,
+            .bindingCount = static_cast<uint32_t>(flags.size()),
             .pBindingFlags = flags.data(),
-
         };
 
         const VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {
@@ -1534,6 +1534,10 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
         VK_CHECK(
             vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_CameraDescriptorSetLayout));
         DBG_VK_NAME(m_CameraDescriptorSetLayout);
+    }
+    //ambient light push descriptor
+    {
+
     }
 }
 
