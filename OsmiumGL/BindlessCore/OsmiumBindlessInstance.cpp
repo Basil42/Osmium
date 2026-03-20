@@ -1386,7 +1386,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         };
 
         const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
-            m_textureDescriptorSetLayout,//not used but I probablyu want to keep it bound
+            m_TextureDescriptorSetLayout,//not used but I probablyu want to keep it bound
             m_CameraDescriptorSetLayout,
             m_ClipSpaceDescriptorLayout,
         };
@@ -1523,9 +1523,9 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             }};
 
         const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
-            m_textureDescriptorSetLayout,
+            m_TextureDescriptorSetLayout,
             m_CameraDescriptorSetLayout,
-            m_ambientLightDescriptorSetLayout,//TODO ambiant light descriptor
+            m_AmbientLightDescriptorSetLayout,//TODO ambiant light descriptor
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
