@@ -10,7 +10,7 @@ layout(set = 1, binding = 0)uniform CameraMatricesObject {
     mat4 view;
     mat4 proj;
 } VP;
-layout(set = 2,binding = 0)uniform clipSpaceInfo{
+layout(set = 1,binding = 1)uniform clipSpaceInfo{
     vec2 ScreenSize;
     vec2 halfSizeNearPlane;
 };

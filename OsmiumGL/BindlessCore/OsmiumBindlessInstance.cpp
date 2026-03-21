@@ -398,7 +398,6 @@ void OsmiumBindlessInstance::init() {
                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     DBG_VK_NAME(m_clipSpaceInfoBuffer.buffer);
 
-    updateGraphicsDescriptorSet(); //probably going to replace this by an initilization of the camera data
 
     //resource arrays
 
@@ -826,12 +825,25 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         const VkDescriptorBufferInfo ClipSpaceBufferInfo{
             .buffer = m_clipSpaceInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
         };
-        const std::array<VkWriteDescriptorSet, 1> writeDescriptorSet = {
+        const VkDescriptorBufferInfo CameraBufferInfo{
+        .buffer = m_CameraInfoBuffer.buffer,
+        .offset = 0,
+        .range = VK_WHOLE_SIZE};
+        const std::array<VkWriteDescriptorSet, 2> writeDescriptorSet = {
             {
                 {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                     .dstSet = nullptr,
                     .dstBinding = 0,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .pBufferInfo = &CameraBufferInfo
+                },
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = nullptr,
+                    .dstBinding = 1,
                     .dstArrayElement = 0,
                     .descriptorCount = 1,//there are technically two bindings there, validation layers will likely help sort it out
                     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -1062,12 +1074,12 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         constexpr std::array<VkPushConstantRange,2> normalSpecPushConstantRanges = {
             {
                 {
-                    .stageFlags = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
                     .offset = 0,
                     .size = sizeof(glm::mat4),
                 },
                 {
-                    .stageFlags = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                     .offset = sizeof(glm::mat4),//offset might have alignement requirement, almost certainly valid here
                     .size = sizeof(NormalSpecData)
                 }
@@ -1181,8 +1193,11 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .primitiveRestartEnable = VK_FALSE,
         };
 
-        constexpr std::array<VkPipelineColorBlendAttachmentState, 2> blendAttachmentStates = {//diffuse and specular, my first implementation kept all 4
+        constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {//diffuse and specular, my first implementation kept all 4
             {
+                {
+                  .blendEnable = VK_FALSE, //Readonly
+                },
                 {
                     .blendEnable = VK_TRUE,
                     .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
@@ -1204,6 +1219,9 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                     .alphaBlendOp = VK_BLEND_OP_ADD,
                     .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                           VK_COLOR_COMPONENT_A_BIT
+                },
+                {
+                    .blendEnable = VK_FALSE,//not used in this case, it would be nive to fully omit it
                 }
             }
         };
@@ -1216,30 +1234,19 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .pAttachments = blendAttachmentStates.data(),
         };
 
-        constexpr std::array<VkPushConstantRange,3> pushConstantRanges = {
+        constexpr std::array<VkPushConstantRange,1> pushConstantRanges = {
             {
                 {
-                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                    .stageFlags = VK_SHADER_STAGE_ALL,
                     .offset = 0,
-                    .size = sizeof(glm::mat4),
+                    .size = sizeof(PointLightPushConstants),
                 },
-                {
-                .stageFlags = VK_SHADER_STAGE_ALL,
-                .offset = offsetof(PointLightPushConstants,radius),
-                .size = sizeof(float),
-                },
-                {
-                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .offset = offsetof(PointLightPushConstants,fragConstant),
-                    .size = sizeof(PointLightPushConstants::fragConstant),
-                }
             }
         };
 
-        const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
+        const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
             m_TextureDescriptorSetLayout,//not actually6 used but I'll leave to ensure it stays bound
-            m_CameraDescriptorSetLayout,
-            m_ClipSpaceDescriptorLayout,
+            m_LightPassDescriptorLayout,//includes camera info
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
@@ -1338,8 +1345,11 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .primitiveRestartEnable = VK_FALSE,
         };
 
-        constexpr std::array<VkPipelineColorBlendAttachmentState, 2> blendAttachmentStates = {
+        constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {
             {
+                {
+                    .blendEnable = VK_FALSE,//read only
+                },
                 {
                     .blendEnable = VK_TRUE,
                     .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
@@ -1361,7 +1371,10 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                     .alphaBlendOp = VK_BLEND_OP_ADD,
                     .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                           VK_COLOR_COMPONENT_A_BIT
-                }
+                },
+                {
+                .blendEnable = VK_FALSE,//not used in this pass
+                    }
             }
         };
 
@@ -1385,10 +1398,9 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             }
         };
 
-        const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
+        const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
             m_TextureDescriptorSetLayout,//not used but I probablyu want to keep it bound
-            m_CameraDescriptorSetLayout,
-            m_ClipSpaceDescriptorLayout,
+            m_LightPassDescriptorLayout,
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
@@ -1449,7 +1461,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
     //TODO spot light pass
 
 
-    //TODO shading pass
+    //Shading pass
     {
         VkShaderModule shadingVertexShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/ShadingPassDLBindless.vert.spv",device);
         VkShaderModule shadingFragmentShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/ShadingPassDLBindless.frag.spv",device);
@@ -1524,8 +1536,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
 
         const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
             m_TextureDescriptorSetLayout,
-            m_CameraDescriptorSetLayout,
-            m_AmbientLightDescriptorSetLayout,//TODO ambiant light descriptor
+            m_CameraDescriptorSetLayout,//TODO replace the two push descriptor layout by a unified shading layout with camera + ambient light
+            m_AmbientLightDescriptorSetLayout,
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
@@ -1742,14 +1754,31 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
     }
     //clip space
     {
-        constexpr std::array<VkDescriptorSetLayoutBinding, 1> layoutBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 4> layoutBindings{
             {
              {
                  .binding = 0,
                  .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                  .descriptorCount = 1,
                  .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
-             }
+             },
+                {
+                    .binding = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+                },
+                {
+                    .binding = 2,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                },
+                {
+                .binding = 3,
+                .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                .descriptorCount = 1,
+                .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,}
             }
         };
 
@@ -1762,8 +1791,8 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
         };
 
         VK_CHECK(
-            vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_ClipSpaceDescriptorLayout));
-        DBG_VK_NAME(m_ClipSpaceDescriptorLayout);
+            vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_LightPassDescriptorLayout));
+        DBG_VK_NAME(m_LightPassDescriptorLayout);
     }
     //ambient light push descriptor
     {
@@ -1793,50 +1822,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
     }
 }
 
-//TODO make this function more specific in regard to which ressource it updates
-void OsmiumBindlessInstance::updateGraphicsDescriptorSet() {
-    //TODO fix naming, it only updates the texture descriptor
 
-    const VkSampler sampler = m_samplerPool.acquireSampler({
-        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        .magFilter = VK_FILTER_LINEAR,
-        .minFilter = VK_FILTER_LINEAR,
-        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .maxLod = VK_LOD_CLAMP_NONE,
-    });
-    DBG_VK_NAME(sampler);
-
-    //the image info, I need something more generic, putting it there as an example for now
-    //TODO load a default texture for this
-    // std::array<VkDescriptorImageInfo, 2> imageInfo = {
-    //     {
-    //         {.sampler = sampler, .imageView = m_image[0].view, .imageLayout = m_image[0].layout},
-    //         {.sampler = sampler, .imageView = m_image[1].view, .imageLayout = m_image[1].layout},
-    //     }
-    // };
-    // std::array<VkWriteDescriptorSet, 1> writeDescriptorInfo = {
-    //     {
-    //         {
-    //             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    //             .dstSet = m_textureDescriptorSet,
-    //             .dstBinding = 0,
-    //             //here 0 as there is a single binding in the texture set, although they could be separated in different buckets in theory
-    //             .dstArrayElement = 0, //TODO use this to do targeted updates
-    //             .descriptorCount = static_cast<uint32_t>(imageInfo.size()),
-    //             //could still be used for contiguous updates in some cases
-    //             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    //             .pImageInfo = imageInfo.data(),
-    //         }
-    //     }
-    // };
-    // vkUpdateDescriptorSets(m_context.getDevice(), static_cast<uint32_t>(writeDescriptorInfo.size()),
-    //                        writeDescriptorInfo.data(), 0,
-    //                        nullptr);
-    //this is fine in initialization but it will require some synchronization effort for runtime updates
-}
 
 utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename) {
     // Load the image from disk

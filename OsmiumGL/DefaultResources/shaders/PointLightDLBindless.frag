@@ -4,8 +4,8 @@ layout(location = 0)in vec3 inViewDir;
 layout(location = 1)in vec2 inUV;//might not need that with subpass input
 layout(location = 2)in vec4 viewLightCenter;
 //could probably wrap this in a set
-layout(set = 2,binding = 1)uniform UBO{
-    layout(offset = 16)mat4 invProjMat;
+layout(set = 1,binding = 1)uniform UBO{
+    layout(offset = 16 +64 +64)mat4 invProjMat;
 };
 layout(input_attachment_index = 0,set = 1, binding = 2)uniform subpassInput depthBuffer;//wondering how ok is it to read from all these draw calls
 layout(input_attachment_index = 1,set = 1, binding = 3)uniform subpassInput normalAndSpreadBuffer;
