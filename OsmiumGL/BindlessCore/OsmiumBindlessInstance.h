@@ -85,7 +85,7 @@ private:
     utils::ImageResource loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename);
 
     void createDefaultTextureImage(VkCommandBuffer cmd);
-
+    void loadDefaultSphere(VkCommandBuffer cmd);
     //void createComputeShaderPipeline();//might use one eventually
 
     //members
@@ -130,7 +130,7 @@ private:
     VkDescriptorSetLayout m_TextureDescriptorSetLayout{}; // Descriptor set layout for all textures (set 0)
     VkDescriptorSetLayout m_CameraDescriptorSetLayout{}; // Descriptor set layout for the scene info (set 1)
     VkDescriptorSetLayout m_LightPassDescriptorLayout{};
-    VkDescriptorSetLayout m_AmbientLightDescriptorSetLayout{};
+    VkDescriptorSetLayout m_ShadingDescriptorSetLayout{};
     VkDescriptorSet m_textureDescriptorSet{}; // Application descriptor set (storing all textures)
 
     // Frame resources and synchronization

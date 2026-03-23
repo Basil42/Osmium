@@ -233,6 +233,7 @@ TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
         .dstSet = m_textureDescriptorSet,
         .dstBinding = 0,
         .dstArrayElement = resourceIndex,
+        .descriptorCount = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .pImageInfo = &descriptorImageInfo,
     };
@@ -662,8 +663,8 @@ void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {
     utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
                                   VK_PIPELINE_STAGE_2_TRANSFER_BIT); //ensure shaders are done running
     vkCmdUpdateBuffer(cmd, m_CameraInfoBuffer.buffer, 0, sizeof(SceneCameraInfo), &m_CameraInfoStruct);
-    utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-                                  VK_PIPELINE_STAGE_2_TRANSFER_BIT); //ensure buffer is updated before running shader
+    utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer,
+                                  VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT); //ensure buffer is updated before running shader
     //Shouldn't these stage be inverted on the second barrier ?
 
     //Update any other scene wide data here, probably the clip space data for example
@@ -720,15 +721,22 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
     //I'll probably have a list of model data, with model matrix, pointer to the vertex buffer
     RenderedObjectPushData PushData; //placeholder to initialize with
-    const VkPushConstantsInfo NormalSpecPushInfo{
+    const VkPushConstantsInfo modelPushInfo{
         .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
         .layout = m_NormalSpecPipelineLayout,
-        .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
         .offset = 0,
-        .size =  sizeof(RenderedObjectPushData),// might be sizeof(glm::mat4) + sizeof(NormalSpecData),
+        .size =  sizeof(RenderedObjectPushData::model),// might be sizeof(glm::mat4) + sizeof(NormalSpecData),
         .pValues = &PushData,
         //previously I would essentially change this value for each draw call, I'd be cool to move to an indirect draw method
     };
+    const VkPushConstantsInfo normalSpecPushConstantsInfo{
+    .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+    .layout = m_NormalSpecPipelineLayout,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .offset = offsetof(RenderedObjectPushData,normalSpecPushData),
+    .size =  sizeof(RenderedObjectPushData::normalSpecPushData),
+    .pValues = &PushData,};
 
     const std::array<VkRenderingAttachmentInfo, 4> colorAttachmentInfo = {
         {
@@ -813,7 +821,8 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         vkCmdBindIndexBuffer(cmd, meshResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
         for (const RenderedObjectPushData &pushData: pushDataCollection) {
             PushData = pushData;
-            vkCmdPushConstants2(cmd, &NormalSpecPushInfo);
+            vkCmdPushConstants2(cmd, &modelPushInfo);
+            vkCmdPushConstants2(cmd, &normalSpecPushConstantsInfo);
             //I feel like I should be able to push all the constant in one call and then do one draw call to get all the instances on that mesh
             vkCmdDrawIndexed(cmd, meshResource.IndexCount, 1, 0, 0, 0);
         }
@@ -856,7 +865,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
             .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
             .layout = m_PointLightPipelineLayout,
-            .set = 2,
+            .set = 1,
             .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
             .pDescriptorWrites = writeDescriptorSet.data(),
         };
@@ -1534,10 +1543,9 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                 }
             }};
 
-        const std::array<VkDescriptorSetLayout, 3> descriptorSetLayouts = {
+        const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
             m_TextureDescriptorSetLayout,
-            m_CameraDescriptorSetLayout,//TODO replace the two push descriptor layout by a unified shading layout with camera + ambient light
-            m_AmbientLightDescriptorSetLayout,
+            m_ShadingDescriptorSetLayout,
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
@@ -1796,14 +1804,38 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
     }
     //ambient light push descriptor
     {
-        constexpr std::array<VkDescriptorSetLayoutBinding, 1> layoutBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 5> layoutBindings{
                 {
                     {
                         .binding = 0,
                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                         .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                    },
+                    {
+                        .binding = 1,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                        .descriptorCount = 1,
                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                     },
+                    {
+                        .binding = 2,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    },
+                    {
+                        .binding = 3,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    },
+                    {
+                        .binding = 4,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    }
                 }
         };
 
@@ -1816,8 +1848,8 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
         };
 
          VK_CHECK(
-             vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_AmbientLightDescriptorSetLayout));
-        DBG_VK_NAME(m_AmbientLightDescriptorSetLayout);
+             vkCreateDescriptorSetLayout(m_context.getDevice(),&layoutCreateInfo,nullptr,&m_ShadingDescriptorSetLayout));
+        DBG_VK_NAME(m_ShadingDescriptorSetLayout);
         //push descriptor, no need to create the actual set
     }
 }

@@ -197,11 +197,15 @@ static VkAccessFlags2 inferAccessMaskFromStage(VkPipelineStageFlags2 stage, bool
 {
   VkAccessFlags2 access = 0;
 
-  // Handle each possible stage bit
-  if((stage & VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT) != 0)
-    access |= src ? VK_ACCESS_2_SHADER_READ_BIT : VK_ACCESS_2_SHADER_WRITE_BIT;
-  if((stage & VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT) != 0)
-    access |= src ? VK_ACCESS_2_SHADER_READ_BIT : VK_ACCESS_2_SHADER_WRITE_BIT;
+  // Shader stages: default to READ|WRITE for src (to flush writes), READ for dst (to consume)
+  const bool hasCompute  = (stage & VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT) != 0;
+  const bool hasFragment = (stage & VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT) != 0;
+  const bool hasVertex   = (stage & VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT) != 0;
+  if(hasCompute || hasFragment || hasVertex)
+  {
+    access |= src ? (VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT) : VK_ACCESS_2_SHADER_READ_BIT;
+  }
+
   if((stage & VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT) != 0)
     access |= VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;  // Always read-only
   if((stage & VK_PIPELINE_STAGE_2_TRANSFER_BIT) != 0)
