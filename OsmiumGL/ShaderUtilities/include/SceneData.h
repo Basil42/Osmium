@@ -17,4 +17,8 @@ struct ClipSpaceInfo {
     glm::mat4 invProjectionMatrix;
     glm::vec2 depthRange;
 };
+
+struct ShadingInfo {
+    glm::vec4 ambientLight;
+};
 #endif //SCENEDATA_H

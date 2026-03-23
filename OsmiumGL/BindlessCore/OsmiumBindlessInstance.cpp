@@ -186,6 +186,7 @@ void OsmiumBindlessInstance::run() {
 void OsmiumBindlessInstance::UpdateCameraInfo(glm::mat4 view) {
     //per frame camera update
     m_CameraInfoStruct.viewMatrix = view;
+
 }
 
 //setup and setting changes for the camera (fov only for now, but we could send an arbitrary struct in
@@ -202,6 +203,10 @@ void OsmiumBindlessInstance::UpdateCameraSettings(float radianVFOV) {
         .invProjectionMatrix = glm::inverse(m_CameraInfoStruct.projectionMatrix),
         .depthRange = glm::vec2(0.0f,1.0f)
     };
+}
+
+void OsmiumBindlessInstance::UpdateAmbientLightSettings(glm::vec4 ambientLight) {
+    m_ShadingInfoStruct.ambientLight = ambientLight;
 }
 
 TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
@@ -389,22 +394,29 @@ void OsmiumBindlessInstance::init() {
     //loading core pipelines
     createGraphicsPipelines();
 
-
+    //creating descriptor buffers
     m_CameraInfoBuffer = m_allocator.createBuffer(sizeof(SceneCameraInfo),
                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
     DBG_VK_NAME(m_CameraInfoBuffer.buffer);
+
     m_clipSpaceInfoBuffer = m_allocator.createBuffer(sizeof(ClipSpaceInfo),
                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     DBG_VK_NAME(m_clipSpaceInfoBuffer.buffer);
 
 
+    m_ShadingUniformBuffer = m_allocator.createBuffer(sizeof(ShadingInfo),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
     //resource arrays
 
     m_meshes = std::make_unique<ResourceArray<utils::MeshResource, 255> >();
     m_textures = std::make_unique<ResourceArray<utils::ImageResource, 255> >();
     m_pointLightInstances = std::make_unique<ResourceArray<PointLightPushConstants, 255> >();
+    m_directionalLightInstances = std::make_unique<ResourceArray<DirectionalLightPushConstants, 255> >();
+
+    m_DefaultSphereHandle = LoadMesh("../OsmiumGL/DefaultResources/models/sphere.obj");
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -660,7 +672,7 @@ void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
 
 void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {
     //TODO: low prio, I don't like this bit of sync, maybe having a camera uniform buffer per frame in flight would be better
-    utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+    utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,//not 100% convinced this should not be vertex stage
                                   VK_PIPELINE_STAGE_2_TRANSFER_BIT); //ensure shaders are done running
     vkCmdUpdateBuffer(cmd, m_CameraInfoBuffer.buffer, 0, sizeof(SceneCameraInfo), &m_CameraInfoStruct);
     utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer,
@@ -671,6 +683,7 @@ void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {
     utils::cmdBufferMemoryBarrier(cmd, m_clipSpaceInfoBuffer.buffer, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
         VK_PIPELINE_STAGE_2_TRANSFER_BIT);
     vkCmdUpdateBuffer(cmd, m_clipSpaceInfoBuffer.buffer,0,sizeof(ClipSpaceInfo), &m_ClipSpaceInfoStruct);
+    vkCmdUpdateBuffer(cmd,m_ShadingUniformBuffer.buffer,0,sizeof(ShadingInfo), &m_ShadingInfoStruct);
     utils::cmdBufferMemoryBarrier(cmd, m_clipSpaceInfoBuffer.buffer, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
                                   VK_PIPELINE_STAGE_2_TRANSFER_BIT);
 }
@@ -938,7 +951,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
             .layout = m_ShadingPipelineLayout,
-            .set = 2,
+            .set = 1,
             .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
             .pDescriptorWrites = writeDescriptorSet.data(),
         };
@@ -1964,3 +1977,5 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
 
     //TODO check if some sync is necessary here, I might need to replace this with some kind of pipelined alternative
 }
+
+

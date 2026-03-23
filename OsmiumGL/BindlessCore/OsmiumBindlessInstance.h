@@ -38,6 +38,8 @@ public:
 
     void UpdateCameraSettings(float radianVFOV);
 
+    void UpdateAmbientLightSettings(glm::vec4 ambientLight);
+
     TextureHandle LoadTexture(const std::string &filename);
 
     void UnloadTexture(TextureHandle textureHandle) const;
@@ -85,7 +87,7 @@ private:
     utils::ImageResource loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename);
 
     void createDefaultTextureImage(VkCommandBuffer cmd);
-    void loadDefaultSphere(VkCommandBuffer cmd);
+
     //void createComputeShaderPipeline();//might use one eventually
 
     //members
@@ -151,8 +153,10 @@ private:
     VkClearColorValue m_clearColor{{0.2f, 0.2f, 0.3f, 1.0f}}; // The clear color
 
     //Core scene data
+    //TODO initialize scene structs internally to reasonable defaults
     SceneCameraInfo m_CameraInfoStruct;
     ClipSpaceInfo m_ClipSpaceInfoStruct;
+    ShadingInfo m_ShadingInfoStruct;
 
 
     bool prepareFrameResources();

@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
         app.RegisterRenderedObjectInstance(renderedObjectExample);
         app.UpdateCameraSettings(45.0f);
         app.UpdateCameraInfo(glm::mat4(1.0f));
+        app.UpdateAmbientLightSettings(glm::vec4(0.0f,0.5f,0.5f,0.5f));
         app.run();
         glfwTerminate();
     }
