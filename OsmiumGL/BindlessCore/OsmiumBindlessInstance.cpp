@@ -457,6 +457,8 @@ void OsmiumBindlessInstance::destroy() {
 
     vkDestroyDescriptorSetLayout(device, m_TextureDescriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, m_CameraDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, m_LightPassDescriptorLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, m_ShadingDescriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
     vkDestroyDescriptorPool(device, m_uiDescriptorPool, nullptr);
 
@@ -469,6 +471,7 @@ void OsmiumBindlessInstance::destroy() {
 
     m_allocator.destroyBuffer(m_CameraInfoBuffer);
     m_allocator.destroyBuffer(m_clipSpaceInfoBuffer);
+    m_allocator.destroyBuffer(m_ShadingUniformBuffer);
 
     m_gBuffer.deinit();
     m_allocator.freeStagingBuffers();
@@ -814,7 +817,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     vkCmdSetScissorWithCount(cmd, 1, &scissor);
 
     //binding the texture data
-    const VkBindDescriptorSetsInfo bindDescriptorSetsInfo{
+    VkBindDescriptorSetsInfo bindDescriptorSetsInfo{
         .sType = VK_STRUCTURE_TYPE_BIND_DESCRIPTOR_SETS_INFO,
         .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
         .layout = m_NormalSpecPipelineLayout,
@@ -929,12 +932,19 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     //TODO: Spot Lights pass
     //Shading pass
     {
+        //rebinding the texture descriptor, due to a quirk of the spec that makes pipelines with different push constant ranges
+        bindDescriptorSetsInfo.layout = m_ShadingPipelineLayout;
+        vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
+        const VkDescriptorBufferInfo CameraBufferInfo{
+            .buffer = m_CameraInfoBuffer.buffer,
+            .offset = 0,
+            .range = VK_WHOLE_SIZE};
         const  VkDescriptorBufferInfo AmbientLightBufferInfo{
             .buffer = m_ShadingUniformBuffer.buffer,
             .offset = 0,
             .range = VK_WHOLE_SIZE
         };
-        const std::array<VkWriteDescriptorSet, 1> writeDescriptorSet = {
+        const std::array<VkWriteDescriptorSet, 5> writeDescriptorSet = {//could make this static
             {
                 {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -943,8 +953,42 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                     .dstArrayElement = 0,
                     .descriptorCount = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .pBufferInfo = &CameraBufferInfo,
+                },
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = nullptr,
+                    .dstBinding = 1,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     .pBufferInfo = &AmbientLightBufferInfo,
-                }
+                },{
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = nullptr,
+                    .dstBinding = 2,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(1),
+                },
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = nullptr,
+                    .dstBinding = 3,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(2),
+                },{
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = nullptr,
+                    .dstBinding = 4,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(3),
+                },
             }
         };
         const VkPushDescriptorSetInfo PushDescriptorSetInfo{
@@ -960,15 +1004,26 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
         //push constants
         RenderedObjectPushData renderedObjectPushData;
-        const VkPushConstantsInfo RenderedObjectPushConstantInfo{
+        const VkPushConstantsInfo modelPushConstantInfo{
             .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
             .pNext = nullptr,
             .layout = m_ShadingPipelineLayout,
-            .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
             .offset = 0,
-            .size = sizeof(renderedObjectPushData),//should skip over the normal spec data through constant ranges definitions
+            .size = sizeof(RenderedObjectPushData::model),//should skip over the normal spec data through constant ranges definitions
             .pValues = &renderedObjectPushData,
         };
+
+        const VkPushConstantsInfo TexturesPushConstantInfo{
+            .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+            .pNext = nullptr,
+            .layout = m_ShadingPipelineLayout,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = offsetof(RenderedObjectPushData,shadingData),
+            .size = sizeof(RenderedObjectPushData::shadingData),//should skip over the normal spec data through constant ranges definitions
+            .pValues = &renderedObjectPushData,
+        };
+
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadingPipeline);
         for (const auto& mesh : m_renderedObjects) {
@@ -978,7 +1033,8 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             vkCmdBindIndexBuffer(cmd, meshResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
             for (const RenderedObjectPushData &pushData : pushDataCollection) {
                 renderedObjectPushData = pushData;
-                vkCmdPushConstants2(cmd, &RenderedObjectPushConstantInfo);
+                vkCmdPushConstants2(cmd, &modelPushConstantInfo);
+                vkCmdPushConstants2(cmd, &TexturesPushConstantInfo);
                 vkCmdDrawIndexed(cmd, meshResource.IndexCount, 1, 0, 0, 0);
             }
         }

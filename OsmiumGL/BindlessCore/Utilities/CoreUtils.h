@@ -1709,7 +1709,7 @@ private:
     {
       {  // Color image
         const VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT
-                                        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                                        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;//TODO refine the usage flags to exclude the input one from the final output
         const VkImageCreateInfo info = {
             .sType       = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .imageType   = VK_IMAGE_TYPE_2D,
