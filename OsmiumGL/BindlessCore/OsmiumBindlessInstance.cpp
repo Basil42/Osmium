@@ -1192,8 +1192,19 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             }
         };
 
+        constexpr std::array<uint32_t,4> colorAttachmentIndexes {0,1,2,3};//technically none of these are used as input on the normal spec pass
+        const VkRenderingInputAttachmentIndexInfo normalSpecInputInfo {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO,
+            .pNext = nullptr,
+            .colorAttachmentCount = colorAttachmentIndexes.size(),
+            .pColorAttachmentInputIndices = colorAttachmentIndexes.data(),
+            .pDepthInputAttachmentIndex = nullptr,//not used as input in normal spec
+            .pStencilInputAttachmentIndex = nullptr,
+        };
+
         const VkPipelineRenderingCreateInfo normalSpecRenderingInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .pNext = &normalSpecInputInfo,
             .colorAttachmentCount = imageFormats.size(),
             .pColorAttachmentFormats = imageFormats.data(),
             .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
