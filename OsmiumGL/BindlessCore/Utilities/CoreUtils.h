@@ -8,6 +8,7 @@
 #include <cassert>
 #include <span>
 #include <volk.h>
+#include <thread>
 
 #include "debug_utils.h"
 #include "imgui.h"

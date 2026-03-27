@@ -165,7 +165,7 @@ constexpr VkObjectType DebugUtil::getObjectType()
 #define DBG_VK_NAME(obj)                                                                                                       \
   if(utils::DebugUtil::getInstance().isInitialized())                                                                          \
   utils::DebugUtil::getInstance().setObjectName(                                                                               \
-      obj, std::string(std::max(std::max(typeid(*this).name(), strrchr(typeid(*this).name(), ' ') + 1), typeid(*this).name())) \
+      obj, std::string(std::max<const char *>({typeid(*this).name(), strrchr(typeid(*this).name(), ' ') + 1, typeid(*this).name()})) \
                + "::" + #obj + " (" + std::string(" in ")                                                                      \
                + std::max({__FILE__, strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__,                         \
                            strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__})                                    \
