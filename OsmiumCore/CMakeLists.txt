@@ -19,7 +19,7 @@ set(OSMIUMCORE_SOURCES
         AssetManagement/AssetType/MeshAsset.cpp
         AssetManagement/AssetType/DefaultAsset.cpp
         GOComponents/GOC_Camera.cpp
-        GOComponents/GOC_DIrectionalLight.cpp
+        GOComponents/GOC_DirectionalLight.cpp
         AssetManagement/AssetType/TextureAsset.cpp
 
 )
@@ -44,7 +44,7 @@ set(OSMIUMCORE_HEADERS
         GOComponents/GOC_Camera.h
         Base/GameObjectCreation.h
         Base/config.h
-        GOComponents/GOC_DIrectionalLight.h
+        GOComponents/GOC_DirectionalLight.h
         GOComponents/GOC_PointLight.cpp
         GOComponents/GOC_PointLight.h
         AssetManagement/AssetType/TextureAsset.h
