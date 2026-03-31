@@ -588,6 +588,8 @@ private:
          VK_VERSION_MINOR(properties2.properties.driverVersion), VK_VERSION_PATCH(properties2.properties.driverVersion));
     LOGI("Vulkan API: %d.%d.%d", VK_VERSION_MAJOR(properties2.properties.apiVersion),
          VK_VERSION_MINOR(properties2.properties.apiVersion), VK_VERSION_PATCH(properties2.properties.apiVersion));
+
+    ASSERT(properties2.properties.apiVersion >= VK_MAKE_API_VERSION(0,1,4,0), "Require vulkan 1.4 driver, update drivers");
   }
 
   /*--
@@ -692,8 +694,8 @@ private:
     ASSERT(m_features13.dynamicRendering, "Dynamic rendering required, update driver!");
     ASSERT(m_features13.maintenance4, "Extension VK_KHR_maintenance4 required, update driver!");  // vkGetDeviceBufferMemoryRequirementsKHR, ...
     ASSERT(m_features14.maintenance5, "Extension VK_KHR_maintenance5 required, update driver!");  // VkBufferUsageFlags2KHR, ...
-    m_deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
     ASSERT(m_features14.maintenance6, "Extension VK_KHR_maintenance6 required, update driver!");  // vkCmdPushConstants2KHR, vkCmdBindDescriptorSets2KHR
+
 
     // Get information about what the device can do
     VkPhysicalDeviceProperties2 deviceProperties{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
