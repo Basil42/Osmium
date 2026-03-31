@@ -106,7 +106,7 @@ target_link_libraries(IMGUI PUBLIC volk glfw)
 
 add_custom_target(copy_default_resources COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_CURRENT_LIST_DIR}/DefaultResources ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources)
 add_dependencies(OsmiumGL copy_default_resources)
-if(win32)
+if(WIN32)
     add_custom_target(compile_default_shaders COMMAND cmd /c ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources/shaders/defaultShadersCompile.bat)
 else ()
     add_custom_target(compile_default_shaders COMMAND ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources/shaders/defaultShadersCompile.sh)

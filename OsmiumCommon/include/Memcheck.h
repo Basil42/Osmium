@@ -15,7 +15,7 @@ static bool CanAllocate(size_t size) {
     GlobalMemoryStatus(&statex);
     // std::cout << statex.ullTotalPhys / 1024 / 1024 << std::endl;
     // std::cout << statex.ullAvailPhys / 1024 / 1024 << std::endl;
-    return statex.ullAvailPhys >= size;//probably needs some kind of overhead
+    return statex.dwAvailPhys >= size;//probably needs some kind of overhead
 }
 #endif
 
