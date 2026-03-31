@@ -6,6 +6,9 @@
 #define COMMONSTRUCTS_H
 #include <array>
 #include <cassert>
+#if __linux__
+#include <csignal>
+#endif
 #include <span>
 #include <volk.h>
 #include <thread>
@@ -689,6 +692,7 @@ private:
     ASSERT(m_features13.dynamicRendering, "Dynamic rendering required, update driver!");
     ASSERT(m_features13.maintenance4, "Extension VK_KHR_maintenance4 required, update driver!");  // vkGetDeviceBufferMemoryRequirementsKHR, ...
     ASSERT(m_features14.maintenance5, "Extension VK_KHR_maintenance5 required, update driver!");  // VkBufferUsageFlags2KHR, ...
+    m_deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
     ASSERT(m_features14.maintenance6, "Extension VK_KHR_maintenance6 required, update driver!");  // vkCmdPushConstants2KHR, vkCmdBindDescriptorSets2KHR
 
     // Get information about what the device can do
@@ -881,7 +885,10 @@ public:
     const VkSurfaceFormat2KHR surfaceFormat2 = selectSwapSurfaceFormat(formats);
     const VkPresentModeKHR    presentMode    = selectSwapPresentMode(presentModes, vSync);
     // Set the window size according to the surface's current extent
-    outWindowSize = capabilities2.surfaceCapabilities.currentExtent;
+    outWindowSize = {
+      .width=std::clamp(capabilities2.surfaceCapabilities.currentExtent.width, capabilities2.surfaceCapabilities.minImageExtent.width, 1920u),
+      .height=std::clamp(capabilities2.surfaceCapabilities.currentExtent.height, capabilities2.surfaceCapabilities.minImageExtent.height, 1080u),
+    };//clamping to hd because wayland returns 0xFFFFFFFF and max extend would be several terrabytes
 
     // Adjust the number of images in flight within GPU limitations
     uint32_t minImageCount       = capabilities2.surfaceCapabilities.minImageCount;  // Vulkan-defined minimum
@@ -904,7 +911,7 @@ public:
         .minImageCount    = m_maxFramesInFlight,
         .imageFormat      = surfaceFormat2.surfaceFormat.format,
         .imageColorSpace  = surfaceFormat2.surfaceFormat.colorSpace,
-        .imageExtent      = capabilities2.surfaceCapabilities.currentExtent,
+        .imageExtent      = outWindowSize,
         .imageArrayLayers = 1,
         .imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,

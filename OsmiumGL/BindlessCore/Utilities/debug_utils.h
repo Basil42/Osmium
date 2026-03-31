@@ -41,6 +41,7 @@
 #include <type_traits>  // std::is_same_v
 #include <cstring>      // for strrchr
 #include <string>
+#include <algorithm>
 
 namespace utils {
 

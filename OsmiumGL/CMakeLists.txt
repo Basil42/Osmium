@@ -96,7 +96,7 @@ target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
 #target_link_libraries(OsmiumGL PRIVATE vk-bootstrap-compiler-warnings)
 target_compile_features(OsmiumGL PRIVATE cxx_std_20)
 
-set(CMAKE_EXE_LINKER_FLAGS " -static")
+#set(CMAKE_EXE_LINKER_FLAGS " -static")
 target_link_libraries(OsmiumGL PRIVATE -static-libgcc -static-libstdc++)
 target_link_libraries(OsmiumGL PUBLIC IMGUI)
 
@@ -104,10 +104,13 @@ target_compile_definitions(IMGUI PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK)
 target_link_libraries(IMGUI PUBLIC volk glfw)
 
 
-add_custom_target(copy_default_resources COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/DefaultResources ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources)
+add_custom_target(copy_default_resources COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_CURRENT_LIST_DIR}/DefaultResources ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources)
 add_dependencies(OsmiumGL copy_default_resources)
-
-add_custom_target(compile_default_shaders COMMAND cmd /c ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources/shaders/defaultShadersCompile.bat)
+if(win32)
+    add_custom_target(compile_default_shaders COMMAND cmd /c ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources/shaders/defaultShadersCompile.bat)
+else ()
+    add_custom_target(compile_default_shaders COMMAND ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources/shaders/defaultShadersCompile.sh)
+endif ()
 add_dependencies(compile_default_shaders copy_default_resources)
 add_dependencies(OsmiumGL compile_default_shaders)
 #add_custom_target(copy_default_shaders COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/TestShaders ${CMAKE_CURRENT_BINARY_DIR}/TestShaders)

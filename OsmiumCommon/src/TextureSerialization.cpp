@@ -5,7 +5,7 @@
 #include "TextureSerialization.h"
 
 #include <cassert>
-#include <cmath>
+#include <algorithm>
 
 #include "MeshSerialization.h"
 #define STB_IMAGE_IMPLEMENTATION

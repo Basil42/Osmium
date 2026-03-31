@@ -5,7 +5,6 @@
 #ifndef SHADERUTILITIES_H
 #define SHADERUTILITIES_H
 #include <fstream>
-#include <io.h>
 #include <vector>
 
 namespace ShaderUtils{
