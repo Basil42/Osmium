@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "PointLights.h"
 #include "RenderedObjectData.h"
 #include "BindlessCore/OsmiumBindlessInstance.h"
 #include "BindlessCore/Utilities/CoreUtils.h"
@@ -37,6 +38,18 @@ int main(int argc, char *argv[]) {
         app.UpdateCameraSettings(45.0f);
         app.UpdateCameraInfo(glm::mat4(1.0f));
         app.UpdateAmbientLightSettings(glm::vec4(0.0f,0.5f,0.5f,0.5f));
+        PointLightPushConstants testPointLight{
+            .vertConstant = {
+                .model = glm::mat4(1.0f),
+            },
+            .radius = 15.0f,
+            .fragConstant = {
+            .color = {1.0f,0.0f,0.0f,1.0f}
+            }
+        };
+        testPointLight.vertConstant.model[3][0] = -5.0f;
+        testPointLight.vertConstant.model[3][2] = -4.0f;
+        app.RegisterPointLightInstance(testPointLight);
         app.run();
         glfwTerminate();
     }

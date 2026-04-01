@@ -281,7 +281,7 @@ void OsmiumBindlessInstance::UnloadMesh(MeshHandle meshHandle) {
     m_meshes->Remove(meshHandle);
 }
 
-RenderObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(BindlessRenderedObject &renderedObject) {
+RenderObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(const BindlessRenderedObject &renderedObject) {
     return {
         .mesh = renderedObject.mesh,
         .index = m_renderedObjects[renderedObject.mesh].Add(renderedObject.pushData)
@@ -289,9 +289,44 @@ RenderObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(Bindle
 }
 
 void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(RenderObjectHandle &renderedObject) {
-    auto pushdata = m_renderedObjects.at(renderedObject.mesh);
+    auto pushdata = m_renderedObjects.at(renderedObject.mesh);//might want to sanitize this a bit
     pushdata.Remove(renderedObject.index);
     if (pushdata.GetCount() == 0) m_renderedObjects.erase(renderedObject.mesh);
+}
+
+PointLightHandle OsmiumBindlessInstance::RegisterPointLightInstance(const PointLightPushConstants &lightData) const {
+    return m_pointLightInstances->Add(lightData);
+}
+
+void OsmiumBindlessInstance::UnregisterPointLightInstance(const PointLightHandle &lightHandle) const {
+    m_pointLightInstances->Remove(lightHandle);
+}
+
+bool OsmiumBindlessInstance::UpdatePointLight(const PointLightHandle &lightHandle, const PointLightPushConstants &lightData) const {
+    if (m_pointLightInstances->contains(lightHandle)) {
+        m_pointLightInstances->get(lightHandle) = lightData;
+        return true;
+    }
+    return false;
+
+}
+
+DirectionalLightHandle OsmiumBindlessInstance::
+RegisterDirectionalLightInstance(const DirectionalLightPushConstants &lightData) const {
+    return m_directionalLightInstances->Add(lightData);
+}
+
+void OsmiumBindlessInstance::UnregisterDirectionalLightInstance(const DirectionalLightHandle &lightHandle) const {
+    m_directionalLightInstances->Remove(lightHandle);//is it safe to attempt to remove a non-existent element
+}
+
+bool OsmiumBindlessInstance::UpdateDirectionalLight(const DirectionalLightHandle &lightHandle,
+    const DirectionalLightPushConstants &lightData) const {
+    if (m_directionalLightInstances->contains(lightHandle)) {
+        m_directionalLightInstances->get(lightHandle) = lightData;
+        return true;
+    }
+    return false;
 }
 
 
@@ -1320,7 +1355,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         constexpr std::array<VkPushConstantRange,1> pushConstantRanges = {
             {
                 {
-                    .stageFlags = VK_SHADER_STAGE_ALL,
+                    .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
                     .offset = 0,
                     .size = sizeof(PointLightPushConstants),
                 },

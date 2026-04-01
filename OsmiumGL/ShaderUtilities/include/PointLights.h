@@ -16,4 +16,5 @@ struct PointLightPushConstants {
     }fragConstant;
 
 };
+
 #endif //POINTLIGHTS_H

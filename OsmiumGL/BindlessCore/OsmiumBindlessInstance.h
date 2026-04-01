@@ -22,6 +22,8 @@ struct BindlessRenderedObject;
 class GLFWwindow;
 using MeshHandle = unsigned int;
 using TextureHandle = unsigned int;
+using PointLightHandle = unsigned int;
+using DirectionalLightHandle = unsigned int;
 
 
 class OsmiumBindlessInstance {
@@ -48,9 +50,17 @@ public:
 
     void UnloadMesh(MeshHandle meshHandle);
 
-    RenderObjectHandle RegisterRenderedObjectInstance(BindlessRenderedObject& renderedObject);
+    RenderObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
 
     void UnregisterRenderedObjectInstance(RenderObjectHandle& renderedObject);
+
+    PointLightHandle RegisterPointLightInstance(const PointLightPushConstants &lightData) const;
+    void UnregisterPointLightInstance(const PointLightHandle& lightHandle) const;
+    bool UpdatePointLight(const PointLightHandle& lightHandle, const PointLightPushConstants &lightData) const;
+
+    DirectionalLightHandle RegisterDirectionalLightInstance(const DirectionalLightPushConstants &lightData) const;
+    void UnregisterDirectionalLightInstance(const DirectionalLightHandle& lightHandle) const;
+    bool UpdateDirectionalLight(const DirectionalLightHandle& lightHandle, const DirectionalLightPushConstants &lightData) const;
 
 private:
     void init();
