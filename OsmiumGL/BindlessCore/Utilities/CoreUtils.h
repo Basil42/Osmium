@@ -1764,7 +1764,7 @@ private:
           .mipLevels   = 1,
           .arrayLayers = 1,
           .samples     = m_createInfo.sampleCount,
-          .usage       = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+          .usage       = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
       };
       m_res.gBufferDepth = m_createInfo.alloc->createImage(createInfo);
       dutil.setObjectName(m_res.gBufferDepth.image, "G-Depth");

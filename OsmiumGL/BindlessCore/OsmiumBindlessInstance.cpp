@@ -881,6 +881,9 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
     //Point lights
     {
+        vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_PointLightPipeline);
+        bindDescriptorSetsInfo.layout = m_PointLightPipelineLayout;
+        vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
     //push descriptor
         const VkDescriptorBufferInfo ClipSpaceBufferInfo{
             .buffer = m_clipSpaceInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
@@ -889,7 +892,23 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         .buffer = m_CameraInfoBuffer.buffer,
         .offset = 0,
         .range = VK_WHOLE_SIZE};
-        const std::array<VkWriteDescriptorSet, 2> writeDescriptorSet = {
+
+        const VkSamplerCreateInfo samplerInfo{
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = VK_FILTER_LINEAR,
+            .minFilter = VK_FILTER_LINEAR,
+        };
+        const VkDescriptorImageInfo depthImageInfo{
+            .sampler = m_samplerPool.acquireSampler(samplerInfo),
+            .imageView = m_gBuffer.getDepthImageView(),
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+        };
+        const VkDescriptorImageInfo normalSpecImageInfo{
+            .sampler = m_samplerPool.acquireSampler(samplerInfo),
+            .imageView = m_gBuffer.getColorImageView(0),
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+        };
+        const std::array<VkWriteDescriptorSet, 4> writeDescriptorSet = {
             {
                 {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -908,6 +927,26 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                     .descriptorCount = 1,//there are technically two bindings there, validation layers will likely help sort it out
                     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     .pBufferInfo = &ClipSpaceBufferInfo,
+                },
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .pNext = nullptr,
+                    .dstSet = nullptr,
+                    .dstBinding = 2,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                    .pImageInfo = &depthImageInfo
+                },
+                {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .pNext = nullptr,
+                    .dstSet = nullptr,
+                    .dstBinding = 3,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                    .pImageInfo = &normalSpecImageInfo
                 }
             }
         };
@@ -946,6 +985,9 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
     //Directional lights
     {
+        vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_DirectionalLightPipeline);
+        bindDescriptorSetsInfo.layout = m_DirectionalLightPipelineLayout;
+        vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
         //push descriptor is still valid, only push constants are different
         DirectionalLightPushConstants DirLightPushConstantData{};
         const VkPushConstantsInfo PushConstantInfo{
