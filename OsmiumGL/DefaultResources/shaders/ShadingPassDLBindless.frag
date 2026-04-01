@@ -21,7 +21,7 @@ layout(push_constant)uniform shadingData{
 layout(location = 0)in vec2 TexCoord;
 layout(location = 1)in vec3 viewPos;
 
-layout(location = 0)out vec4 outColor;
+layout(location = 3)out vec4 outColor;
 void main() {
     vec3 viewDir = normalize(-viewPos);
     vec4 albedo = texture(Textures[albedoMapIndex],TexCoord);
