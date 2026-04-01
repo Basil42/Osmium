@@ -1145,7 +1145,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .polygonMode = VK_POLYGON_MODE_FILL,
         .cullMode = VK_CULL_MODE_BACK_BIT, //strangely the sample doesn't enable back culling
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        .frontFace = VK_FRONT_FACE_CLOCKWISE,//TODO check that the obj reader handles this correctly
         .lineWidth = 1.0f,
     };
     constexpr VkPipelineMultisampleStateCreateInfo multisamplingInfo = {

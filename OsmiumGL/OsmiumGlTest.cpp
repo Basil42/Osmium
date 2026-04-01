@@ -42,12 +42,12 @@ int main(int argc, char *argv[]) {
             .vertConstant = {
                 .model = glm::mat4(1.0f),
             },
-            .radius = 15.0f,
+            .radius = 1.0f,
             .fragConstant = {
             .color = {1.0f,0.0f,0.0f,1.0f}
             }
         };
-        testPointLight.vertConstant.model[3][0] = -5.0f;
+        testPointLight.vertConstant.model[3][0] = 1.0f;
         testPointLight.vertConstant.model[3][2] = -4.0f;
         app.RegisterPointLightInstance(testPointLight);
         app.run();
