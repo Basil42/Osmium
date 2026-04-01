@@ -1276,12 +1276,6 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .pVertexAttributeDescriptions = attributeDescriptions.data(),
         };
 
-        constexpr VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-            .primitiveRestartEnable = VK_FALSE,
-        };
-
         constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {//diffuse and specular, my first implementation kept all 4
             {
                 {
@@ -1426,12 +1420,6 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .vertexBindingDescriptionCount = 0,
             .vertexAttributeDescriptionCount = 0,
-        };
-
-        constexpr VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-            .primitiveRestartEnable = VK_FALSE,
         };
 
         constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {
