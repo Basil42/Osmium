@@ -592,7 +592,24 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
     ImGui::Render();
 
     //recordComputeCommands(cmd); //the sample uses the compute shader to update the vertex buffer, which seems nonsensical so far, but I'll look it up later
-    RecordGraphicsCommands(cmd); //updating scene descriptors
+    RecordGraphicsCommands(cmd);
+    //flushing framebuffer write before imgui reads it
+    {
+        VkMemoryBarrier2 memBarrier{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            .dstAccessMask = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT
+        };
+        VkDependencyInfo dependencyInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &memBarrier,
+        };
+        vkCmdPipelineBarrier2(cmd, &dependencyInfo);
+    }
 
     //beginDynamicRenderingToSwapchain(cmd);
     //implemeting inline
@@ -885,6 +902,24 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         }
     }
 
+    {
+        //normal spec to point light barrier
+        VkMemoryBarrier2 memBarrier{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            .dstAccessMask = VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT
+        };
+        VkDependencyInfo dependencyInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &memBarrier,
+        };
+        vkCmdPipelineBarrier2(cmd, &dependencyInfo);
+    }
+    //I previously chained a barrier back to writing out to frame buffers,
     //Point lights
     {
         vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_PointLightPipeline);
@@ -988,7 +1023,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             vkCmdDrawIndexed(cmd, pointLightResource.IndexCount, 1, 0, 0, 0);
         }
     }
-
+    //I don't need a barrier here all lights read and write to the same buffers
     //Directional lights
     {
         vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_DirectionalLightPipeline);
@@ -1013,6 +1048,24 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         }
     }
     //TODO: Spot Lights pass
+
+    //barrier from light to shading
+    {
+        VkMemoryBarrier2 memBarrier{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            .dstAccessMask = VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT
+        };
+        VkDependencyInfo dependencyInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &memBarrier,
+        };
+        vkCmdPipelineBarrier2(cmd, &dependencyInfo);
+    }
     //Shading pass
     {
         //rebinding the texture descriptor, due to a quirk of the spec that makes pipelines with different push constant ranges
