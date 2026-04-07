@@ -2099,7 +2099,6 @@ utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer 
     VK_CHECK(vkCreateImageView(m_context.getDevice(), &viewInfo, nullptr, &image.view));
     DBG_VK_NAME(image.view);
 
-    //TODO probably need a memory barrier here
     return image;
 }
 
