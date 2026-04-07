@@ -574,7 +574,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
 
     //TODO: move out the docking stuff to the editor
     if (ImGui::Begin("ViewPort")) {
-        ImGui::Image(m_gBuffer.getImTextureID(2), ImGui::GetContentRegionAvail());//image index can be changed here to render one of the framebuffer in the viewport
+        ImGui::Image(m_gBuffer.getImTextureID(3), ImGui::GetContentRegionAvail());//image index can be changed here to render one of the framebuffer in the viewport
 
         //overlay stuff, might remove later
         ImGui::SetCursorPos(ImVec2(0, 0));
@@ -820,7 +820,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,//TODO: I might not actually need to store them and use these as a cache local texture (might need specific VMA setting son texture creation
-                .clearValue = {{m_clearColor}},
+                .clearValue = {{0.0f,0.0f,0.0f,0.0f}},
             },
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -828,7 +828,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                .clearValue = {{m_clearColor}},
+                .clearValue = {{0.0f,0.0f,0.0f,0.0f}},
             },
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -836,11 +836,11 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                .clearValue = {{m_clearColor}},
+                .clearValue = {{0.0f,0.0f,0.0f,0.0f}},
             },
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = m_gBuffer.getColorImageView(2),
+                .imageView = m_gBuffer.getColorImageView(3),
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -1106,7 +1106,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                     .dstArrayElement = 0,
                     .descriptorCount = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(1),
+                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(0),
                 },
                 {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -1115,7 +1115,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                     .dstArrayElement = 0,
                     .descriptorCount = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(2),
+                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(1),
                 },{
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                     .dstSet = nullptr,
@@ -1123,7 +1123,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
                     .dstArrayElement = 0,
                     .descriptorCount = 1,
                     .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(3),
+                    .pImageInfo = &m_gBuffer.getDescriptorImageInfo(2),
                 },
             }
         };
@@ -2099,6 +2099,7 @@ utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer 
     VK_CHECK(vkCreateImageView(m_context.getDevice(), &viewInfo, nullptr, &image.view));
     DBG_VK_NAME(image.view);
 
+    //TODO probably need a memory barrier here
     return image;
 }
 
