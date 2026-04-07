@@ -710,20 +710,26 @@ void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
 
 void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {
     //TODO: low prio, I don't like this bit of sync, maybe having a camera uniform buffer per frame in flight would be better
-    utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,//not 100% convinced this should not be vertex stage
+    utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,//not 100% convinced this should not be vertex stage
                                   VK_PIPELINE_STAGE_2_TRANSFER_BIT); //ensure shaders are done running
     vkCmdUpdateBuffer(cmd, m_CameraInfoBuffer.buffer, 0, sizeof(SceneCameraInfo), &m_CameraInfoStruct);
     utils::cmdBufferMemoryBarrier(cmd, m_CameraInfoBuffer.buffer,
-                                  VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT); //ensure buffer is updated before running shader
+                                  VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+                                  VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_ACCESS_2_UNIFORM_READ_BIT); //ensure buffer is updated before running shader
     //Shouldn't these stage be inverted on the second barrier ?
 
     //Update any other scene wide data here, probably the clip space data for example
     utils::cmdBufferMemoryBarrier(cmd, m_clipSpaceInfoBuffer.buffer, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
         VK_PIPELINE_STAGE_2_TRANSFER_BIT);
     vkCmdUpdateBuffer(cmd, m_clipSpaceInfoBuffer.buffer,0,sizeof(ClipSpaceInfo), &m_ClipSpaceInfoStruct);
+    utils::cmdBufferMemoryBarrier(cmd, m_clipSpaceInfoBuffer.buffer,
+                                  VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                                  VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_ACCESS_2_UNIFORM_READ_BIT);
+    utils::cmdBufferMemoryBarrier(cmd, m_ShadingUniformBuffer.buffer,VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,VK_PIPELINE_STAGE_2_TRANSFER_BIT);
     vkCmdUpdateBuffer(cmd,m_ShadingUniformBuffer.buffer,0,sizeof(ShadingInfo), &m_ShadingInfoStruct);
-    utils::cmdBufferMemoryBarrier(cmd, m_clipSpaceInfoBuffer.buffer, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
-                                  VK_PIPELINE_STAGE_2_TRANSFER_BIT);
+    utils::cmdBufferMemoryBarrier(cmd, m_ShadingUniformBuffer.buffer,VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,VK_ACCESS_2_UNIFORM_READ_BIT);
+
 }
 
 void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
