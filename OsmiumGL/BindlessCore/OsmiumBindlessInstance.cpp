@@ -810,7 +810,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .offset = offsetof(RenderedObjectPushData,normalSpecPushData),
     .size =  sizeof(RenderedObjectPushData::normalSpecPushData),
-    .pValues = &PushData,};
+    .pValues = &PushData.normalSpecPushData,};
 
     const std::array<VkRenderingAttachmentInfo, 4> colorAttachmentInfo = {
         {
@@ -1157,7 +1157,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
             .offset = offsetof(RenderedObjectPushData,shadingData),
             .size = sizeof(RenderedObjectPushData::shadingData),//should skip over the normal spec data through constant ranges definitions
-            .pValues = &renderedObjectPushData,
+            .pValues = &renderedObjectPushData.shadingData,
         };
 
 
