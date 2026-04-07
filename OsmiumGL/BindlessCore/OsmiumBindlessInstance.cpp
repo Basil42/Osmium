@@ -443,7 +443,7 @@ void OsmiumBindlessInstance::init() {
 
     m_ShadingUniformBuffer = m_allocator.createBuffer(sizeof(ShadingInfo),VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
         VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-
+    DBG_VK_NAME(m_ShadingUniformBuffer.buffer);
     //resource arrays
 
     m_meshes = std::make_unique<ResourceArray<utils::MeshResource, 255> >();
