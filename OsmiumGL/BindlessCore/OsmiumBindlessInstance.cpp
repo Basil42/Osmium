@@ -452,6 +452,7 @@ void OsmiumBindlessInstance::init() {
     m_directionalLightInstances = std::make_unique<ResourceArray<DirectionalLightPushConstants, 255> >();
 
     m_DefaultSphereHandle = LoadMesh("../OsmiumGL/DefaultResources/models/sphere.obj");
+    createDefaultTextureImage();
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -2102,7 +2103,7 @@ utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer 
     return image;
 }
 
-void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
+void OsmiumBindlessInstance::createDefaultTextureImage() {
     constexpr VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
 
     constexpr VkImageCreateInfo imageInfo = {
@@ -2116,10 +2117,13 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
         .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
     };
 
-    std::array<uint8_t, 4> data{255, 255, 255, 255};
+    std::array<uint8_t, 4> data{255u, 255u, 255u, 255u};
     const std::span dataSpan(data.data(), 4);
+    auto cmd = utils::beginSingleTimeCommands(m_context.getDevice(),m_transientCmdPool);
+
     utils::ImageResource image = m_allocator.createImageAndUploadData(cmd, dataSpan, imageInfo,
                                                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_transientCmdPool,m_context.getGraphicsQueue().queue);
     DBG_VK_NAME(image.image);
     image.extent = {1, 1};
 
@@ -2144,9 +2148,9 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
         .magFilter = VK_FILTER_LINEAR,
         .minFilter = VK_FILTER_LINEAR,
         .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
         .maxLod = VK_LOD_CLAMP_NONE,
     });
     DBG_VK_NAME(sampler);
@@ -2162,6 +2166,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage(VkCommandBuffer cmd) {
         .dstSet = m_textureDescriptorSet,
         .dstBinding = 0,
         .dstArrayElement = m_DefaultTextureIndex,
+        .descriptorCount = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .pImageInfo = &descriptorImageInfo,
     };

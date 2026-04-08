@@ -96,7 +96,7 @@ private:
 
     utils::ImageResource loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename);
 
-    void createDefaultTextureImage(VkCommandBuffer cmd);
+    void createDefaultTextureImage();
 
     //void createComputeShaderPipeline();//might use one eventually
 

@@ -28,9 +28,9 @@ int main(int argc, char *argv[]) {
             .model = glm::mat4(1.0f),
             .normalSpecPushData = {
                 .SmoothnessMapIndex = texture,},
-        // .shadingData = {
-        // .albedoMapIndex = ,
-        // .specularMapIndex = },
+        .shadingData = {
+        .albedoMapIndex = texture,
+        .specularMapIndex = 0},
         }};
         //TODO add rendered object
         renderedObjectExample.pushData.model[3][2] = -4.0f;
