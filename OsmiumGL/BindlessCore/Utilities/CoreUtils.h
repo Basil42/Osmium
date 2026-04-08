@@ -888,8 +888,8 @@ public:
     const VkPresentModeKHR    presentMode    = selectSwapPresentMode(presentModes, vSync);
     // Set the window size according to the surface's current extent
     outWindowSize = {
-      .width=std::clamp(capabilities2.surfaceCapabilities.currentExtent.width, capabilities2.surfaceCapabilities.minImageExtent.width, 1920u),
-      .height=std::clamp(capabilities2.surfaceCapabilities.currentExtent.height, capabilities2.surfaceCapabilities.minImageExtent.height, 1080u),
+      .width=std::min(capabilities2.surfaceCapabilities.currentExtent.width, capabilities2.surfaceCapabilities.minImageExtent.width),
+      .height=std::min(capabilities2.surfaceCapabilities.currentExtent.height, capabilities2.surfaceCapabilities.minImageExtent.height),
     };//clamping to hd because wayland returns 0xFFFFFFFF and max extend would be several terrabytes
 
     // Adjust the number of images in flight within GPU limitations

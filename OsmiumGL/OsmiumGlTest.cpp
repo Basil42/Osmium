@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "DirectionalLights.h"
 #include "PointLights.h"
 #include "RenderedObjectData.h"
 #include "BindlessCore/OsmiumBindlessInstance.h"
@@ -32,12 +33,11 @@ int main(int argc, char *argv[]) {
         .albedoMapIndex = texture,
         .specularMapIndex = 0},
         }};
-        //TODO add rendered object
         renderedObjectExample.pushData.model[3][2] = -4.0f;
         app.RegisterRenderedObjectInstance(renderedObjectExample);
         app.UpdateCameraSettings(45.0f);
         app.UpdateCameraInfo(glm::mat4(1.0f));
-        app.UpdateAmbientLightSettings(glm::vec4(0.0f,0.5f,0.5f,1.5f));
+        app.UpdateAmbientLightSettings(glm::vec4(0.0f,0.0f,0.5f,1.5f));
         PointLightPushConstants testPointLight{
             .vertConstant = {
                 .model = glm::mat4(1.0f),
@@ -50,6 +50,11 @@ int main(int argc, char *argv[]) {
         testPointLight.vertConstant.model[3][0] = 1.0f;
         testPointLight.vertConstant.model[3][2] = -4.0f;
         app.RegisterPointLightInstance(testPointLight);
+        DirectionalLightPushConstants testDirectionalLight{
+            .Color = {0.0f,1.0f,0.0f,10.0f},
+            .Direction = {1.0f,1.0f,-1.0f}
+        };
+        app.RegisterDirectionalLightInstance(testDirectionalLight);
         app.run();
         glfwTerminate();
     }
