@@ -424,6 +424,19 @@ struct ValidationSettings
 -*/
 class Context
 {
+private:
+  VkInstance                         m_instance{};        // The Vulkan instance
+  VkPhysicalDevice                   m_physicalDevice{};  // The physical device (GPU)
+  VkDevice                           m_device{};          // The logical device (interface to the physical device)
+  std::vector<QueueInfo>             m_queues{};          // The queue used to submit command buffers to the GPU
+  VkDebugUtilsMessengerEXT           m_callback{VK_NULL_HANDLE};  // The debug callback
+  std::vector<VkExtensionProperties> m_instanceExtensionsAvailable{};
+  std::vector<VkExtensionProperties> m_deviceExtensionsAvailable{};
+#ifdef NDEBUG
+  bool m_enableValidationLayers = false;
+#else
+  bool m_enableValidationLayers = true;
+#endif
 public:
   Context() = default;
   ~Context() { assert(m_device == VK_NULL_HANDLE && "Missing destroy()"); }
@@ -797,18 +810,7 @@ private:
       VK_KHR_SWAPCHAIN_EXTENSION_NAME,  // Needed for display on the screen
   };
 
-  VkInstance                         m_instance{};        // The Vulkan instance
-  VkPhysicalDevice                   m_physicalDevice{};  // The physical device (GPU)
-  VkDevice                           m_device{};          // The logical device (interface to the physical device)
-  std::vector<QueueInfo>             m_queues{};          // The queue used to submit command buffers to the GPU
-  VkDebugUtilsMessengerEXT           m_callback{VK_NULL_HANDLE};  // The debug callback
-  std::vector<VkExtensionProperties> m_instanceExtensionsAvailable{};
-  std::vector<VkExtensionProperties> m_deviceExtensionsAvailable{};
-#ifdef NDEBUG
-  bool m_enableValidationLayers = false;
-#else
-  bool m_enableValidationLayers = true;
-#endif
+
 };
 
 //--- Swapchain ------------------------------------------------------------------------------------------------------------
