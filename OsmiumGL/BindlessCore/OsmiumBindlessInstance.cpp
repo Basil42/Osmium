@@ -107,6 +107,7 @@ OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size) : m_windowSize(s
 #endif
     m_window = glfwCreateWindow(static_cast<int>(m_windowSize.width), static_cast<int>(m_windowSize.height),
                                 windowTitle, nullptr, nullptr);
+
     init();
 }
 
