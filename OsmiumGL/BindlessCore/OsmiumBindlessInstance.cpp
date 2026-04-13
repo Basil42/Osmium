@@ -94,17 +94,13 @@ throw std::runtime_error(message);                                              
 #include "Utilities/CoreUtils.h"
 
 
-OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size) : m_windowSize(size) {
+OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size, const char* appName) : m_windowSize(size) {
     // Vulkan Loader
     VK_CHECK(volkInitialize());
     // Create the GLTF Window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-#ifdef USE_SLANG
-    const char *windowTitle = "Minimal Latest (Slang)";
-#else
-    // ReSharper disable once CppUseAuto
-    const char *windowTitle = "Minimal Latest (GLSL)";
-#endif
+
+    const char* windowTitle = appName;
     m_window = glfwCreateWindow(static_cast<int>(m_windowSize.width), static_cast<int>(m_windowSize.height),
                                 windowTitle, nullptr, nullptr);
 
