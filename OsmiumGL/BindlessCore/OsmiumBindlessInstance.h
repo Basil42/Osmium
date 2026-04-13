@@ -98,6 +98,8 @@ private:
 
     void createDefaultTextureImage();
 
+    void WindowResizingHandling();
+
     //void createComputeShaderPipeline();//might use one eventually
 
     //members

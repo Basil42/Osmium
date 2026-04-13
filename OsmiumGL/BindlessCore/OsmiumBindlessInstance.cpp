@@ -103,7 +103,6 @@ OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size, const char* appN
     const char* windowTitle = appName;
     m_window = glfwCreateWindow(static_cast<int>(m_windowSize.width), static_cast<int>(m_windowSize.height),
                                 windowTitle, nullptr, nullptr);
-
     init();
 }
 
@@ -450,6 +449,8 @@ void OsmiumBindlessInstance::init() {
 
     m_DefaultSphereHandle = LoadMesh("../OsmiumGL/DefaultResources/models/sphere.obj");
     createDefaultTextureImage();
+
+    WindowResizingHandling();
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -2249,6 +2250,15 @@ void OsmiumBindlessInstance::createDefaultTextureImage() {
     vkUpdateDescriptorSets(m_context.getDevice(), 1, &writeDescriptorInfo, 0, nullptr);
 
     //TODO check if some sync is necessary here, I might need to replace this with some kind of pipelined alternative
+}
+
+void OsmiumBindlessInstance::WindowResizingHandling() {
+    //inlining things here for clarity
+    glfwSetWindowUserPointer(m_window,this);
+    glfwSetFramebufferSizeCallback(m_window,[](GLFWwindow* window, int width, int height) {
+        const auto app = static_cast<OsmiumBindlessInstance*>(glfwGetWindowUserPointer(window));
+        app->m_swapchain.requestRebuild();
+    });
 }
 
 
