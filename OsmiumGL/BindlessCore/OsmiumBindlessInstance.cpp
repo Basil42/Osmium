@@ -127,12 +127,17 @@ void OsmiumBindlessInstance::run() {
         constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
                                                  ImGuiDockNodeFlags_NoDockingInCentralNode;
         ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
+        auto node = ImGui::DockBuilderGetNode(dockID);
+        static bool initPass = true;
+        if (initPass) {
+            std::cout << (node->IsSplitNode() ? "node is split" : "node isn't split") << std::endl;
+            initPass = false;
+        }
         //conditionally create docking layout, might need to be moved to init
         if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
-            ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
-            ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
-            // Remove "Tab" from the central node
+            //ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
             ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
+            ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
             // Split the central node
             ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
         }
@@ -156,7 +161,7 @@ void OsmiumBindlessInstance::run() {
         ImGui::PopStyleVar();
 
         // Verify if the viewport has a new size and resize the G-Buffer accordingly.
-        const VkExtent2D viewportSize = {static_cast<uint32_t>(windowSize.x), static_cast<uint32_t>(windowSize.y)};
+        const VkExtent2D viewportSize = {static_cast<uint32_t>(windowSize.x), static_cast<uint32_t>(windowSize.y)};//not the viewport size at all
         if (m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
             onViewportSizeChange(viewportSize);
         }
@@ -572,7 +577,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
     //however, it feels less optimal than color attachments (that would be annoying to test though)
 
     //TODO: move out the docking stuff to the editor
-    if (ImGui::Begin("ViewPort")) {
+    if (ImGui::Begin("Viewport")) {
         ImGui::Image(m_gBuffer.getImTextureID(3), ImGui::GetContentRegionAvail());//image index can be changed here to render one of the framebuffer in the viewport
 
         //overlay stuff, might remove later
@@ -715,11 +720,13 @@ void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
 
 void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
     m_viewportSize = size;
+    auto cursorPosition = ImGui::GetCursorPos();
     vkQueueWaitIdle(m_context.getGraphicsQueue().queue); {
         VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
         m_gBuffer.update(cmd, m_viewportSize);
         utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool,
                                      m_context.getGraphicsQueue().queue);
+        std::cout << "resized viewport to :" << m_viewportSize.width << "," << m_viewportSize.height << " with cursor position " << cursorPosition.x << " " << cursorPosition.y << std::endl;
     }
 }
 

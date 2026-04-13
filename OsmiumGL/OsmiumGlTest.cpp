@@ -6,8 +6,8 @@
 #include "BindlessCore/OsmiumBindlessInstance.h"
 #include "BindlessCore/Utilities/CoreUtils.h"
 #include "BindlessCore/Utilities/logger.h"
-#include "glm/ext/matrix_clip_space.hpp"
-
+#define GLM_ENABLE_EXPERIMENTAL
+#include "glm/ext/matrix_transform.hpp"
 //
 // Created by nicolas.gerard on 2024-12-02.
 //
@@ -21,19 +21,20 @@ int main(int argc, char *argv[]) {
         ASSERT(glfwVulkanSupported(), "GLFW: Vulkan is not supported");
 
         OsmiumBindlessInstance app({800,600});
-        auto mesh = app.LoadMesh("DefaultResources/models/viking_room.obj");
+        auto mesh = app.LoadMesh("DefaultResources/models/monkey.obj");
         auto texture = app.LoadTexture("DefaultResources/textures/viking_room.png");
         BindlessRenderedObject renderedObjectExample{
         .mesh = mesh,
         .pushData = {
             .model = glm::mat4(1.0f),
             .normalSpecPushData = {
-                .SmoothnessMapIndex = texture,},
+                .SmoothnessMapIndex = 0,},
         .shadingData = {
         .albedoMapIndex = texture,
         .specularMapIndex = 0},
         }};
         renderedObjectExample.pushData.model[3][2] = -4.0f;
+        renderedObjectExample.pushData.model = glm::rotate(renderedObjectExample.pushData.model, glm::pi<float>(), glm::vec3(0.0f, 0.0f, 1.0f));
         app.RegisterRenderedObjectInstance(renderedObjectExample);
         app.UpdateCameraSettings(45.0f);
         app.UpdateCameraInfo(glm::mat4(1.0f));
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]) {
             .color = {1.0f,0.0f,0.0f,5.0f}
             }
         };
-        testPointLight.vertConstant.model[3][0] = 1.0f;
+        testPointLight.vertConstant.model[3][0] = -1.0f;
         testPointLight.vertConstant.model[3][2] = -4.0f;
         app.RegisterPointLightInstance(testPointLight);
         DirectionalLightPushConstants testDirectionalLight{
