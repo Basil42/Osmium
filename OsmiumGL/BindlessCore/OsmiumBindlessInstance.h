@@ -171,8 +171,8 @@ private:
     ShadingInfo m_ShadingInfoStruct;
 
     float m_fov;
-    float m_zNear;
-    float m_zFar;
+    float m_zNear = 0.1f;
+    float m_zFar = 100.f;
 
     bool prepareFrameResources();
 
