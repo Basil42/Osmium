@@ -193,7 +193,8 @@ void OsmiumBindlessInstance::UpdateCameraInfo(glm::mat4 view) {
 //setup and setting changes for the camera (fov only for now, but we could send an arbitrary struct in
 void OsmiumBindlessInstance::UpdateCameraSettings(float radianVFOV) {
     auto ViewportSize = glm::vec2(m_viewportSize.width, m_viewportSize.height);
-    m_CameraInfoStruct.projectionMatrix = glm::perspective(radianVFOV,ViewportSize.x / ViewportSize.y,0.1f,100.0f);
+    m_fov = radianVFOV;
+    m_CameraInfoStruct.projectionMatrix = glm::perspective(radianVFOV,ViewportSize.x / ViewportSize.y,m_zNear,m_zFar);
 
     //there is an option to cache this
     m_ClipSpaceInfoStruct = {
@@ -720,6 +721,7 @@ void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
 
 void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
     m_viewportSize = size;
+    m_CameraInfoStruct.projectionMatrix = glm::perspective(m_fov,static_cast<float>(m_viewportSize.width)/ static_cast<float>(m_viewportSize.height),m_zNear,m_zFar);
     auto cursorPosition = ImGui::GetCursorPos();
     vkQueueWaitIdle(m_context.getGraphicsQueue().queue); {
         VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);

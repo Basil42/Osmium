@@ -170,6 +170,9 @@ private:
     ClipSpaceInfo m_ClipSpaceInfoStruct;
     ShadingInfo m_ShadingInfoStruct;
 
+    float m_fov;
+    float m_zNear;
+    float m_zFar;
 
     bool prepareFrameResources();
 
