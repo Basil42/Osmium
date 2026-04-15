@@ -15,8 +15,8 @@ layout (push_constant) uniform DirectionalLightInfo {
     vec3 Direction;//should be view coordinates
 };
 
-layout (location = 0) out vec4 outDiffuse;
-layout (location = 1) out vec4 outSpecular;
+layout (location = 1) out vec4 outDiffuse;
+layout (location = 2) out vec4 outSpecular;
 
 layout(constant_id = 0)const float MaxSpecularPower = 32.0f;
 
