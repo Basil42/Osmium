@@ -121,6 +121,8 @@ private:
     std::unique_ptr<ResourceArray<utils::ImageResource,255>> m_textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
     unsigned int m_DefaultTextureIndex; // index for a white 1x1 texture used as a default
     unsigned int m_DefaultSphereHandle;//TODO load the default sphere
+    unsigned int m_FlatConeHandle;
+
 
     utils::Gbuffer m_gBuffer; // The G-Buffer
 
@@ -130,11 +132,13 @@ private:
 
     VkPipelineLayout m_NormalSpecPipelineLayout{}; // The pipeline layout use with graphics pipeline
     VkPipelineLayout m_PointLightPipelineLayout{};
+    VkPipelineLayout m_SpotLightPipelineLayout{};
     VkPipelineLayout m_DirectionalLightPipelineLayout{};
     VkPipelineLayout m_ShadingPipelineLayout{};
 
     VkPipeline m_NormalSpecPipeline{};
     VkPipeline m_PointLightPipeline{};
+    VkPipeline m_SpotLightPipeline{};
     VkPipeline m_DirectionalLightPipeline{};
     VkPipeline m_ShadingPipeline{};
 

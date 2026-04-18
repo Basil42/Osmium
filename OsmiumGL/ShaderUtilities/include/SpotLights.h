@@ -1,0 +1,23 @@
+//
+// Created by Basil on 2026-04-17.
+//
+
+#ifndef OSMIUM_SPOTLIGHTS_H
+#define OSMIUM_SPOTLIGHTS_H
+#include "glm/mat4x4.hpp"
+
+struct SpotLightPushConstants {
+    struct {
+        alignas(16)glm::mat4 model;
+        glm::vec4 direction; //world direction the spot points at
+    }vertConstant;
+    float radius;
+    float innerAngle;
+    float outerAngle;
+    //4 padding
+    struct {
+        alignas(16)glm::vec4 color;
+    }fragConstant;
+
+};
+#endif //OSMIUM_SPOTLIGHTS_H

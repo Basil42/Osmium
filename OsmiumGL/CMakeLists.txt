@@ -52,6 +52,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         BindlessCore/Utilities/CoreUtils.h
         ShaderUtilities/include/SceneData.h
         ShaderUtilities/include/RenderedObjectData.h
+        ShaderUtilities/include/SpotLights.h
 
 )
 add_library(OsmiumGL STATIC

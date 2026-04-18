@@ -7,6 +7,7 @@
 #include "DirectionalLight.h"
 #include "DirectionalLights.h"
 #include "MeshFileLoading.h"
+#include "SpotLights.h"
 #include "volk.h"
 
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
@@ -454,6 +455,7 @@ void OsmiumBindlessInstance::init() {
     m_directionalLightInstances = std::make_unique<ResourceArray<DirectionalLightPushConstants, 255> >();
 
     m_DefaultSphereHandle = LoadMesh("../OsmiumGL/DefaultResources/models/sphere.obj");
+    m_FlatConeHandle = LoadMesh("../OsmiumGL/DefaultResources/models/flattenedCone.obj");
     createDefaultTextureImage();
 
     WindowResizingHandling();
@@ -911,7 +913,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     }
 
     {
-        //normal spec to point light barrier
+        //normal spec to point light barrier, the depth parts are required for intel arc
         VkMemoryBarrier2 memBarrier{
             .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
             .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
@@ -1609,6 +1611,149 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
 
         vkDestroyShaderModule(device,pointLightVertexModule,nullptr);
         vkDestroyShaderModule(device,pointLightFragmentModule,nullptr);
+    }
+    //spot light pass
+    {
+        VkShaderModule spotLightVertexShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/SpotLight.vert.spv",device);
+        VkShaderModule spotLightFragmentShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/SpotLight.frag.spv",device);
+        DBG_VK_NAME(spotLightVertexShader);
+        DBG_VK_NAME(spotLightFragmentShader);
+
+        const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
+            {
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                    .module = spotLightVertexShader,
+                    .pName = "main",
+                },
+                   {
+                       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .module = spotLightFragmentShader,
+                    .pName = "main",
+                   },
+               }
+        };
+
+        const VkVertexInputBindingDescription vertexInputBindingDescription = DefaultVertex::getBindingDescription();//technically I just want positions
+        const auto &attributeDescription = DefaultVertex::getAttributeDescriptions();
+
+        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &vertexInputBindingDescription,
+            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescription.size()),
+            .pVertexAttributeDescriptions = attributeDescription.data()
+        };
+
+        constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {
+            {
+                {
+                    .blendEnable = VK_FALSE, //Readonly
+                  },
+                  {
+                      .blendEnable = VK_TRUE,
+                      .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                      .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                      .colorBlendOp = VK_BLEND_OP_ADD,
+                      .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                      .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                      .alphaBlendOp = VK_BLEND_OP_ADD,
+                      .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                            VK_COLOR_COMPONENT_A_BIT
+                  },
+                  {
+                      .blendEnable = VK_TRUE,
+                      .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                      .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                      .colorBlendOp = VK_BLEND_OP_ADD,
+                      .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                      .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                      .alphaBlendOp = VK_BLEND_OP_ADD,
+                      .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                            VK_COLOR_COMPONENT_A_BIT
+                  },
+                  {
+                      .blendEnable = VK_FALSE,//not used in this case, it would be nive to fully omit it
+                  }
+            }
+        };
+
+        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = blendAttachmentStates.size(),
+            .pAttachments = blendAttachmentStates.data()
+        };
+
+        constexpr std::array<VkPushConstantRange,1> pushConstantRanges = {
+            {
+                {
+                    .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+                    .offset = 0,
+                    .size = sizeof(SpotLightPushConstants),
+                },
+            }
+        };
+
+        const std::array descriptorSetLayouts = {
+            m_TextureDescriptorSetLayout,
+            m_LightPassDescriptorLayout,
+        };
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = descriptorSetLayouts.size(),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = pushConstantRanges.size(),
+            .pPushConstantRanges = pushConstantRanges.data(),
+        };
+
+        VK_CHECK(vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr,&m_SpotLightPipelineLayout));
+        DBG_VK_NAME(m_SpotLightPipelineLayout);
+
+        const std::array imageFormats{
+            m_gBuffer.getColorFormat(0),
+            m_gBuffer.getColorFormat(1),
+            m_gBuffer.getColorFormat(2),
+            m_gBuffer.getColorFormat(3),
+        };
+        const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount = imageFormats.size(),
+            .pColorAttachmentFormats = imageFormats.data(),
+            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
+        };
+
+        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_FALSE,
+            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+        };
+
+        const VkGraphicsPipelineCreateInfo spotLightPipelineCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &pipelineRenderingInfo,
+            .stageCount = static_cast<uint32_t>(shaderStages.size()),
+            .pStages = shaderStages.data(),
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssemblyInfo,
+            .pRasterizationState = &rasterizerInfo,
+            .pMultisampleState = &multisamplingInfo,
+            .pDepthStencilState = &depthStencilStateInfo,
+            .pColorBlendState = &colorBlendStateInfo,
+            .pDynamicState = &dynamicStateInfo,
+            .layout = m_SpotLightPipelineLayout,
+        };
+        VK_CHECK(
+            vkCreateGraphicsPipelines(device,nullptr,1,&spotLightPipelineCreateInfo,nullptr,&m_SpotLightPipeline));
+        DBG_VK_NAME(m_SpotLightPipeline);
+
+        vkDestroyShaderModule(device,spotLightVertexShader,nullptr);
+        vkDestroyShaderModule(device,spotLightFragmentShader,nullptr);
     }
     //Directional light pass
     {
