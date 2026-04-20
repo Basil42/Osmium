@@ -50,7 +50,13 @@ void main() {
 
     //float attenuationFactorB = 1.0 / (Light.radius * Light.radius * 0.01);
     float lightDistance = length(viewSpaceSurfacePosition.xyz - viewLightCenterLinear);
-    float attenuation = attenuationCutoff * ((Light.radius * Light.radius) / (lightDistance*lightDistance + 0.2));
+    //cone things, some of it could also be cut by precomputing the cosines
+    float minAngleDot = cos(Light.innerAngle);
+    float maxAngleDot = cos(Light.outerAngle);
+
+    float angleAtennuation = dot(lightDir,viewSpotDirection.xyz);//might need some homogenous related correction
+    angleAtennuation = (angleAtennuation - minAngleDot)/(maxAngleDot - minAngleDot);
+    float attenuation = attenuationCutoff * angleAtennuation * ((Light.radius * Light.radius) / (lightDistance*lightDistance + 0.2));
     //additively blended
     vec3 IntensityColor = Light.color.rgb * Light.color.a * attenuation;
     outDiffuse = lambertian * IntensityColor;

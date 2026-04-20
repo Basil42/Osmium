@@ -35,7 +35,7 @@ void main() {
     vec3 tempFinalRotation = cross(ConeRotation.xyz,adjustedPosition.xyz) + ConeRotation.w * adjustedPosition.xyz;
     adjustedPosition = vec4(adjustedPosition.xyz + 2.0f*cross(ConeRotation.xyz,tempFinalRotation),1.0f);
     viewCenter = (VP.view * pld.model[3]);
-    viewSpotDirection = (VP.view * vec4(normalize(direction),1.0f));
+    viewSpotDirection = (VP.view * vec4(normalize(pld.direction),1.0f));
     vec4 clipPos = VP.proj * VP.view * pld.model * adjustedPosition ;//error isn't real, again
     gl_Position = clipPos;//distribute along a sphere
     uv = ((clipPos.xy)/clipPos.w) * 0.5 + 0.5;
