@@ -12,6 +12,7 @@
 #include "ResourceArray.h"
 #include "SceneData.h"
 #include "CoreUtils.h"
+#include "SpotLights.h"
 
 struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
@@ -117,6 +118,7 @@ private:
     std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;
     std::map<MeshHandle, ResourceArray<RenderedObjectPushData,255>> m_renderedObjects;
     std::unique_ptr<ResourceArray<PointLightPushConstants,255>> m_pointLightInstances;
+    std::unique_ptr<ResourceArray<SpotLightPushConstants,255>> m_spotLightInstances;
     std::unique_ptr<ResourceArray<DirectionalLightPushConstants,255>> m_directionalLightInstances;
     std::unique_ptr<ResourceArray<utils::ImageResource,255>> m_textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
     unsigned int m_DefaultTextureIndex; // index for a white 1x1 texture used as a default

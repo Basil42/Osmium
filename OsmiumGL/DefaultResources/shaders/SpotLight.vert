@@ -22,6 +22,7 @@ layout(set = 1,binding = 1)uniform clipSpaceInfo{
 layout(location = 0)out vec3 eyeDir;
 layout(location = 1)out vec2 uv;
 layout(location = 2)out vec4 viewCenter;
+layout(location = 3)out vec4 viewSpotDirection;
 
 void main() {
     vec4 adjustedPosition = vec4(normalize(inPosition.xyz) * pld.radius,1.0);

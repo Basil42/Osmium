@@ -452,6 +452,7 @@ void OsmiumBindlessInstance::init() {
     m_meshes = std::make_unique<ResourceArray<utils::MeshResource, 255> >();
     m_textures = std::make_unique<ResourceArray<utils::ImageResource, 255> >();
     m_pointLightInstances = std::make_unique<ResourceArray<PointLightPushConstants, 255> >();
+    m_spotLightInstances = std::make_unique<ResourceArray<SpotLightPushConstants, 255> >();
     m_directionalLightInstances = std::make_unique<ResourceArray<DirectionalLightPushConstants, 255> >();
 
     m_DefaultSphereHandle = LoadMesh("../OsmiumGL/DefaultResources/models/sphere.obj");
@@ -929,78 +930,81 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         };
         vkCmdPipelineBarrier2(cmd, &dependencyInfo);
     }
-    //I previously chained a barrier back to writing out to frame buffers,
+    //light pass struct that have to be reused because of the pushconstant spec
+    //push descriptor
+    const VkDescriptorBufferInfo ClipSpaceBufferInfo{
+        .buffer = m_clipSpaceInfoBuffer.buffer,
+        .offset = 0,
+        .range = VK_WHOLE_SIZE
+        };
+    const VkDescriptorBufferInfo CameraBufferInfo{
+        .buffer = m_CameraInfoBuffer.buffer,
+        .offset = 0,
+        .range = VK_WHOLE_SIZE
+        };
+
+    const VkSamplerCreateInfo samplerInfo{
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = VK_FILTER_LINEAR,
+        .minFilter = VK_FILTER_LINEAR,
+    };
+    const VkDescriptorImageInfo depthImageInfo{
+        .sampler = m_samplerPool.acquireSampler(samplerInfo),
+        .imageView = m_gBuffer.getDepthImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+    };
+    const VkDescriptorImageInfo normalSpecImageInfo{
+        .sampler = m_samplerPool.acquireSampler(samplerInfo),
+        .imageView = m_gBuffer.getColorImageView(0),
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+    };
+    const std::array<VkWriteDescriptorSet, 4> writeDescriptorSet = {
+        {
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = nullptr,
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .pBufferInfo = &CameraBufferInfo
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = nullptr,
+                .dstBinding = 1,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,//there are technically two bindings there, validation layers will likely help sort it out
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .pBufferInfo = &ClipSpaceBufferInfo,
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = nullptr,
+                .dstBinding = 2,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                .pImageInfo = &depthImageInfo
+            },
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = nullptr,
+                .dstBinding = 3,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                .pImageInfo = &normalSpecImageInfo
+            }
+        }
+    };
     //Point lights
     {
         vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_PointLightPipeline);
         bindDescriptorSetsInfo.layout = m_PointLightPipelineLayout;
         vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
-    //push descriptor
-        const VkDescriptorBufferInfo ClipSpaceBufferInfo{
-            .buffer = m_clipSpaceInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
-        };
-        const VkDescriptorBufferInfo CameraBufferInfo{
-        .buffer = m_CameraInfoBuffer.buffer,
-        .offset = 0,
-        .range = VK_WHOLE_SIZE};
-
-        const VkSamplerCreateInfo samplerInfo{
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = VK_FILTER_LINEAR,
-            .minFilter = VK_FILTER_LINEAR,
-        };
-        const VkDescriptorImageInfo depthImageInfo{
-            .sampler = m_samplerPool.acquireSampler(samplerInfo),
-            .imageView = m_gBuffer.getDepthImageView(),
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-        };
-        const VkDescriptorImageInfo normalSpecImageInfo{
-            .sampler = m_samplerPool.acquireSampler(samplerInfo),
-            .imageView = m_gBuffer.getColorImageView(0),
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-        };
-        const std::array<VkWriteDescriptorSet, 4> writeDescriptorSet = {
-            {
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = nullptr,
-                    .dstBinding = 0,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .pBufferInfo = &CameraBufferInfo
-                },
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = nullptr,
-                    .dstBinding = 1,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,//there are technically two bindings there, validation layers will likely help sort it out
-                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .pBufferInfo = &ClipSpaceBufferInfo,
-                },
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .pNext = nullptr,
-                    .dstSet = nullptr,
-                    .dstBinding = 2,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    .pImageInfo = &depthImageInfo
-                },
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .pNext = nullptr,
-                    .dstSet = nullptr,
-                    .dstBinding = 3,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    .pImageInfo = &normalSpecImageInfo
-                }
-            }
-        };
 
         const VkPushDescriptorSetInfo pushDescriptorSetInfo = {
             .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
@@ -1034,74 +1038,45 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         }
     }
     //I don't need a barrier here all lights read and write to the same buffers
+    //Spotlights pass
+    {
+        vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,m_SpotLightPipeline);
+        bindDescriptorSetsInfo.layout = m_SpotLightPipelineLayout;
+        vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
+
+
+
+        const VkPushDescriptorSetInfo pushDescriptorSetInfo = {
+            .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
+            .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+            .layout = m_SpotLightPipelineLayout,
+            .set = 1,
+            .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
+            .pDescriptorWrites = writeDescriptorSet.data(),
+        };
+        vkCmdPushDescriptorSet2(cmd, &pushDescriptorSetInfo);
+
+        //pushconstants
+        SpotLightPushConstants SpotLightPushConstantData{};
+        const VkPushConstantsInfo SpotLightPushConstantInfo{
+        .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+        .layout = m_SpotLightPipelineLayout,
+        .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+        .offset = 0,
+        .size = sizeof(SpotLightPushConstantData),
+        .pValues = &SpotLightPushConstantData,
+        };
+        auto &spotLightResource = m_meshes->get(m_FlatConeHandle);
+        vkCmdBindVertexBuffers(cmd,0,1,&spotLightResource.VertexBuffer.buffer, offsets.data());
+        vkCmdBindIndexBuffer(cmd, spotLightResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        for (auto &light : *m_spotLightInstances) {
+            SpotLightPushConstantData = light;
+            vkCmdPushConstants2(cmd, &SpotLightPushConstantInfo);
+            vkCmdDrawIndexed(cmd,spotLightResource.IndexCount, 1, 0, 0, 0);
+        }
+    }
     //Directional lights
     {
-        //push descriptor
-        const VkDescriptorBufferInfo ClipSpaceBufferInfo{
-            .buffer = m_clipSpaceInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
-        };
-        const VkDescriptorBufferInfo CameraBufferInfo{
-        .buffer = m_CameraInfoBuffer.buffer,
-        .offset = 0,
-        .range = VK_WHOLE_SIZE};
-
-        const VkSamplerCreateInfo samplerInfo{
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = VK_FILTER_LINEAR,
-            .minFilter = VK_FILTER_LINEAR,
-        };
-        const VkDescriptorImageInfo depthImageInfo{
-            .sampler = m_samplerPool.acquireSampler(samplerInfo),
-            .imageView = m_gBuffer.getDepthImageView(),
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-        };
-        const VkDescriptorImageInfo normalSpecImageInfo{
-            .sampler = m_samplerPool.acquireSampler(samplerInfo),
-            .imageView = m_gBuffer.getColorImageView(0),
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-        };
-        const std::array<VkWriteDescriptorSet, 4> writeDescriptorSet = {
-            {
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = nullptr,
-                    .dstBinding = 0,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .pBufferInfo = &CameraBufferInfo
-                },
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = nullptr,
-                    .dstBinding = 1,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,//there are technically two bindings there, validation layers will likely help sort it out
-                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .pBufferInfo = &ClipSpaceBufferInfo,
-                },
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .pNext = nullptr,
-                    .dstSet = nullptr,
-                    .dstBinding = 2,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    .pImageInfo = &depthImageInfo
-                },
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .pNext = nullptr,
-                    .dstSet = nullptr,
-                    .dstBinding = 3,
-                    .dstArrayElement = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    .pImageInfo = &normalSpecImageInfo
-                }
-            }
-        };
 
         const VkPushDescriptorSetInfo pushDescriptorSetInfo = {
             .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
@@ -1135,7 +1110,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             vkCmdDraw(cmd,3,1,0,0);//maybe 4 vertices for a full screen pass ?
         }
     }
-    //TODO: Spot Lights pass
+
 
     //barrier from light to shading
     {
