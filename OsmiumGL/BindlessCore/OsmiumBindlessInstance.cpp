@@ -487,11 +487,13 @@ void OsmiumBindlessInstance::destroy() {
 
     vkDestroyPipeline(device, m_NormalSpecPipeline, nullptr);
     vkDestroyPipeline(device,m_PointLightPipeline, nullptr);
+    vkDestroyPipeline(device,m_SpotLightPipeline, nullptr);
     vkDestroyPipeline(device,m_DirectionalLightPipeline, nullptr);
     vkDestroyPipeline(device,m_ShadingPipeline, nullptr);
 
     vkDestroyPipelineLayout(device, m_NormalSpecPipelineLayout, nullptr);
     vkDestroyPipelineLayout(device, m_PointLightPipelineLayout, nullptr);
+    vkDestroyPipelineLayout(device, m_SpotLightPipelineLayout, nullptr);
     vkDestroyPipelineLayout(device, m_DirectionalLightPipelineLayout, nullptr);
     vkDestroyPipelineLayout(device, m_ShadingPipelineLayout, nullptr);
 
