@@ -25,8 +25,17 @@ layout(location = 2)out vec4 viewCenter;
 layout(location = 3)out vec4 viewSpotDirection;
 
 void main() {
-    vec4 adjustedPosition = vec4(normalize(inPosition.xyz) * pld.radius,1.0);
+    //much longer to compute than a sphere, but should save a lot of fragement invocations
+    const vec4 PiTwoAxisRotation = vec4(0.0f,0.0f,0.707f,0.707f);//used to find the axis the point will rotate around to rotate to its final place
+    vec3 tempAxisRotate = cross(PiTwoAxisRotation.xyz,inPosition.xyz) + PiTwoAxisRotation.w * inPosition.xyz;
+    vec3 rotationAxis = inPosition + 2.0f*cross(PiTwoAxisRotation.xyz,tempAxisRotate);
+    vec4 adjustedPosition = vec4(normalize(inPosition.xyz) * pld.radius,1.0);//adjustment radius
+    float rotationAngleOn2 = (1.5707f - pld.outerAngle)/2.0f;//could be uniform but I want to leave the uniform more readable
+    vec4 ConeRotation = vec4(rotationAxis*sin((1.5707 - pld.outerAngle)/2.0f),cos(rotationAngleOn2));
+    vec3 tempFinalRotation = cross(ConeRotation.xyz,adjustedPosition.xyz) + ConeRotation.w * adjustedPosition.xyz;
+    adjustedPosition = vec4(adjustedPosition.xyz + 2.0f*cross(ConeRotation.xyz,tempFinalRotation),1.0f);
     viewCenter = (VP.view * pld.model[3]);
+    viewSpotDirection = (VP.view * vec4(normalize(direction),1.0f));
     vec4 clipPos = VP.proj * VP.view * pld.model * adjustedPosition ;//error isn't real, again
     gl_Position = clipPos;//distribute along a sphere
     uv = ((clipPos.xy)/clipPos.w) * 0.5 + 0.5;
