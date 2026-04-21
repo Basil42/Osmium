@@ -131,7 +131,6 @@ void OsmiumBindlessInstance::run() {
         auto node = ImGui::DockBuilderGetNode(dockID);
         static bool initPass = true;
         if (initPass) {
-            std::cout << (node->IsSplitNode() ? "node is split" : "node isn't split") << std::endl;
             initPass = false;
         }
         //conditionally create docking layout, might need to be moved to init
@@ -1696,32 +1695,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         DBG_VK_NAME(shadingVertexShader);
         DBG_VK_NAME(shadingFragmentShader);
 
-        const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
-            {
-                {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    .module = shadingVertexShader,
-                    .pName = "main",
-                },
-                {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .module = shadingFragmentShader,
-                .pName = "main",
-                }
-            }
-        };
-
-        const VkVertexInputBindingDescription &bindingDescription = DefaultVertex::getBindingDescription();
-        const auto &attributeDescriptions = DefaultVertex::getAttributeDescriptions();
-        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = 1,
-            .pVertexBindingDescriptions = &bindingDescription,
-            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
-            .pVertexAttributeDescriptions = attributeDescriptions.data(),
-        };
+        shaderStages[0].module = shadingVertexShader;
+        shaderStages[1].module = shadingFragmentShader;
 
         constexpr std::array<VkPipelineColorBlendAttachmentState, 4> ShadingColorBlendAttachment {
             {
@@ -1741,7 +1716,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                 }
             }};
 
-        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
+        const VkPipelineColorBlendStateCreateInfo shadingColorBlendStateInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .logicOpEnable = VK_FALSE,
             .logicOp = VK_LOGIC_OP_COPY,
@@ -1763,15 +1738,15 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                 }
             }};
 
-        const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
+        const std::array<VkDescriptorSetLayout, 2> shadingDescriptorSetLayouts = {
             m_TextureDescriptorSetLayout,
             m_ShadingDescriptorSetLayout,
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
-            .pSetLayouts = descriptorSetLayouts.data(),
+            .setLayoutCount = static_cast<uint32_t>(shadingDescriptorSetLayouts.size()),
+            .pSetLayouts = shadingDescriptorSetLayouts.data(),
             .pushConstantRangeCount = ShadingPushConstantRanges.size(),
             .pPushConstantRanges = ShadingPushConstantRanges.data(),
         };
@@ -1779,7 +1754,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         VK_CHECK(vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr,&m_ShadingPipelineLayout));
         DBG_VK_NAME(m_ShadingPipelineLayout);
 
-        const std::array<VkFormat, 4> imageFormats = {
+        const std::array<VkFormat, 4> imageFormats = {//could be deduplicated
             {
                 m_gBuffer.getColorFormat(0),
                 m_gBuffer.getColorFormat(1),
@@ -1795,13 +1770,6 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
         };
 
-        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .depthTestEnable = VK_TRUE,
-            .depthWriteEnable = VK_FALSE,//should not be required, depth buffer should still be valid
-            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
-        };
-
         const VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = &pipelineRenderingCreateInfo,
@@ -1812,7 +1780,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             .pRasterizationState = &rasterizerInfo,
             .pMultisampleState = &multisamplingInfo,
             .pDepthStencilState = &depthStencilStateInfo,
-            .pColorBlendState = &colorBlendStateInfo,
+            .pColorBlendState = &shadingColorBlendStateInfo,
             .pDynamicState = &dynamicStateInfo,
             .layout = m_ShadingPipelineLayout,
         };
