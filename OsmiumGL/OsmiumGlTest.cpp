@@ -45,14 +45,27 @@ int main(int argc, char *argv[]) {
             },
             .radius = 1.0f,
             .fragConstant = {
-            .color = {1.0f,0.0f,0.0f,5.0f}
+            .color = {1.0f,0.0f,0.0f,150.0f}
             }
         };
         testPointLight.vertConstant.model[3][0] = -1.0f;
         testPointLight.vertConstant.model[3][2] = -4.0f;
         app.RegisterPointLightInstance(testPointLight);
+        SpotLightPushConstants testSpotLight{
+            .vertConstant = {
+                .model = glm::mat4(1.0f),
+                .direction = {0.0f,0.0f,1.0f,1.0f},
+            },
+            .radius = 1.0f,
+            .innerAngle = 0.0f,
+            .outerAngle = glm::pi<float>(),
+            .fragConstant = {
+                .color = {0.0f,0.0f,1.0f,5.0f}
+                }
+        };
+        app.RegisterSpotlightInstance(testSpotLight);
         DirectionalLightPushConstants testDirectionalLight{
-            .Color = {0.0f,1.0f,0.0f,10.0f},
+            .Color = {0.0f,1.0f,0.0f,0.05f},
             .Direction = {1.0f,1.0f,-1.0f}
         };
         app.RegisterDirectionalLightInstance(testDirectionalLight);

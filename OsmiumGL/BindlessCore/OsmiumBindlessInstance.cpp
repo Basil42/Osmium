@@ -332,6 +332,20 @@ bool OsmiumBindlessInstance::UpdateDirectionalLight(const DirectionalLightHandle
     return false;
 }
 
+SpotLightHandle OsmiumBindlessInstance::RegisterSpotlightInstance(
+    const SpotLightPushConstants &lightData) {
+    return m_spotLightInstances->Add(lightData);
+}
+
+bool OsmiumBindlessInstance::UpdateSpotlightInstance(const SpotLightHandle &lightHandle,
+    const SpotLightPushConstants &lightData) const {
+    if (m_spotLightInstances->contains(lightHandle)) {
+        m_spotLightInstances->get(lightHandle) = lightData;
+        return true;
+    }
+    return false;
+}
+
 
 bool OsmiumBindlessInstance::prepareFrameResources() {
     auto &frame = m_frameData[m_frameRingCurrent];
@@ -1441,81 +1455,116 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         vkDestroyShaderModule(m_context.getDevice(), normalSpecFragmentModule, nullptr);
     }
 
+    //Shared struct for light passes
+    std::array<VkPipelineShaderStageCreateInfo,2> shaderStages{
+                {
+                    {
+                        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                        .pName = "main",
+                    },
+                       {
+                           .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                        .pName = "main",
+                       },
+                   }
+    };
+    constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {//diffuse and specular, my first implementation kept all 4
+        {
+            {
+                .blendEnable = VK_FALSE, //Readonly
+              },
+              {
+                  .blendEnable = VK_TRUE,
+                  .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                  .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                  .colorBlendOp = VK_BLEND_OP_ADD,
+                  .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                  .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                  .alphaBlendOp = VK_BLEND_OP_ADD,
+                  .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                        VK_COLOR_COMPONENT_A_BIT
+              },
+              {
+                  .blendEnable = VK_TRUE,
+                  .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                  .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                  .colorBlendOp = VK_BLEND_OP_ADD,
+                  .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
+                  .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                  .alphaBlendOp = VK_BLEND_OP_ADD,
+                  .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                        VK_COLOR_COMPONENT_A_BIT
+              },
+              {
+                  .blendEnable = VK_FALSE,//not used in this case, it would be nive to fully omit it
+              }
+        }
+    };
+    const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .logicOpEnable = VK_FALSE,
+        .logicOp = VK_LOGIC_OP_COPY,
+        .attachmentCount = blendAttachmentStates.size(),
+        .pAttachments = blendAttachmentStates.data(),
+    };
+    const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
+        m_TextureDescriptorSetLayout,//not actually6 used but I'll leave to ensure it stays bound
+        m_LightPassDescriptorLayout,//includes camera info
+    };
+    const std::array<VkFormat, 4> lightPassesImageFormats{
+                {
+                    m_gBuffer.getColorFormat(0),
+                    m_gBuffer.getColorFormat(1),
+                    m_gBuffer.getColorFormat(2),
+                    m_gBuffer.getColorFormat(3),//might remove the color output on this pass later
+                }
+    };
+    const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .colorAttachmentCount = lightPassesImageFormats.size(),
+        .pColorAttachmentFormats = lightPassesImageFormats.data(),
+        .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
+    };
+
+    constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+          .depthTestEnable = VK_TRUE,
+          .depthWriteEnable = VK_FALSE,
+          .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+      };
+    const VkVertexInputBindingDescription &vertexInputBindingDescriptions = DefaultVertex::getBindingDescription();//It coudl be a position only vertex buffer but it should be accepted by the shader, if I had a LOT of point light, might be worth getting rid of the extra data
+    const auto &attributeDescriptions = DefaultVertex::getAttributeDescriptions();
+
+    const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount = 1,
+        .pVertexBindingDescriptions = &vertexInputBindingDescriptions,
+        .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
+        .pVertexAttributeDescriptions = attributeDescriptions.data(),
+    };
+    VkGraphicsPipelineCreateInfo PipelineCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .pNext = &pipelineRenderingInfo,
+        .stageCount = static_cast<uint32_t>(shaderStages.size()),
+        .pStages = shaderStages.data(),
+        .pVertexInputState = &vertexInputInfo,
+        .pInputAssemblyState = &inputAssemblyInfo,
+        .pRasterizationState = &rasterizerInfo,
+        .pMultisampleState = &multisamplingInfo,
+        .pDepthStencilState = &depthStencilStateInfo,
+        .pColorBlendState = &colorBlendStateInfo,
+        .pDynamicState = &dynamicStateInfo,
+    };
     //point light pass
     {
         VkShaderModule pointLightVertexModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/PointLightDLBindless.vert.spv",device);
         VkShaderModule pointLightFragmentModule = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/PointLightDLBindless.frag.spv",device);
         DBG_VK_NAME(pointLightVertexModule);
         DBG_VK_NAME(pointLightFragmentModule);
-
-        const std::array<VkPipelineShaderStageCreateInfo,2> shaderStages{
-            {
-             {
-                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                 .module = pointLightVertexModule,
-                 .pName = "main",
-             },
-                {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                 .module = pointLightFragmentModule,
-                 .pName = "main",
-                },
-            }
-        };
-
-        const VkVertexInputBindingDescription &vertexInputBindingDescriptions = DefaultVertex::getBindingDescription();//It coudl be a position only vertex buffer but it should be accepted by the shader, if I had a LOT of point light, might be worth getting rid of the extra data
-        const auto &attributeDescriptions = DefaultVertex::getAttributeDescriptions();
-
-        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = 1,
-            .pVertexBindingDescriptions = &vertexInputBindingDescriptions,
-            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),//TODO try replacing this by 1
-            .pVertexAttributeDescriptions = attributeDescriptions.data(),
-        };
-
-        constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {//diffuse and specular, my first implementation kept all 4
-            {
-                {
-                  .blendEnable = VK_FALSE, //Readonly
-                },
-                {
-                    .blendEnable = VK_TRUE,
-                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .colorBlendOp = VK_BLEND_OP_ADD,
-                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
-                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .alphaBlendOp = VK_BLEND_OP_ADD,
-                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                          VK_COLOR_COMPONENT_A_BIT
-                },
-                {
-                    .blendEnable = VK_TRUE,
-                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .colorBlendOp = VK_BLEND_OP_ADD,
-                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
-                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .alphaBlendOp = VK_BLEND_OP_ADD,
-                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                          VK_COLOR_COMPONENT_A_BIT
-                },
-                {
-                    .blendEnable = VK_FALSE,//not used in this case, it would be nive to fully omit it
-                }
-            }
-        };
-
-        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .logicOpEnable = VK_FALSE,
-            .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = blendAttachmentStates.size(),
-            .pAttachments = blendAttachmentStates.data(),
-        };
+        shaderStages[0].module = pointLightVertexModule;
+        shaderStages[1].module = pointLightFragmentModule;
 
         constexpr std::array<VkPushConstantRange,1> pushConstantRanges = {
             {
@@ -1525,11 +1574,6 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                     .size = sizeof(PointLightPushConstants),
                 },
             }
-        };
-
-        const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
-            m_TextureDescriptorSetLayout,//not actually6 used but I'll leave to ensure it stays bound
-            m_LightPassDescriptorLayout,//includes camera info
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
@@ -1543,46 +1587,10 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         VK_CHECK(vkCreatePipelineLayout(device,&pipelineLayoutInfo,nullptr,&m_PointLightPipelineLayout));
         DBG_VK_NAME(m_PointLightPipelineLayout);
 
-        const std::array<VkFormat, 4> imageFormat{
-            {
-                m_gBuffer.getColorFormat(0),
-                m_gBuffer.getColorFormat(1),
-                m_gBuffer.getColorFormat(2),
-                m_gBuffer.getColorFormat(3),//might remove the color output on this pass later
-            }
-        };
-
-        const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-            .colorAttachmentCount = imageFormat.size(),
-            .pColorAttachmentFormats = imageFormat.data(),
-            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
-        };
-
-        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
-          .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .depthTestEnable = VK_TRUE,
-            .depthWriteEnable = VK_FALSE,
-            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
-        };
-
-        const VkGraphicsPipelineCreateInfo pointLightPipelineCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .pNext = &pipelineRenderingInfo,
-            .stageCount = static_cast<uint32_t>(shaderStages.size()),
-            .pStages = shaderStages.data(),
-            .pVertexInputState = &vertexInputInfo,
-            .pInputAssemblyState = &inputAssemblyInfo,
-            .pRasterizationState = &rasterizerInfo,
-            .pMultisampleState = &multisamplingInfo,
-            .pDepthStencilState = &depthStencilStateInfo,
-            .pColorBlendState = &colorBlendStateInfo,
-            .pDynamicState = &dynamicStateInfo,
-            .layout = m_PointLightPipelineLayout,
-        };
+        PipelineCreateInfo.layout = m_PointLightPipelineLayout;
 
         VK_CHECK(
-            vkCreateGraphicsPipelines(device,nullptr,1,&pointLightPipelineCreateInfo,nullptr,&m_PointLightPipeline));
+            vkCreateGraphicsPipelines(device,nullptr,1,&PipelineCreateInfo,nullptr,&m_PointLightPipeline));
         DBG_VK_NAME(m_PointLightPipeline);
 
         vkDestroyShaderModule(device,pointLightVertexModule,nullptr);
@@ -1594,75 +1602,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         VkShaderModule spotLightFragmentShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/SpotLight.frag.spv",device);
         DBG_VK_NAME(spotLightVertexShader);
         DBG_VK_NAME(spotLightFragmentShader);
-
-        const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
-            {
-                {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    .module = spotLightVertexShader,
-                    .pName = "main",
-                },
-                   {
-                       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .module = spotLightFragmentShader,
-                    .pName = "main",
-                   },
-               }
-        };
-
-        const VkVertexInputBindingDescription vertexInputBindingDescription = DefaultVertex::getBindingDescription();//technically I just want positions
-        const auto &attributeDescription = DefaultVertex::getAttributeDescriptions();
-
-        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = 1,
-            .pVertexBindingDescriptions = &vertexInputBindingDescription,
-            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescription.size()),
-            .pVertexAttributeDescriptions = attributeDescription.data()
-        };
-
-        constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {
-            {
-                {
-                    .blendEnable = VK_FALSE, //Readonly
-                  },
-                  {
-                      .blendEnable = VK_TRUE,
-                      .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                      .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                      .colorBlendOp = VK_BLEND_OP_ADD,
-                      .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
-                      .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                      .alphaBlendOp = VK_BLEND_OP_ADD,
-                      .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                            VK_COLOR_COMPONENT_A_BIT
-                  },
-                  {
-                      .blendEnable = VK_TRUE,
-                      .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                      .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                      .colorBlendOp = VK_BLEND_OP_ADD,
-                      .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
-                      .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                      .alphaBlendOp = VK_BLEND_OP_ADD,
-                      .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                            VK_COLOR_COMPONENT_A_BIT
-                  },
-                  {
-                      .blendEnable = VK_FALSE,//not used in this case, it would be nive to fully omit it
-                  }
-            }
-        };
-
-        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .logicOpEnable = VK_FALSE,
-            .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = blendAttachmentStates.size(),
-            .pAttachments = blendAttachmentStates.data()
-        };
+        shaderStages[0].module = spotLightVertexShader;
+        shaderStages[1].module = spotLightFragmentShader;
 
         constexpr std::array<VkPushConstantRange,1> pushConstantRanges = {
             {
@@ -1672,11 +1613,6 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                     .size = sizeof(SpotLightPushConstants),
                 },
             }
-        };
-
-        const std::array descriptorSetLayouts = {
-            m_TextureDescriptorSetLayout,
-            m_LightPassDescriptorLayout,
         };
 
         const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
@@ -1690,42 +1626,9 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         VK_CHECK(vkCreatePipelineLayout(device,&pipelineLayoutCreateInfo,nullptr,&m_SpotLightPipelineLayout));
         DBG_VK_NAME(m_SpotLightPipelineLayout);
 
-        const std::array imageFormats{
-            m_gBuffer.getColorFormat(0),
-            m_gBuffer.getColorFormat(1),
-            m_gBuffer.getColorFormat(2),
-            m_gBuffer.getColorFormat(3),
-        };
-        const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-            .colorAttachmentCount = imageFormats.size(),
-            .pColorAttachmentFormats = imageFormats.data(),
-            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
-        };
-
-        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .depthTestEnable = VK_TRUE,
-            .depthWriteEnable = VK_FALSE,
-            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
-        };
-
-        const VkGraphicsPipelineCreateInfo spotLightPipelineCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .pNext = &pipelineRenderingInfo,
-            .stageCount = static_cast<uint32_t>(shaderStages.size()),
-            .pStages = shaderStages.data(),
-            .pVertexInputState = &vertexInputInfo,
-            .pInputAssemblyState = &inputAssemblyInfo,
-            .pRasterizationState = &rasterizerInfo,
-            .pMultisampleState = &multisamplingInfo,
-            .pDepthStencilState = &depthStencilStateInfo,
-            .pColorBlendState = &colorBlendStateInfo,
-            .pDynamicState = &dynamicStateInfo,
-            .layout = m_SpotLightPipelineLayout,
-        };
+        PipelineCreateInfo.layout = m_SpotLightPipelineLayout;
         VK_CHECK(
-            vkCreateGraphicsPipelines(device,nullptr,1,&spotLightPipelineCreateInfo,nullptr,&m_SpotLightPipeline));
+            vkCreateGraphicsPipelines(device,nullptr,1,&PipelineCreateInfo,nullptr,&m_SpotLightPipeline));
         DBG_VK_NAME(m_SpotLightPipeline);
 
         vkDestroyShaderModule(device,spotLightVertexShader,nullptr);
@@ -1738,72 +1641,16 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
 
         DBG_VK_NAME(dirLightVertexShader);
         DBG_VK_NAME(dirLightFragmentShader);
-
-        const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
-            {
-                {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    .module = dirLightVertexShader,
-                    .pName = "main",
-                },
-                {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .module = dirLightFragmentShader,
-                    .pName = "main",
-                }
-            }
-        };
+        shaderStages[0].module = dirLightVertexShader;
+        shaderStages[1].module = dirLightFragmentShader;
 
         //no vertex input
         //no vertex attributes
 
-        const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+        constexpr VkPipelineVertexInputStateCreateInfo DirLightVertexInputInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .vertexBindingDescriptionCount = 0,
             .vertexAttributeDescriptionCount = 0,
-        };
-
-        constexpr std::array<VkPipelineColorBlendAttachmentState, 4> blendAttachmentStates = {
-            {
-                {
-                    .blendEnable = VK_FALSE,//read only
-                },
-                {
-                    .blendEnable = VK_TRUE,
-                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .colorBlendOp = VK_BLEND_OP_ADD,
-                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
-                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .alphaBlendOp = VK_BLEND_OP_ADD,
-                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                          VK_COLOR_COMPONENT_A_BIT
-                },
-                {
-                    .blendEnable = VK_TRUE,
-                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .colorBlendOp = VK_BLEND_OP_ADD,
-                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,//previous implementation ignored alpha, might want it for intensity and I don't want to forget to blend it
-                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                    .alphaBlendOp = VK_BLEND_OP_ADD,
-                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-                          VK_COLOR_COMPONENT_A_BIT
-                },
-                {
-                .blendEnable = VK_FALSE,//not used in this pass
-                    }
-            }
-        };
-
-        const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .logicOpEnable = VK_FALSE,
-            .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = blendAttachmentStates.size(),
-            .pAttachments = blendAttachmentStates.data(),
         };
 
         //push constant ranges
@@ -1818,11 +1665,6 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             }
         };
 
-        const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
-            m_TextureDescriptorSetLayout,//not used but I probablyu want to keep it bound
-            m_LightPassDescriptorLayout,
-        };
-
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = descriptorSetLayouts.size(),
@@ -1835,51 +1677,16 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             vkCreatePipelineLayout(m_context.getDevice(), &pipelineLayoutInfo, nullptr,&m_DirectionalLightPipelineLayout));
         DBG_VK_NAME(m_DirectionalLightPipelineLayout);
 
-        const std::array<VkFormat,4> imageFormats = {//TODO if passing all framebuffers through, I can move the image formats on top of this
-            m_gBuffer.getColorFormat(0),
-            m_gBuffer.getColorFormat(1),
-            m_gBuffer.getColorFormat(2),
-            m_gBuffer.getColorFormat(3),//again, might remove the final output attechment from this pass
-        };
-
-        const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-            .colorAttachmentCount = imageFormats.size(),
-            .pColorAttachmentFormats = imageFormats.data(),
-            .depthAttachmentFormat = m_gBuffer.getDepthFormat(),
-        };
-
-        constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .depthTestEnable = VK_FALSE,
-            .depthWriteEnable = VK_FALSE,
-        };
-
-        const VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .pNext = &pipelineRenderingInfo,
-            .stageCount = static_cast<uint32_t>(shaderStages.size()),
-            .pStages = shaderStages.data(),
-            .pVertexInputState = &vertexInputInfo,
-            .pInputAssemblyState = &inputAssemblyInfo,
-            .pRasterizationState = &rasterizerInfo,
-            .pMultisampleState = &multisamplingInfo,
-            .pDepthStencilState = &depthStencilStateInfo,
-            .pColorBlendState = &colorBlendStateInfo,
-            .pDynamicState = &dynamicStateInfo,
-            .layout = m_DirectionalLightPipelineLayout,
-        };
-
+        PipelineCreateInfo.pVertexInputState = &DirLightVertexInputInfo;
+        PipelineCreateInfo.layout = m_DirectionalLightPipelineLayout;
         VK_CHECK(
-            vkCreateGraphicsPipelines(device,nullptr,1, &pipelineCreateInfo, nullptr,&m_DirectionalLightPipeline));
+            vkCreateGraphicsPipelines(device,nullptr,1, &PipelineCreateInfo, nullptr,&m_DirectionalLightPipeline));
         DBG_VK_NAME(m_DirectionalLightPipeline);
 
         vkDestroyShaderModule(device, dirLightVertexShader,nullptr);
         vkDestroyShaderModule(device, dirLightFragmentShader,nullptr);
 
     }
-    //TODO spot light pass
-
 
     //Shading pass
     {

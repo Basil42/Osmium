@@ -37,7 +37,6 @@ void main() {
         specular = ((MaxSpecularPower + 8)/8) * specular;
     }
 
-    //vec3 IntensityColor = color.rgb * color.a;
     outDiffuse = lambertian * color;
     outSpecular = specular * lambertian * color;
 }

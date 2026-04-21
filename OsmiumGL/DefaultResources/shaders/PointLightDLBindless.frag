@@ -15,8 +15,8 @@ layout(push_constant)uniform PointLight {
 } Light;
 
 
-layout(location = 1)out vec3 outDiffuse;
-layout(location = 2)out vec3 outSpecular;
+layout(location = 1)out vec4 outDiffuse;
+layout(location = 2)out vec4 outSpecular;
 
 layout(constant_id = 0)const float MaxSpecularPower = 32.0f;
 layout(constant_id = 1)const float attenuationCutoff = 0.02f;
@@ -44,11 +44,10 @@ void main() {
 
 
 
-    //float attenuationFactorB = 1.0 / (Light.radius * Light.radius * 0.01);
     float lightDistance = length(viewSpaceSurfacePosition.xyz - viewLightCenterLinear);
-    float attenuation = attenuationCutoff * ((Light.radius * Light.radius) / (lightDistance*lightDistance + 0.2));
+    float attenuation = 1- ((lightDistance*lightDistance)/(Light.radius * Light.radius));
     //additively blended
-    vec3 IntensityColor = Light.color.rgb * Light.color.a * attenuation;
+    vec4 IntensityColor = Light.color * attenuation;
     outDiffuse = lambertian * IntensityColor;
     outSpecular = specular * lambertian * IntensityColor;
 }

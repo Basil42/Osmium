@@ -25,6 +25,7 @@ using MeshHandle = unsigned int;
 using TextureHandle = unsigned int;
 using PointLightHandle = unsigned int;
 using DirectionalLightHandle = unsigned int;
+using SpotLightHandle = unsigned int;
 
 
 class OsmiumBindlessInstance {
@@ -62,6 +63,11 @@ public:
     DirectionalLightHandle RegisterDirectionalLightInstance(const DirectionalLightPushConstants &lightData) const;
     void UnregisterDirectionalLightInstance(const DirectionalLightHandle& lightHandle) const;
     bool UpdateDirectionalLight(const DirectionalLightHandle& lightHandle, const DirectionalLightPushConstants &lightData) const;
+
+    SpotLightHandle RegisterSpotlightInstance(const SpotLightPushConstants& lightData);
+    bool UpdateSpotlightInstance(const SpotLightHandle& lightHandle, const SpotLightPushConstants& lightData)const;
+    void UnregisterSpotlightInstance(const SpotLightHandle& lightHandle) const;
+
 
 private:
     void init();
