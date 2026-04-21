@@ -733,7 +733,6 @@ void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
         m_gBuffer.update(cmd, m_viewportSize);
         utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool,
                                      m_context.getGraphicsQueue().queue);
-        std::cout << "resized viewport to :" << m_viewportSize.width << "," << m_viewportSize.height << " with cursor position " << cursorPosition.x << " " << cursorPosition.y << std::endl;
     }
 }
 
