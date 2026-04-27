@@ -61,11 +61,12 @@ printf("\n");                                                                   
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #undef APIENTRY  // GLFW defines this but Windows tries to redefine it
-#include <Windows.h>
+#include <windows.h>
 #endif
 
 //std
 #include <array>
+#include <cstddef>
 #include <filesystem>     // For std::filesystem::path ...
 #include <limits>         // for std::numeric_limits<double>::infinity()
 #include <span>           // For std::span
@@ -95,7 +96,7 @@ throw std::runtime_error(message);                                              
 #include "Utilities/CoreUtils.h"
 
 
-OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size, const char* appName) : m_windowSize(size) {
+OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size, const char* appName) : m_windowSize(size) { // NOLINT(*-pro-type-member-init)
     // Vulkan Loader
     VK_CHECK(volkInitialize());
     // Create the GLTF Window
@@ -128,7 +129,6 @@ void OsmiumBindlessInstance::run() {
         constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
                                                  ImGuiDockNodeFlags_NoDockingInCentralNode;
         ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
-        auto node = ImGui::DockBuilderGetNode(dockID);
         static bool initPass = true;
         if (initPass) {
             initPass = false;
@@ -153,7 +153,7 @@ void OsmiumBindlessInstance::run() {
             }
             ImGui::EndMainMenuBar();
         }
-        // We define "viewport" with no padding an retrieve the rendering area
+        // We define "viewport" with no padding and retrieve the rendering area
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::Begin("Viewport");
         ImVec2 windowSize = ImGui::GetContentRegionAvail();
@@ -161,12 +161,11 @@ void OsmiumBindlessInstance::run() {
         ImGui::PopStyleVar();
 
         // Verify if the viewport has a new size and resize the G-Buffer accordingly.
-        const VkExtent2D viewportSize = {static_cast<uint32_t>(windowSize.x), static_cast<uint32_t>(windowSize.y)};//not the viewport size at all
-        if (m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
+        if (const VkExtent2D viewportSize = {.width=static_cast<uint32_t>(windowSize.x), .height=static_cast<uint32_t>(windowSize.y)};
+            m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
             onViewportSizeChange(viewportSize);
         }
 
-        // ImGui::ShowDemoWindow();
         // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
         if (prepareFrameResources()) {
             VkCommandBuffer cmd = beginCommandRecording();
@@ -184,7 +183,7 @@ void OsmiumBindlessInstance::run() {
     }
 }
 
-void OsmiumBindlessInstance::UpdateCameraInfo(glm::mat4 view) {
+void OsmiumBindlessInstance::UpdateCameraInfo(const glm::mat4 &view) {
     //per frame camera update
     m_CameraInfoStruct.viewMatrix = view;
 
@@ -217,7 +216,7 @@ TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
     utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool, m_context.getGraphicsQueue().queue);
     auto resourceIndex =  m_textures->Add(resource);
 
-    const VkSampler sampler = m_samplerPool.acquireSampler({
+    VkSampler_T*const  sampler = m_samplerPool.acquireSampler({
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
         .magFilter = VK_FILTER_LINEAR,
         .minFilter = VK_FILTER_LINEAR,
@@ -276,7 +275,7 @@ MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename) {
     return m_meshes->Add(resource);
 }
 
-void OsmiumBindlessInstance::UnloadMesh(MeshHandle meshHandle) {
+void OsmiumBindlessInstance::UnloadMesh(MeshHandle meshHandle) const {
     auto resource = m_meshes->get(meshHandle);
     m_allocator.destroyBuffer(resource.VertexBuffer);
     m_allocator.destroyBuffer(resource.IndicesBuffer);
@@ -290,7 +289,7 @@ RenderObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(const 
     };
 }
 
-void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(RenderObjectHandle &renderedObject) {
+void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(const RenderObjectHandle &renderedObject) {
     auto pushdata = m_renderedObjects.at(renderedObject.mesh);//might want to sanitize this a bit
     pushdata.Remove(renderedObject.index);
     if (pushdata.GetCount() == 0) m_renderedObjects.erase(renderedObject.mesh);
@@ -332,7 +331,7 @@ bool OsmiumBindlessInstance::UpdateDirectionalLight(const DirectionalLightHandle
 }
 
 SpotLightHandle OsmiumBindlessInstance::RegisterSpotlightInstance(
-    const SpotLightPushConstants &lightData) {
+    const SpotLightPushConstants &lightData) const {
     return m_spotLightInstances->Add(lightData);
 }
 
@@ -366,7 +365,7 @@ bool OsmiumBindlessInstance::prepareFrameResources() {
     return (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR);
 }
 
-VkCommandBuffer OsmiumBindlessInstance::beginCommandRecording() {
+VkCommandBuffer OsmiumBindlessInstance::beginCommandRecording() const {
     VkDevice device = m_context.getDevice();
 
     auto &frame = m_frameData[m_frameRingCurrent];
@@ -414,15 +413,15 @@ void OsmiumBindlessInstance::init() {
     initImGui();
 
     //Getting sampler for the gbuffer
-    constexpr VkSamplerCreateInfo samplerInfo = {
-        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        .magFilter = VK_FILTER_LINEAR,
-        .minFilter = VK_FILTER_LINEAR,
-    };
 
     //creating GBuffer, contains all frame buffers
     {
-        const VkSampler linearSampler = m_samplerPool.acquireSampler(samplerInfo);
+        constexpr VkSamplerCreateInfo samplerInfo = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = VK_FILTER_LINEAR,
+            .minFilter = VK_FILTER_LINEAR,
+        };
+        VkSampler_T*const linearSampler = m_samplerPool.acquireSampler(samplerInfo);
         VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
 
         const VkFormat depthFormat = utils::findDepthFormat(m_context.getPhysicalDevice());
@@ -520,9 +519,9 @@ void OsmiumBindlessInstance::destroy() {
     vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
     vkDestroyDescriptorPool(device, m_uiDescriptorPool, nullptr);
 
-    for (size_t i = 0; i < m_frameData.size(); i++) {
-        vkFreeCommandBuffers(device, m_frameData[i].cmdPool, 1, &m_frameData[i].cmdBuffer);
-        vkDestroyCommandPool(device, m_frameData[i].cmdPool, nullptr);
+    for (auto & i : m_frameData) {
+        vkFreeCommandBuffers(device, i.cmdPool, 1, &i.cmdBuffer);
+        vkDestroyCommandPool(device, i.cmdPool, nullptr);
     }
     vkDestroySemaphore(device, m_frameTimelineSemaphore, nullptr);
 
@@ -576,7 +575,7 @@ void OsmiumBindlessInstance::createFrameSubmission(uint32_t NumFrames) {
 
     for (uint32_t i = 0; i < NumFrames; i++) {
         m_frameData[i].frameNumber = i;
-        //need a pool per frame, as you have to reset pool entirely (maybe to allow prerecorded cmd buffers to be rerun ?
+        //need a pool per frame, as you have to reset pool entirely (maybe to allow prerecorded cmd buffers to be rerun ?)
         VK_CHECK(vkCreateCommandPool(device,&cmdPoolInfo,nullptr,&m_frameData[i].cmdPool));
         DBG_VK_NAME(m_frameData[i].cmdPool);
 
@@ -592,8 +591,8 @@ void OsmiumBindlessInstance::createFrameSubmission(uint32_t NumFrames) {
 }
 
 void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
-    //note the sample implementation renders the textures that were frame buffers in my previous implementation into a quad within the UI, I like it on paper as it could be more flexible
-    //however, it feels less optimal than color attachments (that would be annoying to test though)
+    //note: The sample implementation renders the textures that were frame buffers in my previous implementation into a quad within the UI.
+    //I like it on paper as it could be more flexible, however, it feels less optimal than color attachments (that would be annoying to test though)
 
     //TODO: move out the docking stuff to the editor
     if (ImGui::Begin("Viewport")) {
@@ -652,7 +651,7 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
     };
     const VkRenderingInfo renderingInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-        .renderArea = {{0, 0}, m_windowSize},
+        .renderArea = {.offset={.x=0, .y=0}, .extent=m_windowSize},
         //not sure that is actually true if we render to a docked viewport, will be valid outside the editor though, so why not
         .layerCount = 1,
         //unclear what these layer are, but there is a small chance I could have a multi layer GBuffer with light buffer in the deeper layers ?
@@ -684,7 +683,7 @@ void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
             }
         }
     };
-    std::array<VkSemaphoreSubmitInfo, 2> signalSemaphores;
+    std::array<VkSemaphoreSubmitInfo, 2> signalSemaphores{};
     //both semaphores signal when this frame is over, although they indicate slightly different things
     signalSemaphores[0] = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -740,7 +739,6 @@ void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
 void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
     m_viewportSize = size;
     m_CameraInfoStruct.projectionMatrix = glm::perspective(m_fov,static_cast<float>(m_viewportSize.width)/ static_cast<float>(m_viewportSize.height),m_zNear,m_zFar);
-    auto cursorPosition = ImGui::GetCursorPos();
     vkQueueWaitIdle(m_context.getGraphicsQueue().queue); {
         VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
         m_gBuffer.update(cmd, m_viewportSize);
@@ -782,9 +780,9 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     constexpr std::array<VkDeviceSize, 1> offsets = {0};
     //this would be constructerd from the rendered object collection to index correctly into the vertex buffer ?
     const VkViewport viewport = {
-        0.0F, 0.0F, static_cast<float>(m_viewportSize.width), static_cast<float>(m_viewportSize.height), 0.0F, 1.0F
+        .x=0.0F, .y=0.0F, .width=static_cast<float>(m_viewportSize.width), .height=static_cast<float>(m_viewportSize.height), .minDepth=0.0F, .maxDepth=1.0F
     };
-    const VkRect2D scissor = {{0, 0}, m_viewportSize};
+    const VkRect2D scissor = {.offset={.x=0, .y=0}, .extent=m_viewportSize};
     {
         const VkDescriptorBufferInfo cameraBufferInfo{
             .buffer = m_CameraInfoBuffer.buffer, .offset = 0, .range = VK_WHOLE_SIZE
@@ -885,7 +883,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
     const VkRenderingInfo renderingInfo{
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-        .renderArea = {{0, 0}, m_gBuffer.getSize()},
+        .renderArea = {.offset={.x=0, .y=0}, .extent=m_gBuffer.getSize()},
         .layerCount = 1,
         .colorAttachmentCount = static_cast<uint32_t>(colorAttachmentInfo.size()),
         .pColorAttachments = colorAttachmentInfo.data(),
@@ -957,7 +955,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         .range = VK_WHOLE_SIZE
         };
 
-    const VkSamplerCreateInfo samplerInfo{
+    constexpr VkSamplerCreateInfo samplerInfo{
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
         .magFilter = VK_FILTER_LINEAR,
         .minFilter = VK_FILTER_LINEAR,
@@ -1148,16 +1146,12 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         //rebinding the texture descriptor, due to a quirk of the spec that makes pipelines with different push constant ranges
         bindDescriptorSetsInfo.layout = m_ShadingPipelineLayout;
         vkCmdBindDescriptorSets2(cmd,&bindDescriptorSetsInfo);
-        const VkDescriptorBufferInfo CameraBufferInfo{
-            .buffer = m_CameraInfoBuffer.buffer,
-            .offset = 0,
-            .range = VK_WHOLE_SIZE};
         const  VkDescriptorBufferInfo AmbientLightBufferInfo{
             .buffer = m_ShadingUniformBuffer.buffer,
             .offset = 0,
             .range = VK_WHOLE_SIZE
         };
-        const std::array<VkWriteDescriptorSet, 5> writeDescriptorSet = {//could make this static
+        const std::array<VkWriteDescriptorSet, 5> shadingWriteDescriptorSet = {//could make this static
             {
                 {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -1209,8 +1203,8 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
             .layout = m_ShadingPipelineLayout,
             .set = 1,
-            .descriptorWriteCount = static_cast<uint32_t>(writeDescriptorSet.size()),
-            .pDescriptorWrites = writeDescriptorSet.data(),
+            .descriptorWriteCount = static_cast<uint32_t>(shadingWriteDescriptorSet.size()),
+            .pDescriptorWrites = shadingWriteDescriptorSet.data(),
         };
 
         vkCmdPushDescriptorSet2(cmd, &PushDescriptorSetInfo);
@@ -1271,7 +1265,8 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT,
     };
 
-    const VkPipelineDynamicStateCreateInfo dynamicStateInfo{
+    // ReSharper disable once CppVariableCanBeMadeConstexpr
+    const VkPipelineDynamicStateCreateInfo dynamicStateInfo{//not sure why I can't make this constexpr
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
         .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
         .pDynamicStates = dynamicStates.data(),
@@ -1354,6 +1349,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                 },
             }
         };
+        // ReSharper disable once CppVariableCanBeMadeConstexpr
         const VkPipelineColorBlendStateCreateInfo colorBlendInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .logicOpEnable = VK_FALSE,
@@ -1406,6 +1402,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         };
 
         constexpr std::array<uint32_t,4> colorAttachmentIndexes {0,1,2,3};//technically none of these are used as input on the normal spec pass
+        // ReSharper disable once CppVariableCanBeMadeConstexpr
         const VkRenderingInputAttachmentIndexInfo normalSpecInputInfo {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO,
             .pNext = nullptr,
@@ -1501,6 +1498,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
               }
         }
     };
+    // ReSharper disable once CppVariableCanBeMadeConstexpr
     const VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .logicOpEnable = VK_FALSE,
@@ -1509,7 +1507,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .pAttachments = blendAttachmentStates.data(),
     };
     const std::array<VkDescriptorSetLayout, 2> descriptorSetLayouts = {
-        m_TextureDescriptorSetLayout,//not actually6 used but I'll leave to ensure it stays bound
+        m_TextureDescriptorSetLayout,//not actually used, but I'll leave to ensure it stays bound
         m_LightPassDescriptorLayout,//includes camera info
     };
     const std::array<VkFormat, 4> lightPassesImageFormats{
@@ -1533,7 +1531,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
           .depthWriteEnable = VK_FALSE,
           .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
       };
-    const VkVertexInputBindingDescription &vertexInputBindingDescriptions = DefaultVertex::getBindingDescription();//It coudl be a position only vertex buffer but it should be accepted by the shader, if I had a LOT of point light, might be worth getting rid of the extra data
+    const VkVertexInputBindingDescription &vertexInputBindingDescriptions = DefaultVertex::getBindingDescription();//It could be a position only vertex buffer, but it should be accepted by the shader, if I had a LOT of point light, might be worth getting rid of the extra data
     const auto &attributeDescriptions = DefaultVertex::getAttributeDescriptions();
 
     const VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
@@ -1595,7 +1593,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         vkDestroyShaderModule(device,pointLightVertexModule,nullptr);
         vkDestroyShaderModule(device,pointLightFragmentModule,nullptr);
     }
-    //spot light pass
+    //spotlight pass
     {
         VkShaderModule spotLightVertexShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/SpotLight.vert.spv",device);
         VkShaderModule spotLightFragmentShader = ShaderUtils::createShaderModule("../OsmiumGL/DefaultResources/shaders/SpotLight.frag.spv",device);
@@ -1653,7 +1651,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         };
 
         //push constant ranges
-        const std::array<VkPushConstantRange,1> pushConstantRanges = {
+        constexpr std::array<VkPushConstantRange,1> pushConstantRanges = {
             {
 
                 {
@@ -1716,6 +1714,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                 }
             }};
 
+        // ReSharper disable once CppVariableCanBeMadeConstexpr
         const VkPipelineColorBlendStateCreateInfo shadingColorBlendStateInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .logicOpEnable = VK_FALSE,
@@ -1793,7 +1792,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
     }
 }
 
-void OsmiumBindlessInstance::initImGui() {
+void OsmiumBindlessInstance::initImGui() const {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
@@ -1833,7 +1832,7 @@ void OsmiumBindlessInstance::createDescriptorPool() {
     //texture pool
     {
         m_maxTextures = std::min(m_maxTextures, deviceProperties.limits.maxDescriptorSetSampledImages);
-        VkDescriptorPoolSize poolSize = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_maxTextures};
+        VkDescriptorPoolSize poolSize = {.type=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount=m_maxTextures};
         uint32_t maxDescriptorSets = std::min(20U, deviceProperties.limits.maxDescriptorSetUniformBuffers);
         const VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -1852,7 +1851,7 @@ void OsmiumBindlessInstance::createDescriptorPool() {
     {
         uint32_t uiPoolSize = std::min(20U, deviceProperties.limits.maxDescriptorSetSampledImages);
         uint32_t maxDescriptorSets = std::min(uiPoolSize, deviceProperties.limits.maxDescriptorSetUniformBuffers);
-        VkDescriptorPoolSize poolSize = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, uiPoolSize};
+        VkDescriptorPoolSize poolSize = {.type=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount=uiPoolSize};
         VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
@@ -1896,6 +1895,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             // does not need to be entirely valid (we can unload entries and load new one)
         };
 
+        // ReSharper disable once CppVariableCanBeMadeConstexpr
         const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
             .pNext = nullptr,
@@ -1937,6 +1937,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             }
         };
 
+        // ReSharper disable once CppVariableCanBeMadeConstexpr
         const VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT,
@@ -1978,6 +1979,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
             }
         };
 
+        // ReSharper disable once CppVariableCanBeMadeConstexpr
         const VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
@@ -2027,6 +2029,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
                 }
         };
 
+        // ReSharper disable once CppVariableCanBeMadeConstexpr
         const VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
@@ -2056,7 +2059,7 @@ utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer 
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
         .format = format,
-        .extent = {static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1},
+        .extent = {.width=static_cast<uint32_t>(w), .height=static_cast<uint32_t>(h), .depth=1},
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -2064,11 +2067,14 @@ utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer 
     };
 
     // Use the VMA allocator to create the image
-    const std::span dataSpan(data, w * h * 4);
+    const std::span dataSpan(data, static_cast<unsigned int>(w * h * 4));
     utils::ImageResource image =
             m_allocator.createImageAndUploadData(cmd, dataSpan, imageInfo, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     DBG_VK_NAME(image.image);
-    image.extent = {static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
+    image.extent = {
+        .width=static_cast<uint32_t>(w),
+        .height=static_cast<uint32_t>(h)
+    };
 
     // Create the image view
     const VkImageViewCreateInfo viewInfo = {
@@ -2091,7 +2097,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage() {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
         .format = format,
-        .extent = {1, 1, 1},
+        .extent = {.width=1, .height=1, .depth=1},
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -2106,7 +2112,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage() {
                                                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_transientCmdPool,m_context.getGraphicsQueue().queue);
     DBG_VK_NAME(image.image);
-    image.extent = {1, 1};
+    image.extent = {.width=1, .height=1};
 
     const VkImageViewCreateInfo viewInfo = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -2124,7 +2130,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage() {
 
     //send to descriptor
 
-    const VkSampler sampler = m_samplerPool.acquireSampler({
+    VkSampler_T*const sampler = m_samplerPool.acquireSampler({
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
         .magFilter = VK_FILTER_LINEAR,
         .minFilter = VK_FILTER_LINEAR,
@@ -2160,7 +2166,7 @@ void OsmiumBindlessInstance::createDefaultTextureImage() {
 void OsmiumBindlessInstance::WindowResizingHandling() {
     //inlining things here for clarity
     glfwSetWindowUserPointer(m_window,this);
-    glfwSetFramebufferSizeCallback(m_window,[](GLFWwindow* window, int width, int height) {
+    glfwSetFramebufferSizeCallback(m_window,[](GLFWwindow* window, int width, int height) { // NOLINT(*-easily-swappable-parameters)
         const auto app = static_cast<OsmiumBindlessInstance*>(glfwGetWindowUserPointer(window));
         app->m_swapchain.requestRebuild();
     });

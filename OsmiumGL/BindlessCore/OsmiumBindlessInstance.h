@@ -38,7 +38,7 @@ public:
 
     void run();
 
-    void UpdateCameraInfo(glm::mat4 view);
+    void UpdateCameraInfo(const glm::mat4 &view);
 
     void UpdateCameraSettings(float radianVFOV);
 
@@ -50,11 +50,11 @@ public:
 
     MeshHandle LoadMesh(const std::string &filename);
 
-    void UnloadMesh(MeshHandle meshHandle);
+    void UnloadMesh(MeshHandle meshHandle) const;
 
     RenderObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
 
-    void UnregisterRenderedObjectInstance(RenderObjectHandle& renderedObject);
+    void UnregisterRenderedObjectInstance(const RenderObjectHandle& renderedObject);
 
     PointLightHandle RegisterPointLightInstance(const PointLightPushConstants &lightData) const;
     void UnregisterPointLightInstance(const PointLightHandle& lightHandle) const;
@@ -64,7 +64,7 @@ public:
     void UnregisterDirectionalLightInstance(const DirectionalLightHandle& lightHandle) const;
     bool UpdateDirectionalLight(const DirectionalLightHandle& lightHandle, const DirectionalLightPushConstants &lightData) const;
 
-    SpotLightHandle RegisterSpotlightInstance(const SpotLightPushConstants& lightData);
+    SpotLightHandle RegisterSpotlightInstance(const SpotLightPushConstants& lightData) const;
     bool UpdateSpotlightInstance(const SpotLightHandle& lightHandle, const SpotLightPushConstants& lightData)const;
     void UnregisterSpotlightInstance(const SpotLightHandle& lightHandle) const;
 
@@ -93,7 +93,7 @@ private:
 
     void createGraphicsPipelines();//could have overload to manage extra step, although I think modern pipeline can be boiled to mesh+frag shaders
 
-    void initImGui();
+    void initImGui() const;
 
     void createDescriptorPool(); //should on used for textures and imgui
 
@@ -188,7 +188,7 @@ private:
 
     bool prepareFrameResources();
 
-    VkCommandBuffer beginCommandRecording();
+    VkCommandBuffer beginCommandRecording() const;
 };
 
 
