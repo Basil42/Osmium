@@ -8,10 +8,9 @@
 
 struct SpotLightPushConstants {
     struct {
-        alignas(16)glm::mat4 model;
-        glm::vec4 direction; //world direction the spot points at
+        alignas(16)glm::mat4 model;//direction is contained here
     }vertConstant;
-    float radius;
+    float radius;//radius is for convenience
     float innerAngle;
     float outerAngle;
     //4 padding

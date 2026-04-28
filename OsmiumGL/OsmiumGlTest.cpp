@@ -54,15 +54,18 @@ int main(int argc, char *argv[]) {
         SpotLightPushConstants testSpotLight{
             .vertConstant = {
                 .model = glm::mat4(1.0f),
-                .direction = {0.0f,0.0f,1.0f,1.0f},
             },
-            .radius = 1.0f,
+            .radius = 0.5f,
             .innerAngle = 0.0f,
-            .outerAngle = glm::pi<float>(),
+            .outerAngle = 0.1f,
             .fragConstant = {
                 .color = {0.0f,0.0f,1.0f,5.0f}
                 }
         };
+        testSpotLight.vertConstant.model = rotate(testSpotLight.vertConstant.model, -1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+        testSpotLight.vertConstant.model[3][2] = -2.0f;
+        glm::vec4 centerTest =testSpotLight.vertConstant.model * glm::vec4(0.0f,0.0f,0.0f,1.0f);
+        std::cout << centerTest.x << centerTest.y << centerTest.z << std::endl;
         app.RegisterSpotlightInstance(testSpotLight);
         DirectionalLightPushConstants testDirectionalLight{
             .Color = {0.0f,1.0f,0.0f,0.05f},
