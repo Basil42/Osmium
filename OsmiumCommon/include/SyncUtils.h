@@ -7,9 +7,9 @@
 #include <mutex>
 #include <condition_variable>
 namespace Sync {
-    struct SyncBoolCondition {
+    struct SyncCondition {
         std::mutex mutex;
-        bool boolean = false;
+        bool signaled = false;
         std::condition_variable cv;
     };
 }

@@ -29,7 +29,8 @@ template <typename T,size_t Max_Capacity>class ResourceArray;
 class GOC_Camera;
 class GameInstance {
     //syncing stuff
-    Sync::SyncBoolCondition SimulationSync, RenderDataUpdateSync,ImguiUpdateSync;//might need two imgui sync objects
+    Sync::SyncCondition SimulationSync;//might need two imgui sync objects
+    std::vector<Sync::SyncCondition*> GameLoopDependencies;//the render data copy by default, with the addition of the Imgui editor task in editor mode
     bool isSimOver = false;
     std::condition_variable SimulationConditionVariable;
     std::mutex renderDataMutex;
@@ -72,7 +73,7 @@ public:
 
     void run(const std::string &appName);
 
-    void getImGuiSyncInfo(::ImGuiSyncStruct &syncData);
+    void getGameLoopSyncStruct(Sync::SyncCondition* syncData);//can be used by the GL and editor to be signaled that the simulation step is over
 
     void SetMainCamera(GameObjectHandle editor_camera);
 

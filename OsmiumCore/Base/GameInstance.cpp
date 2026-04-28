@@ -26,7 +26,7 @@ void GameInstance::GameLoop() {
         ImguiUpdateSync.cv.wait(ImGuiLock, [this] { return ImguiUpdateSync.boolean == false; });
 
 
-        SimulationSync.boolean = false;//bool was previously "sim is over"
+        SimulationSync.signaled = false;//bool was previously "sim is over"
         std::unique_lock<std::mutex> SimulationLock(SimulationSync.mutex);
         AssetManager::ProcessCallbacks();
         //game object creation
@@ -78,6 +78,7 @@ void GameInstance::run(const std::string &appName) {
     instance = this;
     GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
     OsmiumGL::Init(appName);
+    GameLoopDependencies.push_back(OsmiumGL::GetRenderSyncInfo());
     //load the initial assets, probably in its own thread
     AssetManager::LoadAssetDatabase();
     auto SimulationThread = std::thread(&GameInstance::GameLoop,this);
@@ -132,11 +133,8 @@ void GameInstance::run(const std::string &appName) {
     // OsmiumGL::Shutdown();
 }
 
-void GameInstance::getImGuiSyncInfo(ImGuiSyncStruct& syncData) {
-    syncData.imGuiMutex = &ImguiUpdateSync.mutex;
-    syncData.imGuiNewFrameConditionVariable = &ImguiUpdateSync.cv;// ImguiNewFrameConditionVariable;
-    syncData.isImguiNewFrameReady = &ImguiUpdateSync.boolean;
-    syncData.ImGuiShouldShutoff = &ImGuiShouldShutoff;
+void GameInstance::getGameLoopSyncStruct(Sync::SyncCondition* syncData) {
+    syncData = &SimulationSync;
 }
 
 void GameInstance::SetMainCamera(GameObjectHandle editor_camera) {//might do an override that takes a GOC_Camera pointer directly

@@ -5,7 +5,6 @@
 #ifndef OSMIUMGL_API_H
 #define OSMIUMGL_API_H
 #include <condition_variable>
-#include <map>
 #include <vector>
 #include "RenderedObject.h"
 #include "VertexDescriptor.h"
@@ -20,19 +19,14 @@ struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
 class OsmiumGLDynamicInstance;
 struct DefaultVertex;
-class OsmiumGLInstance;
+class OsmiumBindlessInstance;
 
 namespace xg {
     class Guid;
 }
 namespace  OsmiumGL {
 
-#ifdef DYNAMIC_RENDERING
-    inline OsmiumGLDynamicInstance* instance;
-#else
-    inline OsmiumGLInstance* instance;
-    #endif
-    inline std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors = std::map<RenderedObject,std::vector<std::byte>>();
+
     void Init(const std::string &appName);
 
     void test();
@@ -49,14 +43,7 @@ namespace  OsmiumGL {
     MatInstanceHandle GetDefaultMaterialInstance();
 
 
-
-    template<typename Container>
-    void SubmitPushConstantDataGO(RenderedObject rendered_object, Container& data) {//container should be a vector or std::array, or any container with .begin and .end
-        if (!pushConstantStagingVectors.contains(rendered_object)) {
-            pushConstantStagingVectors[rendered_object] = std::vector<std::byte>();
-        }
-        pushConstantStagingVectors[rendered_object].insert(pushConstantStagingVectors[rendered_object].end(), data.begin(), data.end());
-    }
+    void SubmitPushConstantDataGO(RenderedObject rendered_object, std::span<std::byte>& data);
 
     //Mesh renderer gameobject constant buffer updates
     void ClearGOPushConstantBuffers();
@@ -96,7 +83,7 @@ namespace  OsmiumGL {
 
     void UpdateDynamicPointLights(const std::span<PointLightPushConstants>& pointLightData);
 
-    void RenderFrame(Sync::SyncBoolCondition &imgui_update_sync);
+    void RenderFrame(Sync::SyncCondition &imgui_update_sync);
 
     MaterialHandle GetDefaultMaterial();
 
@@ -110,6 +97,8 @@ namespace  OsmiumGL {
     void SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding, TextureHandle texture);
 
     void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& dirLightData);
+
+    Sync::SyncCondition * GetRenderSyncInfo();
 };
 
 

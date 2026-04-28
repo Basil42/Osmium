@@ -7,6 +7,7 @@
 #include "DirectionalLight.h"
 #include "DirectionalLights.h"
 #include "MeshFileLoading.h"
+#include "RenderedObject.h"
 #include "SpotLights.h"
 #include "volk.h"
 

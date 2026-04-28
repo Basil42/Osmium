@@ -30,8 +30,6 @@ using SpotLightHandle = unsigned int;
 
 class OsmiumBindlessInstance {
 public:
-    OsmiumBindlessInstance() = default;
-
     explicit OsmiumBindlessInstance(VkExtent2D size = {800, 600}, const char* appName = "Osmium");
 
     ~OsmiumBindlessInstance();

@@ -7,17 +7,25 @@
 #include <mutex>
 #include <filesystem>
 
-#include "../../../OsmiumCore/Base/config.h"
+#include "../../BindlessCore/OsmiumBindlessInstance.h"
 #include "crossguid/guid.hpp"
 
+std::unique_ptr<OsmiumBindlessInstance> instance;
+std::unique_ptr<std::map<RenderedObject,std::vector<std::byte>>> pushConstantStagingVectors;
 
 void OsmiumGL::Init(const std::string &appName) {
-    //instance = new OsmiumGLDynamicInstance();
-    //instance->Initialize(appName);
+    instance = std::make_unique<OsmiumBindlessInstance>(VkExtent2D(800,600), appName.c_str());
+
+    pushConstantStagingVectors = std::make_unique<std::map<RenderedObject,std::vector<std::byte>>>();
 }
 
 
-
+void SubmitPushConstantDataGO(RenderedObject rendered_object, std::span<std::byte>& data) {
+    if (!pushConstantStagingVectors->contains(rendered_object)) {
+        (*pushConstantStagingVectors)[rendered_object] = std::vector<std::byte>();
+    }
+    pushConstantStagingVectors->at(rendered_object).insert(pushConstantStagingVectors->at(rendered_object).end(),data.begin(),data.end());
+}
 
 
 void OsmiumGL::SubmitPushConstantBuffers() {
@@ -51,12 +59,12 @@ void OsmiumGL::ClearGOPushConstantBuffers() {
 
     //I do this to not reallocate vectors every frame
     std::vector<RenderedObject> StaleRenderedObjects;//I'd prefer a faster structure
-    for (auto& [fst, snd] : pushConstantStagingVectors) {
+    for (auto& [fst, snd] : *pushConstantStagingVectors) {
         if (snd.empty())StaleRenderedObjects.push_back(fst);//no object of that kind has submitted this frame
         else snd.clear();
     }
     for (auto& staleObject: StaleRenderedObjects) {
-        pushConstantStagingVectors.erase(staleObject);
+        pushConstantStagingVectors->erase(staleObject);
     }
 }
 
@@ -81,7 +89,7 @@ bool OsmiumGL::RegisterRenderedObject(const RenderedObject &rendered_object) {
 }
 
 void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {
-    pushConstantStagingVectors.erase(rendered_object);
+    pushConstantStagingVectors->erase(rendered_object);
     //instance->RemoveRenderedObject(rendered_object);
 }
 
@@ -129,7 +137,7 @@ void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants>
     //instance->UpdateDynamicPointLights(pointLightData);
 }
 
-void OsmiumGL::RenderFrame(Sync::SyncBoolCondition &imgui_update_sync) {
+void OsmiumGL::RenderFrame(Sync::SyncCondition &imgui_update_sync) {
     SubmitPushConstantBuffers();//I'll probably end doing thsi somewhere better suited to it
     //instance->RenderFrame(imgui_update_sync);
     ClearGOPushConstantBuffers();
@@ -162,6 +170,10 @@ void OsmiumGL::SetTextureInMaterialInstance(MatInstanceHandle material_instance,
 
 void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> &dirLightData) {
     //instance->UpdateDirectionalLights(dirLightData);
+}
+
+Sync::SyncCondition * OsmiumGL::GetRenderSyncInfo() {
+
 }
 
 
