@@ -15,7 +15,7 @@ namespace std {
 using MaterialHandle = unsigned long;
 using MatInstanceHandle = unsigned long;
 using MeshHandle = unsigned int;
-using TextureHandle = unsigned long;
+using TextureHandle = unsigned int;
 struct RenderedObject {//Struct entries are ordered like they are in the render tree
     MaterialHandle material;//this is mostly the pipeline
     MatInstanceHandle matInstance;//uniform set

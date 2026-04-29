@@ -29,20 +29,10 @@ template <typename T,size_t Max_Capacity>class ResourceArray;
 class GOC_Camera;
 class GameInstance {
     //syncing stuff
-    Sync::SyncCondition SimulationSync;//might need two imgui sync objects
-    std::vector<Sync::SyncCondition*> GameLoopDependencies;//the render data copy by default, with the addition of the Imgui editor task in editor mode
-    bool isSimOver = false;
-    std::condition_variable SimulationConditionVariable;
-    std::mutex renderDataMutex;
-    std::condition_variable renderDataUpdateConditionVariable;
-    bool isRenderUpdateOver = false;
+    Sync::DependencySignal SimulationSync;
+    std::vector<Sync::DependencySignal*> m_GameLoopProviders{};//implicitly the render data copy but they technically cannot run in parrallel, the editor can be
+    std::vector<Sync::DependencySignal> m_GameLoopConsumers;//also the render date copy and editor
 
-    std::mutex ImguiMutex;
-    std::condition_variable ImguiNewFrameConditionVariable;
-    bool isImguiNewFrameReady = false;
-    bool isImguiUpdateOver = true;//should skip over that update on the first sim tick
-    std::condition_variable ImguiUpdateConditionVariable;
-    bool ImGuiShouldShutoff = false;
     bool simShouldShutoff = false;
 
     ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;
@@ -54,7 +44,6 @@ class GameInstance {
     std::condition_variable destructionQueueConditionVariable;
     GOC_Camera* mainCamera = nullptr;//stable for game objects, should probably use some kind of handle though
     GOC_DirectionalLight * directionLight = nullptr;
-    bool ShowHierarchy = false;
     static GameInstance * instance;
 
 
@@ -73,7 +62,7 @@ public:
 
     void run(const std::string &appName);
 
-    void getGameLoopSyncStruct(Sync::SyncCondition* syncData);//can be used by the GL and editor to be signaled that the simulation step is over
+    void getGameLoopSyncStruct(Sync::DependencySignal* syncData);//can be used by the GL and editor to be signaled that the simulation step is over
 
     void SetMainCamera(GameObjectHandle editor_camera);
 

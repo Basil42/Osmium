@@ -14,6 +14,10 @@
 #include "CoreUtils.h"
 #include "SpotLights.h"
 
+namespace Sync {
+    struct DependencySignal;
+}
+
 struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
 struct RenderObjectHandle;
@@ -66,6 +70,13 @@ public:
     bool UpdateSpotlightInstance(const SpotLightHandle& lightHandle, const SpotLightPushConstants& lightData)const;
     void UnregisterSpotlightInstance(const SpotLightHandle& lightHandle) const;
 
+    //synchronisation
+    std::vector<Sync::DependencySignal> m_RenderConsumers;
+    std::vector<Sync::DependencySignal*> m_RenderProviders;
+    Sync::DependencySignal* AddSyncConsumerStruct();//add a dependency signal to be notified on rendering command completed
+    void RemoveSyncConsumerStruct(Sync::DependencySignal* ConsumerSignal);//remove struct to notify on top of render loop, should rarely be useful
+    void RegisterSyncProvider(Sync::DependencySignal* providerSignal);//add a reference to a dependency signal that will be waited on before starting the render loop
+    void RemoveSyncProvider(Sync::DependencySignal* providerSignal);//remove provider, should rarely be useful
 
 private:
     void init();

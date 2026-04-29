@@ -137,7 +137,8 @@ void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants>
     //instance->UpdateDynamicPointLights(pointLightData);
 }
 
-void OsmiumGL::RenderFrame(Sync::SyncCondition &imgui_update_sync) {
+void OsmiumGL::RenderFrame() {
+    //TODO Sync, probably in the Renderframe function itself
     SubmitPushConstantBuffers();//I'll probably end doing thsi somewhere better suited to it
     //instance->RenderFrame(imgui_update_sync);
     ClearGOPushConstantBuffers();
@@ -172,8 +173,9 @@ void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConst
     //instance->UpdateDirectionalLights(dirLightData);
 }
 
-Sync::SyncCondition * OsmiumGL::GetRenderSyncInfo() {
-
+//Return a unique DependencySyncStruct
+Sync::DependencySignal* OsmiumGL::GetRenderSyncInfo() {
+    return instance->AddSyncConsumerStruct();
 }
 
 

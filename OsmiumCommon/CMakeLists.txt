@@ -16,6 +16,7 @@ set (OSMIUMCOMMONSOURCE
         src/Serialization.cpp
         src/MeshSerialization.cpp
         src/TextureSerialization.cpp
+        src/SyncUtils.cpp
 
 )
 

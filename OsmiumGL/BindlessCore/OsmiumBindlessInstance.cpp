@@ -345,6 +345,10 @@ bool OsmiumBindlessInstance::UpdateSpotlightInstance(const SpotLightHandle &ligh
     return false;
 }
 
+void OsmiumBindlessInstance::UnregisterSpotlightInstance(const SpotLightHandle &lightHandle) const {
+    m_spotLightInstances->Remove(lightHandle);
+}
+
 
 bool OsmiumBindlessInstance::prepareFrameResources() {
     auto &frame = m_frameData[m_frameRingCurrent];

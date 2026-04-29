@@ -83,7 +83,7 @@ namespace  OsmiumGL {
 
     void UpdateDynamicPointLights(const std::span<PointLightPushConstants>& pointLightData);
 
-    void RenderFrame(Sync::SyncCondition &imgui_update_sync);
+    void RenderFrame();
 
     MaterialHandle GetDefaultMaterial();
 
@@ -98,7 +98,7 @@ namespace  OsmiumGL {
 
     void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& dirLightData);
 
-    Sync::SyncCondition * GetRenderSyncInfo();
+    Sync::DependencySignal* GetRenderSyncInfo();
 };
 
 

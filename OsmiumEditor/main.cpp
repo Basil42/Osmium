@@ -5,13 +5,12 @@
 //
 int main() {
     //should these object be allocated to the heap instead of living on this stack ?
-    GameInstance instance;
-    ImGuiSyncStruct imGuiSync{};
-    instance.getImGuiSyncInfo(imGuiSync);
-    EditorGUI editorGUI(imGuiSync,&instance);
+    auto instance = std::make_unique<GameInstance>();
+
+    EditorGUI editorGUI(instance);//this constructor should pull data required for syncing from the game instance
     auto GUIThread = std::thread(&EditorGUI::Run,editorGUI);
     //I will remove this call for play mode
-    instance.run("Editor");//replace by the project name appended by editor
+    instance->run("Editor");//replace by the project name appended by editor
 
     GUIThread.join();
     return 0;
