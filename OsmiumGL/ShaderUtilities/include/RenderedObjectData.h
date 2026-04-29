@@ -5,7 +5,6 @@
 #ifndef RENDEREDOBJECTDATA_H
 #define RENDEREDOBJECTDATA_H
 #include <glm/glm.hpp>
-//TODO separate model to be it's own field in RenderObjectsPushData and have two push ranges per pass to avoid duplciating the transform
 struct NormalSpecData {
     uint32_t SmoothnessMapIndex = 0;
 };
