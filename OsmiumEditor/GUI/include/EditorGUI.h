@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <glm/vec3.hpp>
 
+#include "SyncUtils.h"
 #include "Base/config.h"
 #include "Base/GameObject.h"
 
@@ -38,6 +39,9 @@ public:
 
     void RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiShouldShutoff,
                               std::condition_variable &ImguiNewFrameConditionVariable, bool &isImguiNewFrameReady);
+    Sync::DependencySignal* CreateDependencySignal();
+    void DeleteDependencySignal(Sync::DependencySignal* Signal);//should not require use
+    void AddProviderSignal(Sync::DependencySignal* Signal);
 
 
     ImVec4 ImgGuiClearColor;
@@ -47,11 +51,14 @@ public:
     GOC_Camera* EditorCamera;
     bool ShowHierarchy = true;
     bool ShowInspector = true;
-    const ImGuiSyncStruct* SyncStruct;
+    const ImGuiSyncStruct* SyncStruct;//TODO make the editor own the imgui sync struct
+
+    std::vector<Sync::DependencySignal*> m_EditorProviders{};//shoudl only contain the simulation tick
+    std::vector<Sync::DependencySignal> m_EditorConsumers;//also only the simulation tick
 
 
     EditorGUI() = delete;
-    explicit EditorGUI(const ImGuiSyncStruct & im_gui_sync_struct,GameInstance * Instance);
+    explicit EditorGUI(GameInstance * Instance);
 };
 
 

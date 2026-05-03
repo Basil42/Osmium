@@ -4,8 +4,6 @@
 
 #include "GameInstance.h"
 
-#include <condition_variable>
-#include <imgui.h>
 #include <thread>
 
 #include "OsmiumGL_API.h"
@@ -23,9 +21,10 @@ void GameInstance::GameLoop() {
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
 
-        for (const auto provider : m_GameLoopProviders) {
-            provider->WaitForSignalAndRearm();
+        for (auto& provider : m_GameLoopExternalProviders) {
+            provider.WaitForProductsAndRearm();
         }
+        m_TickProvidersSync.WaitForProductsAndRearm();
         //note: the dependency mutexes are not locked from this point on.
 
 
@@ -52,10 +51,10 @@ void GameInstance::GameLoop() {
             GameObjects->Remove(obj);//This should be the only call to remove on this container
         }
         //notify consumers
-        for (const auto consumer : m_GameLoopConsumers) {
-            consumer->Signal();
+        for (auto& consumer : m_GameLoopExternalConsumers) {
+            consumer.SignalProductComplete();
         }
-
+        m_RenderDataProvidersSync.SignalProductComplete();
     }
 }
 
@@ -70,12 +69,13 @@ void GameInstance::RenderDataUpdate() {
 
 }
 
-void GameInstance::run(const std::string &appName) {
+void GameInstance::run(const std::string &appName, std::span<Sync::DependencySignal>& producers,std::span<Sync::DependencySignal>& consumers) {
 
     instance = this;
     GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
     OsmiumGL::Init(appName);
-    m_GameLoopProviders.emplace_back(OsmiumGL::GetRenderSyncInfo());//doesn't compile in the visual studio toolchain (generally std::vector<anyType*> do this)
+    m_GameLoopExternalProviders = producers;
+    m_GameLoopExternalConsumers = consumers;
     //load the initial assets, probably in its own thread
     AssetManager::LoadAssetDatabase();
     auto SimulationThread = std::thread(&GameInstance::GameLoop,this);
@@ -105,9 +105,6 @@ void GameInstance::run(const std::string &appName) {
     delete GameObjects;
 }
 
-void GameInstance::getGameLoopSyncStruct(Sync::DependencySignal* syncData) {
-    syncData = &SimulationSync;
-}
 
 void GameInstance::SetMainCamera(GameObjectHandle editor_camera) {//might do an override that takes a GOC_Camera pointer directly
     const auto& cameraObj =  GameObjects->get(editor_camera);
@@ -133,7 +130,7 @@ glm::mat4 GameInstance::getMainCameraViewMatrix() {
  **/
 void GameInstance::CreateNewGameObject(GameObjectCreateInfo& createStruct, const std::function<void(GameObject*)>& callback) {//The function pointer is potentially dangerous if used from game objects
 
-    std:std::unique_lock lock{creationQueueMutex};//should be enough for this
+    std::unique_lock lock{creationQueueMutex};//should be enough for this
     gameObjectsCreationQueue.emplace(createStruct,callback);
 }
 

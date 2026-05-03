@@ -225,7 +225,6 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
     }
 }
 
-EditorGUI::EditorGUI(const ImGuiSyncStruct &im_gui_sync_struct, GameInstance *Instance) {
-    SyncStruct = &im_gui_sync_struct;
+EditorGUI::EditorGUI( GameInstance *Instance) {
     OsmiumInstance = Instance;
 }
