@@ -24,8 +24,8 @@ struct ImGuiIO;
 
 class EditorGUI {
 
-    std::span<Sync::DependencySignal> m_EditorProviders;
-    std::span<Sync::DependencySignal> m_EditorConsumers;
+    std::array<Sync::DependencySignal,1> m_EditorProviders{};
+    std::array<Sync::DependencySignal,1> m_EditorConsumers{};
     HierarchyWindow* hierarchyWindow = nullptr;
     InspectorWindow* inspectorWindow = nullptr;
     GameObjectHandle selectedGameObject = MAX_GAMEOBJECTS +1;
@@ -40,8 +40,7 @@ public:
 
     void CameraControls(ImGuiIO& io);
 
-    void RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiShouldShutoff,
-                              std::condition_variable &ImguiNewFrameConditionVariable, bool &isImguiNewFrameReady);
+    void RenderImGuiFrameTask();
     Sync::DependencySignal* CreateDependencySignal();
     void DeleteDependencySignal(Sync::DependencySignal* Signal);//should not require use
     void AddProviderSignal(Sync::DependencySignal* Signal);
@@ -56,8 +55,8 @@ public:
     bool ShowInspector = true;
     const ImGuiSyncStruct* SyncStruct;//TODO make the editor own the imgui sync struct
 
-    EditorGUI() = delete;
-    EditorGUI(GameInstance * Instance,std::span<Sync::DependencySignal> EditorProviders,std::span<Sync::DependencySignal> EditorConsumers);
+    EditorGUI();
+    ~EditorGUI();
 };
 
 

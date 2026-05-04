@@ -26,10 +26,10 @@ void EditorGUI::Run() {
     hierarchyWindow = new HierarchyWindow(OsmiumInstance, selectedGameObject);
     inspectorWindow = new InspectorWindow(OsmiumInstance, selectedGameObject);
 
-    RenderImGuiFrameTask(*SyncStruct->imGuiMutex, *SyncStruct->ImGuiShouldShutoff,
-                         *SyncStruct->imGuiNewFrameConditionVariable,
-                         *SyncStruct->isImguiNewFrameReady);
+    std::thread GUIThread = std::thread(&EditorGUI::RenderImGuiFrameTask, this);
+    OsmiumInstance->run("Editor");//TODO display a project name + editor
 
+    GUIThread.join();
     delete inspectorWindow;
     delete hierarchyWindow;
 }
@@ -74,9 +74,7 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
     ImGui::End();
 }
 
-void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiShouldShutoff,
-                                     std::condition_variable &ImguiNewFrameConditionVariable,
-                                     bool &isImguiNewFrameReady) {
+void EditorGUI::RenderImGuiFrameTask() {
     std::unique_lock<std::mutex> startFrameLock{ImguiMutex, std::defer_lock};
 
     //should request an editor camera here
@@ -225,6 +223,12 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
     }
 }
 
-EditorGUI::EditorGUI( GameInstance *Instance,std::span<Sync::DependencySignal> Producers,std::span<Sync::DependencySignal> Consumers) : m_EditorProviders(Producers), m_EditorConsumers(Consumers) {
-    OsmiumInstance = Instance;
+EditorGUI::EditorGUI() {
+    OsmiumInstance = new GameInstance(std::span(m_EditorConsumers),std::span(m_EditorProviders));
+}
+
+
+
+EditorGUI::~EditorGUI() {
+    delete OsmiumInstance;
 }
