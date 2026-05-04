@@ -28,17 +28,14 @@ template <typename T,size_t Max_Capacity>class ResourceArray;
 class GOC_Camera;
 class GameInstance {
     //syncing stuff
-    std::span<Sync::DependencySignal>& m_GameLoopExternalProviders;//implicitly the render data copy but they technically cannot run in parrallel, the editor can be
-    std::span<Sync::DependencySignal>& m_GameLoopExternalConsumers;//also the render date copy and editor
+    std::span<Sync::DependencySignal> m_GameLoopExternalProviders;//implicitly the render data copy but they technically cannot run in parrallel, the editor can be
+    std::span<Sync::DependencySignal> m_GameLoopExternalConsumers;//also the render date copy and editor
 
     Sync::DependencySignal m_RenderDataProvidersSync {
-        .requiredProduts = 2,//render and tick
+        .requiredProduts = 1,//render and tick, but render is happening on the same thread
     };
     Sync::DependencySignal m_TickProvidersSync {
         .requiredProduts = 1,//only render data update, the editor is an external provider/consumer, both the tick and render wait on its signal
-    };
-    Sync::DependencySignal m_RenderProvidersSync {
-        .requiredProduts = 1,//renderData
     };
     bool simShouldShutoff = false;
 
@@ -57,17 +54,18 @@ class GameInstance {
     void LoadingRoutine();
     void UnloadingRoutine();
     //we pass this through parameters so we can latert launch the game in editor context
-    void GameLoop();
+    void GameTick();
     void RenderLoop();
 
     void RenderDataUpdate();
 
 public:
+    GameInstance(std::span<Sync::DependencySignal> GameLoopExternalProviders,std::span<Sync::DependencySignal> GameLoopExternalConsumers);
     void CreateNewGameObject(GameObjectCreateInfo &createStruct, const std::function<void(GameObject *)>& callback = nullptr);//The object itself will be available next simulation tick
     void DestroyGameObject(GameObject * gameObject);
     [[nodiscard]] ResourceArray<GameObject,MAX_GAMEOBJECTS>& GetGameObjects() const;
 
-    void run(const std::string &appName, std::span<Sync::DependencySignal>& producers,std::span<Sync::DependencySignal>& consumers);
+    void run(const std::string &appName);
 
     void SetMainCamera(GameObjectHandle editor_camera);
 

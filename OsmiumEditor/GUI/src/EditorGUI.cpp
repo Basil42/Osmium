@@ -225,6 +225,6 @@ void EditorGUI::RenderImGuiFrameTask(std::mutex &ImguiMutex, const bool &ImGuiSh
     }
 }
 
-EditorGUI::EditorGUI( GameInstance *Instance) {
+EditorGUI::EditorGUI( GameInstance *Instance,std::span<Sync::DependencySignal> Producers,std::span<Sync::DependencySignal> Consumers) : m_EditorProviders(Producers), m_EditorConsumers(Consumers) {
     OsmiumInstance = Instance;
 }

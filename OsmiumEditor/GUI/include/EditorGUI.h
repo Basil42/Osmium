@@ -6,6 +6,7 @@
 #define EDITORGUI_H
 #include <condition_variable>
 #include <imgui.h>
+#include <span>
 #include <glm/vec3.hpp>
 
 #include "SyncUtils.h"
@@ -23,6 +24,8 @@ struct ImGuiIO;
 
 class EditorGUI {
 
+    std::span<Sync::DependencySignal> m_EditorProviders;
+    std::span<Sync::DependencySignal> m_EditorConsumers;
     HierarchyWindow* hierarchyWindow = nullptr;
     InspectorWindow* inspectorWindow = nullptr;
     GameObjectHandle selectedGameObject = MAX_GAMEOBJECTS +1;
@@ -53,12 +56,8 @@ public:
     bool ShowInspector = true;
     const ImGuiSyncStruct* SyncStruct;//TODO make the editor own the imgui sync struct
 
-    std::vector<Sync::DependencySignal*> m_EditorProviders{};//shoudl only contain the simulation tick
-    std::vector<Sync::DependencySignal> m_EditorConsumers;//also only the simulation tick
-
-
     EditorGUI() = delete;
-    explicit EditorGUI(GameInstance * Instance);
+    EditorGUI(GameInstance * Instance,std::span<Sync::DependencySignal> EditorProviders,std::span<Sync::DependencySignal> EditorConsumers);
 };
 
 

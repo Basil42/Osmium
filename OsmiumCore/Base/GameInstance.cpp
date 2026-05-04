@@ -16,7 +16,7 @@
 #include "GOComponents/GOC_PointLight.h"
 
 GameInstance* GameInstance::instance = nullptr;//TODO refactor camera access to get rid of this
-void GameInstance::GameLoop() {
+void GameInstance::GameTick() {
     //double lastFrameTime = glfwGetTime();
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
@@ -66,33 +66,33 @@ void GameInstance::RenderDataUpdate() {
     directionLight->RenderUpdate();
     GOC_MeshRenderer::GORenderUpdate();
     GOC_PointLight::GORenderUpdate();
+}
+
+GameInstance::GameInstance(const std::span<Sync::DependencySignal> GameLoopExternalProviders,
+    const std::span<Sync::DependencySignal> GameLoopExternalConsumers) :
+m_GameLoopExternalProviders(GameLoopExternalProviders),
+m_GameLoopExternalConsumers(GameLoopExternalConsumers) {
 
 }
 
-void GameInstance::run(const std::string &appName, std::span<Sync::DependencySignal>& producers,std::span<Sync::DependencySignal>& consumers) {
+void GameInstance::run(const std::string &appName) {
 
     instance = this;
     GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
     OsmiumGL::Init(appName);
-    m_GameLoopExternalProviders = producers;
-    m_GameLoopExternalConsumers = consumers;
-    //load the initial assets, probably in its own thread
+
+
     AssetManager::LoadAssetDatabase();
-    auto SimulationThread = std::thread(&GameInstance::GameLoop,this);
-    // auto ImGuiThread = std::thread(RenderImGuiFrameTask,this);
+    auto SimulationThread = std::thread(&GameInstance::GameTick,this);
     auto LoadingThread = std::thread(&GameInstance::LoadingRoutine,this);//maybe I need some kind of staging method here
     auto UnloadingThread = std::thread(&GameInstance::UnloadingRoutine,this);
 
-
-    //initialize imGuiFrame
+    //Render thread has both render data copy and rendering, as they cannot be concurrent anyway
     while(!OsmiumGL::ShouldClose()) {
-    //TODO redo this
         OsmiumGL::RenderFrame();
-
-
+        m_RenderDataProvidersSync.WaitForProductsAndRearm();//waiting for tick to complete
         RenderDataUpdate();
-
-
+        m_TickProvidersSync.SignalProductComplete();//signaling tick that it can launch again (if all its external providers are done)
     }
 
     AssetManager::Shutdown();
