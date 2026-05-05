@@ -43,7 +43,7 @@ set(OSMIUMCORE_HEADERS
         AssetManagement/AssetType/DefaultAsset.h
         GOComponents/GOC_Camera.h
         Base/GameObjectCreation.h
-        Base/config.h
+        ../OsmiumCommon/include/CommonConfig.h
         GOComponents/GOC_DirectionalLight.h
         GOComponents/GOC_PointLight.cpp
         GOComponents/GOC_PointLight.h

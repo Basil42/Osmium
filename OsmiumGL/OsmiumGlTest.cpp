@@ -20,9 +20,9 @@ int main(int argc, char *argv[]) {
         ASSERT(glfwInit(), "Failed to initialize GLFW");
         ASSERT(glfwVulkanSupported(), "GLFW: Vulkan is not supported");
 
-        OsmiumBindlessInstance app({800,600});
+        OsmiumBindlessInstance app({},{},{800,600});//no external sync for the test
         auto mesh = app.LoadMesh("DefaultResources/models/monkey.obj");
-        auto texture = app.LoadTexture("DefaultResources/textures/viking_room.png");
+        auto texture = app.LoadTexture(std::string("DefaultResources/textures/viking_room.png"));
         BindlessRenderedObject renderedObjectExample{
         .mesh = mesh,
         .pushData = {

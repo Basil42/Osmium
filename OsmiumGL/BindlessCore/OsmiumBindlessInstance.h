@@ -5,6 +5,7 @@
 #ifndef OSMIUMBINDLESSCORE_H
 #define OSMIUMBINDLESSCORE_H
 #include <map>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "SceneData.h"
 #include "CoreUtils.h"
 #include "SpotLights.h"
+#include "SyncUtils.h"
 
 namespace Sync {
     struct DependencySignal;
@@ -34,11 +36,11 @@ using SpotLightHandle = unsigned int;
 
 class OsmiumBindlessInstance {
 public:
-    explicit OsmiumBindlessInstance(VkExtent2D size = {800, 600}, const char* appName = "Osmium");
+    explicit OsmiumBindlessInstance(std::span<Sync::DependencySignal>externalRenderProducers,std::span<Sync::DependencySignal>externalRenderConsumers, VkExtent2D size = {800, 600}, const char* appName = "Osmium", bool ImGuiEnable = false);
 
     ~OsmiumBindlessInstance();
 
-    void initImGui() const;
+    void InitImGui() const;
 
     void run();
 
@@ -48,6 +50,7 @@ public:
 
     void UpdateAmbientLightSettings(glm::vec4 ambientLight);
 
+    TextureHandle LoadTexture(const std::filesystem::path& path);
     TextureHandle LoadTexture(const std::string &filename);
 
     void UnloadTexture(TextureHandle textureHandle) const;
@@ -72,9 +75,22 @@ public:
     bool UpdateSpotlightInstance(const SpotLightHandle& lightHandle, const SpotLightPushConstants& lightData)const;
     void UnregisterSpotlightInstance(const SpotLightHandle& lightHandle) const;
 
+    void StartNewImguiFrame();
+
+    bool & GetVsync();
+
+    void RequestSwapchainRebuild();
+
+    void CloseWindow();
+
+    ImTextureRef GetImGuiRenderTarget() const;
+
+    void EndImgGuiFrame();
+
+    bool ShouldClose();
 
 private:
-    void init();
+    void init(bool ImGuiEnabled);
 
     void destroy();
 
@@ -82,7 +98,7 @@ private:
 
     void createFrameSubmission(uint32_t NumFrames);
 
-    void drawFrame(VkCommandBuffer cmd);
+    void frameDrawCommands(VkCommandBuffer cmd);
 
     void SubmitFrame(VkCommandBuffer cmd);
 
@@ -170,6 +186,7 @@ private:
         uint64_t frameNumber; // Timeline value for synchronization (increases each frame)
     };
 
+    bool m_imGuiEnabled = false;
     std::vector<FrameData> m_frameData{}; // Collection of per-frame resources to support multiple frames in flight
     VkSemaphore m_frameTimelineSemaphore{}; // Timeline semaphore used to synchronize CPU submission with GPU completion
     uint32_t m_frameRingCurrent{0}; // Current frame index in the ring buffer (cycles through available frames)
@@ -189,6 +206,13 @@ private:
     float m_fov;
     float m_zNear = 0.1f;
     float m_zFar = 100.f;
+    std::span<Sync::DependencySignal> m_externalRenderProviders;//Render data copy
+    std::span<Sync::DependencySignal> m_externalRenderConsumers;//Render data copy and optionally GUI
+    Sync::DependencySignal m_imGuiSyncSignal{
+        .requiredProduts = 1,//only one call from the editor
+    };//needs to be signaled to wrap up the frame if ImGui is enabled, a bit ugly but more correct
+
+    std::shared_mutex m_WindowCloseMutex;
 
     bool prepareFrameResources();
 

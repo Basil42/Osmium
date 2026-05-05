@@ -7,14 +7,15 @@
 #include <mutex>
 #include <filesystem>
 
+#include "CommonConfig.h"
 #include "../../BindlessCore/OsmiumBindlessInstance.h"
 #include "crossguid/guid.hpp"
 
 std::unique_ptr<OsmiumBindlessInstance> instance;
 std::unique_ptr<std::map<RenderedObject,std::vector<std::byte>>> pushConstantStagingVectors;
 
-void OsmiumGL::Init(const std::string &appName) {
-    instance = std::make_unique<OsmiumBindlessInstance>(VkExtent2D(800,600), appName.c_str());
+void OsmiumGL::Init(const std::string &appName,bool ImguiEnabled, std::span<Sync::DependencySignal> externalRenderProviders, std::span<Sync::DependencySignal> externalRenderConsumers) {//TODO pass the sync spans here
+    instance = std::make_unique<OsmiumBindlessInstance>(externalRenderProviders, externalRenderConsumers,VkExtent2D(800,600), appName.c_str(), ImguiEnabled);
 
     pushConstantStagingVectors = std::make_unique<std::map<RenderedObject,std::vector<std::byte>>>();
 }
@@ -104,29 +105,19 @@ void OsmiumGL::LoadMesh(unsigned long &mesh_handle, void *verticesData, unsigned
 }
 
 unsigned long OsmiumGL::LoadTexture(const xg::Guid &id) {
-    return 0;//instance->LoadTexture(ResourceFolder / id.str());
+    return instance->LoadTexture(ResourceFolder / id.str());
 }
 
 void OsmiumGL::UnloadTexture(unsigned long texture_handle) {
-    //instance->UnloadTexture(texture_handle);
+    instance->UnloadTexture(texture_handle);
 }
 
 void OsmiumGL::ImguiEndImGuiFrame() {
-    //instance->endImgGuiFrame();
+    instance->EndImgGuiFrame();
 }
 
 bool OsmiumGL::ShouldClose() {
-    //return instance->ShouldClose();
-    return false;
-}
-
-void OsmiumGL::TestDynamicRenderer(const std::string &str) {
-    // auto* dynamicInstance = new OsmiumGLDynamicInstance();
-    // dynamicInstance->Initialize(str);
-    // // while (!dynamicInstance->ShouldClose()) {
-    // //
-    // // }
-    // dynamicInstance->Shutdown();
+    return instance->ShouldClose();
 }
 
 void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {//TODO swap with the push constant setup
@@ -173,9 +164,24 @@ void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConst
     //instance->UpdateDirectionalLights(dirLightData);
 }
 
-//Return a unique DependencySyncStruct
-Sync::DependencySignal* OsmiumGL::GetRenderSyncInfo() {
-    return instance->AddSyncConsumerStruct();
+void OsmiumGL::StartNewImguiFrame() {
+    instance->StartNewImguiFrame();
+}
+
+bool & OsmiumGL::GetVsync() {
+    return instance->GetVsync();
+}
+
+void OsmiumGL::RequestSwapchainRebuild() {
+    instance->RequestSwapchainRebuild();
+}
+
+void OsmiumGL::CloseWindow() {
+    instance->CloseWindow();
+}
+
+ImTextureRef OsmiumGL::GetImGuiRenderTarget() {
+    return instance->GetImGuiRenderTarget();
 }
 
 

@@ -97,7 +97,10 @@ throw std::runtime_error(message);                                              
 #include "Utilities/CoreUtils.h"
 
 
-OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size, const char* appName) : m_windowSize(size) { // NOLINT(*-pro-type-member-init)
+OsmiumBindlessInstance::OsmiumBindlessInstance(std::span<Sync::DependencySignal>externalRenderProducers,std::span<Sync::DependencySignal>externalRenderConsumers,VkExtent2D size, const char* appName,bool ImguiEnabled) :
+m_windowSize(size) ,
+m_externalRenderProviders(externalRenderProducers),//extrnal sync spans can be empty
+m_externalRenderConsumers(externalRenderConsumers){ // NOLINT(*-pro-type-member-init)
     // Vulkan Loader
     VK_CHECK(volkInitialize());
     // Create the GLTF Window
@@ -106,7 +109,7 @@ OsmiumBindlessInstance::OsmiumBindlessInstance(VkExtent2D size, const char* appN
     const char* windowTitle = appName;
     m_window = glfwCreateWindow(static_cast<int>(m_windowSize.width), static_cast<int>(m_windowSize.height),
                                 windowTitle, nullptr, nullptr);
-    init();
+    init(ImguiEnabled);
 }
 
 OsmiumBindlessInstance::~OsmiumBindlessInstance() {
@@ -148,71 +151,31 @@ void OsmiumBindlessInstance::InitImGui() const {
 }
 
 void OsmiumBindlessInstance::run() {
-    while (!glfwWindowShouldClose(m_window)) {
+    while (!ShouldClose()) {
+
+        for (auto& providers : m_externalRenderProviders) {
+            providers.WaitForProductsAndRearm();
+        }
         m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
-        glfwPollEvents();
-        if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
-            ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
-            continue;
-        }
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        //docking in imgui, lifted from the bindless example
-        constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
-                                                 ImGuiDockNodeFlags_NoDockingInCentralNode;
-        ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
-        static bool initPass = true;
-        if (initPass) {
-            initPass = false;
-        }
-        //conditionally create docking layout, might need to be moved to init
-        if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
-            //ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
-            ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
-            ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
-            // Split the central node
-            ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
-        }
-        // [optional] Show the menu bar
-        if (ImGui::BeginMainMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("vSync", "", &m_vSync))
-                    m_swapchain.requestRebuild(); // Recreate the swapchain with the new vSync setting
-                ImGui::Separator();
-                if (ImGui::MenuItem("Exit"))
-                    glfwSetWindowShouldClose(m_window, true);
-                ImGui::EndMenu();
-            }
-            ImGui::EndMainMenuBar();
-        }
-        // We define "viewport" with no padding and retrieve the rendering area
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::Begin("Viewport");
-        ImVec2 windowSize = ImGui::GetContentRegionAvail();
-        ImGui::End();
-        ImGui::PopStyleVar();
-
-        // Verify if the viewport has a new size and resize the G-Buffer accordingly.
-        if (const VkExtent2D viewportSize = {.width=static_cast<uint32_t>(windowSize.x), .height=static_cast<uint32_t>(windowSize.y)};
-            m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
-            onViewportSizeChange(viewportSize);
-        }
 
         // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
         if (prepareFrameResources()) {
             VkCommandBuffer cmd = beginCommandRecording();
 
-            drawFrame(cmd);
+            frameDrawCommands(cmd);
 
             SubmitFrame(cmd);
         }
 
-        ImGui::EndFrame();
-        if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
+        if (m_imGuiEnabled) {
+            ImGui::EndFrame();
+            if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
+                ImGui::UpdatePlatformWindows();
+                ImGui::RenderPlatformWindowsDefault();
+            }
+        }
+        for (auto& consumer : m_externalRenderConsumers) {
+            consumer.SignalProductComplete();
         }
     }
 }
@@ -242,6 +205,10 @@ void OsmiumBindlessInstance::UpdateCameraSettings(float radianVFOV) {
 
 void OsmiumBindlessInstance::UpdateAmbientLightSettings(glm::vec4 ambientLight) {
     m_ShadingInfoStruct.ambientLight = ambientLight;
+}
+
+TextureHandle OsmiumBindlessInstance::LoadTexture(const std::filesystem::path &path) {
+    return LoadTexture(path.string());
 }
 
 TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
@@ -383,7 +350,55 @@ void OsmiumBindlessInstance::UnregisterSpotlightInstance(const SpotLightHandle &
     m_spotLightInstances->Remove(lightHandle);
 }
 
-void OsmiumBindlessInstance::init() {
+void OsmiumBindlessInstance::StartNewImguiFrame() {
+    glfwPollEvents();
+        if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
+            ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
+            return;
+        }
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+    ImVec2 windowSize = ImGui::GetContentRegionAvail();
+
+    // Verify if the viewport has a new size and resize the G-Buffer accordingly.
+    if (const VkExtent2D viewportSize = {.width=static_cast<uint32_t>(windowSize.x), .height=static_cast<uint32_t>(windowSize.y)};
+        m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
+        onViewportSizeChange(viewportSize);
+        }
+}
+
+bool & OsmiumBindlessInstance::GetVsync() {
+    return m_vSync;
+}
+
+void OsmiumBindlessInstance::RequestSwapchainRebuild() {
+    m_swapchain.requestRebuild();
+}
+
+void OsmiumBindlessInstance::CloseWindow() {
+    std::unique_lock lock(m_WindowCloseMutex);
+    glfwSetWindowShouldClose(m_window, true);
+}
+
+ImTextureRef OsmiumBindlessInstance::GetImGuiRenderTarget() const {
+    ASSERT(m_imGuiEnabled,"Tried to get imgui render target when rendering ot swapchain directly");
+    return m_gBuffer.getImTextureID(3);
+}
+
+void OsmiumBindlessInstance::EndImgGuiFrame() {
+    ASSERT(m_imGuiEnabled,"Tried to signal end of GUI frame while ImGui is not enabled");
+    m_imGuiSyncSignal.SignalProductComplete();
+}
+
+bool OsmiumBindlessInstance::ShouldClose() {
+    std::shared_lock lock(m_WindowCloseMutex);
+    return glfwWindowShouldClose(m_window);//this function is apparently thread safe
+}
+
+void OsmiumBindlessInstance::init(const bool ImGuiEnabled) {
+    m_imGuiEnabled = ImGuiEnabled;
     m_context.init();
 
     m_allocator.init(VmaAllocatorCreateInfo{
@@ -412,7 +427,7 @@ void OsmiumBindlessInstance::init() {
     //descriptor pool for things that cannot avoid them, like loading texture into gpu memory
     createDescriptorPool();
 
-    InitImGui();
+    if (m_imGuiEnabled)InitImGui();
 
     //Getting sampler for the gbuffer
 
@@ -427,14 +442,16 @@ void OsmiumBindlessInstance::init() {
         VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
 
         const VkFormat depthFormat = utils::findDepthFormat(m_context.getPhysicalDevice());
+
         utils::GbufferCreateInfo gBufferInitInfo{
             .device = m_context.getDevice(),
             .alloc = &m_allocator,
             .size = m_windowSize,
-            .color = {VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM},
+            .color = {VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM},
             .depth = depthFormat,
             .linearSampler = linearSampler,
         };
+        if (m_imGuiEnabled)gBufferInitInfo.color.push_back(VK_FORMAT_R8G8B8A8_UNORM);
         m_gBuffer.init(cmd, gBufferInitInfo);
         utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool,
                                      m_context.getGraphicsQueue().queue);
@@ -592,32 +609,18 @@ void OsmiumBindlessInstance::createFrameSubmission(uint32_t NumFrames) {
     }
 }
 
-void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
+void OsmiumBindlessInstance::frameDrawCommands(VkCommandBuffer cmd) {
     //note: The sample implementation renders the textures that were frame buffers in my previous implementation into a quad within the UI.
     //I like it on paper as it could be more flexible, however, it feels less optimal than color attachments (that would be annoying to test though)
 
-    //TODO: move out the docking stuff to the editor
-    if (ImGui::Begin("Viewport")) {
-        ImGui::Image(m_gBuffer.getImTextureID(3), ImGui::GetContentRegionAvail());//image index can be changed here to render one of the framebuffer in the viewport
 
-        //overlay stuff, might remove later
-        ImGui::SetCursorPos(ImVec2(0, 0));
-        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    }
-    ImGui::End();
-    //Proted for the sample as an example
-    if (ImGui::Begin("Settings")) {
-        // ImGui::RadioButton("image 1", &m_imageID, 0);
-        // ImGui::RadioButton("image 2", &m_imageID, 1);
-        ImGui::Separator();
-        // ImGui::ColorPicker3("Clear Color", &m_clearColor.float32[0]);
-    }
-    ImGui::End();
-    ImGui::Render();
 
     //recordComputeCommands(cmd); //the sample uses the compute shader to update the vertex buffer, which seems nonsensical so far, but I'll look it up later
     RecordGraphicsCommands(cmd);
+
+    if (!m_imGuiEnabled) return;
     //flushing framebuffer write before imgui reads it
+
     {
         VkMemoryBarrier2 memBarrier{
             .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
@@ -660,20 +663,19 @@ void OsmiumBindlessInstance::drawFrame(VkCommandBuffer cmd) {
         .colorAttachmentCount = colorAttachments.size(),
         .pColorAttachments = colorAttachments.data(),
     };
-    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                        VK_IMAGE_LAYOUT_GENERAL);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
+    m_imGuiSyncSignal.WaitForProductsAndRearm();
 
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
     //endDynamicRenderingToSwapchain(cmd);
     vkCmdEndRendering(cmd);
-    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_GENERAL,
-                                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 }
 
 void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
+    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(), VK_IMAGE_LAYOUT_GENERAL,
+                                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     VK_CHECK(vkEndCommandBuffer(cmd));
 
     std::array<VkSemaphoreSubmitInfo, 1> waitSemaphores{
@@ -733,6 +735,7 @@ void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
         vkQueueSubmit2(m_context.getGraphicsQueue().queue, static_cast<uint32_t>(submitInfo.size()),submitInfo.data(),
             nullptr));
 
+
     m_swapchain.presentFrame(m_context.getGraphicsQueue().queue);
 
     m_frameRingCurrent = (m_frameRingCurrent + 1) % m_swapchain.getMaxFramesInFlight();
@@ -777,6 +780,8 @@ void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {
 void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     DBG_VK_SCOPE(cmd); //sample uses this for NSight, which I'll look into if Arc supports it
 
+    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(),VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                            VK_IMAGE_LAYOUT_GENERAL);//needed for either color output or imgui
     updateSceneBuffers(cmd);
 
     constexpr std::array<VkDeviceSize, 1> offsets = {0};
@@ -865,7 +870,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             },
             {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = m_gBuffer.getColorImageView(3),
+                .imageView = m_imGuiEnabled ? m_gBuffer.getColorImageView(3): m_swapchain.getImageView(),
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -1399,7 +1404,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                 m_gBuffer.getColorFormat(0),
                 m_gBuffer.getColorFormat(1),
                 m_gBuffer.getColorFormat(2),
-                m_gBuffer.getColorFormat(3),
+                m_imGuiEnabled ? m_gBuffer.getColorFormat(3) : m_swapchain.getImageFormat(),
             }
         };
 
@@ -1517,7 +1522,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
             m_gBuffer.getColorFormat(0),
             m_gBuffer.getColorFormat(1),
             m_gBuffer.getColorFormat(2),
-            m_gBuffer.getColorFormat(3),//might remove the color output on this pass later
+            m_imGuiEnabled ? m_gBuffer.getColorFormat(3) : m_swapchain.getImageFormat(),//might remove the color output on this pass later
         }
     };
     const VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
@@ -1760,7 +1765,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
                 m_gBuffer.getColorFormat(0),
                 m_gBuffer.getColorFormat(1),
                 m_gBuffer.getColorFormat(2),
-                m_gBuffer.getColorFormat(3),
+                m_imGuiEnabled ? m_gBuffer.getColorFormat(3) : m_swapchain.getImageFormat(),
             }
         };
 
@@ -1817,7 +1822,7 @@ void OsmiumBindlessInstance::createDescriptorPool() {
     }
 
     //ImGui pool
-    {
+    if (m_imGuiEnabled){
         uint32_t uiPoolSize = std::min(20U, deviceProperties.limits.maxDescriptorSetSampledImages);
         uint32_t maxDescriptorSets = std::min(uiPoolSize, deviceProperties.limits.maxDescriptorSetUniformBuffers);
         VkDescriptorPoolSize poolSize = {.type=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount=uiPoolSize};

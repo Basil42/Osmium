@@ -8,10 +8,11 @@
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <span>
 #include <vector>
 #include <glm/fwd.hpp>
 
-#include "config.h"
+#include "../../OsmiumCommon/include/CommonConfig.h"
 #include "GameObject.h"
 #include "GameObjectCreation.h"
 #include "SyncUtils.h"
@@ -37,6 +38,7 @@ class GameInstance {
     Sync::DependencySignal m_TickProvidersSync {
         .requiredProduts = 1,//only render data update, the editor is an external provider/consumer, both the tick and render wait on its signal
     };
+
     bool simShouldShutoff = false;
 
     ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;

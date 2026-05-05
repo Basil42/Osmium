@@ -8,7 +8,7 @@
 
 #include "EditorWindow.h"
 #include "ResourceArray.h"
-#include "Base/config.h"
+#include "../../../OsmiumCommon/include/CommonConfig.h"
 #include "Base/GameObject.h"
 
 

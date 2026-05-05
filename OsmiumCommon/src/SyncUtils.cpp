@@ -5,7 +5,7 @@
 
 
 void Sync::DependencySignal::WaitForProductsAndRearm() {
-    std::unique_lock<std::mutex> lock(mutex);
+    std::unique_lock lock(mutex);
     cv.wait(lock, [this]() { return products >= requiredProduts; });
     products = 0;
 }

@@ -4,13 +4,14 @@
 
 #ifndef EDITORGUI_H
 #define EDITORGUI_H
+#include <array>
 #include <condition_variable>
 #include <imgui.h>
 #include <span>
 #include <glm/vec3.hpp>
 
 #include "SyncUtils.h"
-#include "Base/config.h"
+#include "../../../OsmiumCommon/include/CommonConfig.h"
 #include "Base/GameObject.h"
 
 

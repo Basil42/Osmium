@@ -11,10 +11,10 @@ namespace Sync {
     //If each process needs to run once they can wait for a signal at the top of the process and signal the other of the pair.
     //Each process needs wait for a seperate value of signaled (on waits for true , the other for false)
     struct DependencySignal {
-        const std::mutex mutex;
+        std::mutex mutex;
         unsigned int products = 0;
         unsigned int requiredProduts = 1;
-        const std::condition_variable cv;
+        std::condition_variable cv;
 
         void WaitForProductsAndRearm();
         void SignalProductComplete();

@@ -11,7 +11,7 @@
 #include "OsmiumGL_API.h"
 #include "../AssetManager.h"
 #include "Base/ResourceManager.h"
-#include "Base/config.h"
+#include "../../../OsmiumCommon/include/CommonConfig.h"
 
 #ifdef EDITOR
 

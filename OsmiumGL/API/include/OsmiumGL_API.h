@@ -12,6 +12,7 @@
 #include <span>
 #include <glm/fwd.hpp>
 
+#include "imgui.h"
 #include "SyncUtils.h"
 
 
@@ -27,7 +28,8 @@ namespace xg {
 namespace  OsmiumGL {
 
 
-    void Init(const std::string &appName);
+    void Init(const std::string &appName, bool ImGuiEnabled = false, std::span<Sync::DependencySignal> externalRenderProviders ={}, std::span<Sync::DependencySignal> externalRenderConsumers={});
+
 
     void test();
 
@@ -98,7 +100,15 @@ namespace  OsmiumGL {
 
     void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& dirLightData);
 
-    Sync::DependencySignal* GetRenderSyncInfo();
+    void StartNewImguiFrame();
+
+    bool& GetVsync();
+
+    void RequestSwapchainRebuild();
+
+    void CloseWindow();
+
+    ImTextureRef GetImGuiRenderTarget();
 };
 
 

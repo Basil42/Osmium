@@ -11,14 +11,14 @@
 
 #include "Asset.h"
 #include "DefaultVertex.h"
-#include "../../OsmiumEditor/config.h"
+#include "../../OsmiumEditor/EditorConfig.h"
 #include "../Base/ResourceManager.h"
 #include "AssetType/DefaultAsset.h"
 #include "AssetType/MeshAsset.h"
 #include "MeshSerialization.h"
 #include "TextureSerialization.h"
 #include "AssetType/TextureAsset.h"
-#include "Base/config.h"
+#include "../../OsmiumCommon/include/CommonConfig.h"
 
 std::mutex AssetManager::loadingCollectionMutex;
 std::mutex AssetManager::unloadingCollectionMutex;

@@ -10,6 +10,7 @@
 
 //most of these include will be moved to more specialized inspector and window classes
 #include "HierarchyWindow.h"
+#include "imgui_internal.h"
 #include "InspectorWindow.h"
 #include "OsmiumGL_API.h"
 #include "AssetManagement/Asset.h"
@@ -75,156 +76,63 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
 }
 
 void EditorGUI::RenderImGuiFrameTask() {
-    std::unique_lock<std::mutex> startFrameLock{ImguiMutex, std::defer_lock};
-
-    //should request an editor camera here
-    GameObjectCreateInfo editorCameraInfo{
-        .name = "EditorCamera",
-        .parent = 0
-    };
-    OsmiumInstance->CreateNewGameObject(editorCameraInfo, [this](GameObject *go) {
-        go->Addcomponent<GOC_Transform>();
-        EditorCamera = go->Addcomponent<GOC_Camera>();
-
-        OsmiumInstance->SetMainCamera(EditorCamera);
-    });
-    GameObjectCreateInfo DirLightInfo{
-        .name = "DirLight",
-        .parent = 0
-    };
-    OsmiumInstance->CreateNewGameObject(DirLightInfo, [this](GameObject *go) {
-        auto DirectionalLightComp = go->Addcomponent<GOC_DirectionalLight>();
-        OsmiumInstance->SetDirectionalLight(DirectionalLightComp);
-    });
-
-    while (!ImGuiShouldShutoff) {
-        startFrameLock.lock();
-        ImguiNewFrameConditionVariable.wait(startFrameLock, [this, &isImguiNewFrameReady]() {
-            return isImguiNewFrameReady;
-        });
-
-        if (*SyncStruct->ImGuiShouldShutoff == true) {
-            isImguiNewFrameReady = false;
-            ImguiNewFrameConditionVariable.notify_all();
-            break;
-        }
-        ImGuiIO io = ImGui::GetIO();
-
-        CameraControls(io);
-
-        static bool warningTriggered = false;
-        if (warningTriggered) {
-            static float lastAbnormalDeltaTime = io.DeltaTime;
-            ImGui::Begin("frame drop alert");
-            if (io.DeltaTime > 1.0f / 60.0f)lastAbnormalDeltaTime = io.DeltaTime;
-            ImGui::Text("deltaTime: %f", lastAbnormalDeltaTime);
-            ImGui::End();
-        } else {
-            warningTriggered = io.DeltaTime > 1.0f / 60.0f;
-        }
-        //TODO clean this up and send the different functionnality to appropriate widgets
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (showDemoWindow)
-            ImGui::ShowDemoWindow(&showDemoWindow);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &showDemoWindow); // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &showAnotherWindow);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float *) (&ImgGuiClearColor)); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))
-                // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            //this shoudl probably be a reference to stay up to date
-            static unsigned int frameNumber = 0;
-            ImGui::Text("Frame Number: %u", frameNumber++);
-            if (ImGui::Button("Create Default Entities")) {
-                //set the transform to something convenient here
-                //this should happen on the sim thread
-
-                GameObjectCreateInfo defaultMeshInfo;
-                defaultMeshInfo.name = "default mesh";
-                defaultMeshInfo.parent = 0; //I should probably pre allocate a 0 handle game object just to be safe
-                OsmiumInstance->CreateNewGameObject(defaultMeshInfo, [](GameObject *gameObject) {
-                    gameObject->Addcomponent<GOC_Transform>();
-                    gameObject->Addcomponent<GOC_MeshRenderer>([](GOC_MeshRenderer *renderer) {
-                        renderer->SetMaterial(OsmiumGL::GetDefaultMaterial(), true);
-                        renderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/models/monkey.obj"));
-                    });
-                });
-                GameObjectCreateInfo defaultGreenPointLightInfo;
-                defaultGreenPointLightInfo.name = "default green light";
-                defaultGreenPointLightInfo.parent = 0;
-                OsmiumInstance->CreateNewGameObject(defaultGreenPointLightInfo, [](GameObject *gameObject) {
-                    gameObject->Addcomponent<GOC_PointLight>([](GOC_PointLight *light) {
-                        light->SetValues(glm::vec3(3.0f, 0.0f, 2.0f), glm::vec3(0.0f, 1.0f, 0.0), 7.0f, 5.0f);
-                    });
-                });
-                GameObjectCreateInfo defaultRedLightInfo;
-                defaultRedLightInfo.name = "default red light";
-                defaultRedLightInfo.parent = 0;
-                OsmiumInstance->CreateNewGameObject(defaultRedLightInfo, [](GameObject *gameObject) {
-                    gameObject->Addcomponent<GOC_PointLight>([](GOC_PointLight *light) {
-                        light->SetValues(glm::vec3(3.0f, 2.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0), 7.0f, 5.0f);
-                    });
-                });
-                GameObjectCreateInfo defaultDirectionalLightInfo;
-                defaultDirectionalLightInfo.name = "default directional light";
-                defaultDirectionalLightInfo.parent = 0;
-                OsmiumInstance->CreateNewGameObject(defaultDirectionalLightInfo, [](GameObject *gameObject) {
-                    gameObject->Addcomponent<GOC_DirectionalLight>([](GOC_DirectionalLight *light) {
-                        light->SetValues(glm::vec3(1.0f,-1.0f,0.0f),glm::vec3(0.0f,1.0f,1.0f),5.0f);
-                    });
-                });
-                // GameObject* defaultObject = CreateNewGameObject();
-                // defaultObject->Addcomponent<GOC_Transform>();
-                // const auto defaultGOMeshRenderer = defaultObject->Addcomponent<GOC_MeshRenderer>();
-                // defaultGOMeshRenderer->SetMaterial(OsmiumGL::GetBlinnPhongHandle(), true);
-                // defaultGOMeshRenderer->SetMaterialInstance(OsmiumGL::GetBlinnPhongDefaultInstance());//assuming this will be the handle for the default Blinn Phong Mat
-                // defaultGOMeshRenderer->SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/models/monkey.obj"));//should finish the setup on its own;
+    while (OsmiumGL::ShouldClose()) {//condition check can lock
+        OsmiumGL::StartNewImguiFrame();
+        // [optional] Show the menu bar
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("vSync", "", &OsmiumGL::GetVsync()))
+                    OsmiumGL::RequestSwapchainRebuild(); // Recreate the swapchain with the new vSync setting
+                ImGui::Separator();
+                if (ImGui::MenuItem("Exit"))
+                    OsmiumGL::CloseWindow();
+                ImGui::EndMenu();
             }
-            ImGui::Checkbox("Entity hierarchy", &ShowHierarchy);
-            ImGui::Checkbox("Inspector", &ShowInspector);
-            ImGui::End();
+            ImGui::EndMainMenuBar();
         }
 
-        // 3. Show another simple window.
-        if (showAnotherWindow) {
-            ImGui::Begin("Another Window", &showAnotherWindow);
-            // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                showAnotherWindow = false;
-            ImGui::End();
+        if (ImGui::Begin("Viewport")) {
+            ImGui::Image(OsmiumGL::GetImGuiRenderTarget(), ImGui::GetContentRegionAvail());//image index can be changed here to render one of the framebuffer in the viewport
+
+            //overlay stuff, might remove later
+            ImGui::SetCursorPos(ImVec2(0, 0));
+            ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
         }
-        if (ShowHierarchy) {
-            hierarchyWindow->Render(io);
+        ImGui::End();
+        //Proted for the sample as an example
+        if (ImGui::Begin("Settings")) {
+            // ImGui::RadioButton("image 1", &m_imageID, 0);
+            // ImGui::RadioButton("image 2", &m_imageID, 1);
+            ImGui::Separator();
+            // ImGui::ColorPicker3("Clear Color", &m_clearColor.float32[0]);
         }
-        if (ShowInspector)inspectorWindow->Render(io);
+        ImGui::End();
+        ImGui::Render();
+
         OsmiumGL::ImguiEndImGuiFrame();
-        //sync
-        //not conviced I actually need that one
-        isImguiNewFrameReady = false;
-        startFrameLock.unlock();
-        ImguiNewFrameConditionVariable.notify_all();
     }
 }
 
 EditorGUI::EditorGUI() {
     OsmiumInstance = new GameInstance(std::span(m_EditorConsumers),std::span(m_EditorProviders));
+    //init docking
+    //docking in imgui, lifted from the bindless example
+    constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
+                                             ImGuiDockNodeFlags_NoDockingInCentralNode;
+    ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
+    //conditionally create docking layout, might need to be moved to init
+    if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
+        //ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
+        ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
+        ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
+        // Split the central node
+        ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
+    }
+    // We define "viewport" with no padding and retrieve the rendering area
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("Viewport");
+    ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 
