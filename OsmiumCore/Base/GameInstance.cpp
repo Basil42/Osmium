@@ -17,7 +17,7 @@
 
 GameInstance* GameInstance::instance = nullptr;//TODO refactor camera access to get rid of this
 void GameInstance::LoadingRoutine() {
-    AssetManager::LoadingRoutine();//should be ran privately by the asset manager directly
+    AssetManager::LoadingRoutine();//should be run privately by the asset manager directly
 }
 
 void GameInstance::UnloadingRoutine() {
@@ -66,7 +66,7 @@ void GameInstance::GameTick() {
     }
 }
 
-void GameInstance::RenderDataUpdate() {
+void GameInstance::RenderDataUpdate() const {
     if (mainCamera == nullptr) return;
     //this is quite janky and annoying to extend
     mainCamera->RenderUpdate();
@@ -77,7 +77,7 @@ void GameInstance::RenderDataUpdate() {
 }
 
 
-GameInstance::GameInstance(const std::span<Sync::DependencySignal> GameLoopExternalProviders,
+GameInstance::GameInstance(const std::span<Sync::DependencySignal> GameLoopExternalProviders, // NOLINT(*-easily-swappable-parameters)
                            const std::span<Sync::DependencySignal> GameLoopExternalConsumers) :
     m_GameLoopExternalProviders(GameLoopExternalProviders),
     m_GameLoopExternalConsumers(GameLoopExternalConsumers) {
@@ -111,8 +111,8 @@ void GameInstance::run(const std::string &appName) {
 
     AssetManager::LoadAssetDatabase();
     auto SimulationThread = std::thread(&GameInstance::GameTick,this);
-    auto LoadingThread = std::thread(&GameInstance::LoadingRoutine,this);//maybe I need some kind of staging method here
-    auto UnloadingThread = std::thread(&GameInstance::UnloadingRoutine,this);
+    auto LoadingThread = std::thread(&GameInstance::LoadingRoutine);//maybe I need some kind of staging method here
+    auto UnloadingThread = std::thread(&GameInstance::UnloadingRoutine);
 
     //Render thread has both render data copy and rendering, as they cannot be concurrent anyway
     while(!OsmiumGL::ShouldClose()) {

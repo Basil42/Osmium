@@ -51,13 +51,14 @@ class GameInstance {
     static GameInstance * instance;
 
 
-    void LoadingRoutine();
-    void UnloadingRoutine();
+    static void LoadingRoutine();
+
+    static void UnloadingRoutine();
     //we pass this through parameters so we can latert launch the game in editor context
     void GameTick();
     void RenderLoop();
 
-    void RenderDataUpdate();
+    void RenderDataUpdate() const;
 
 public:
     GameInstance(std::span<Sync::DependencySignal> GameLoopExternalProviders,std::span<Sync::DependencySignal> GameLoopExternalConsumers);
