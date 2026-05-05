@@ -16,6 +16,14 @@
 #include "GOComponents/GOC_PointLight.h"
 
 GameInstance* GameInstance::instance = nullptr;//TODO refactor camera access to get rid of this
+void GameInstance::LoadingRoutine() {
+    AssetManager::LoadingRoutine();//should be ran privately by the asset manager directly
+}
+
+void GameInstance::UnloadingRoutine() {
+    AssetManager::UnloadingRoutine();
+}
+
 void GameInstance::GameTick() {
     //double lastFrameTime = glfwGetTime();
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
@@ -68,12 +76,31 @@ void GameInstance::RenderDataUpdate() {
     GOC_PointLight::GORenderUpdate();
 }
 
+
 GameInstance::GameInstance(const std::span<Sync::DependencySignal> GameLoopExternalProviders,
-    const std::span<Sync::DependencySignal> GameLoopExternalConsumers) :
-m_GameLoopExternalProviders(GameLoopExternalProviders),
-m_GameLoopExternalConsumers(GameLoopExternalConsumers) {
+                           const std::span<Sync::DependencySignal> GameLoopExternalConsumers) :
+    m_GameLoopExternalProviders(GameLoopExternalProviders),
+    m_GameLoopExternalConsumers(GameLoopExternalConsumers) {
 
 }
+/*
+ * Object will only be available next simulation tick, but a callback can be provided to recieve the
+ **/
+void GameInstance::CreateNewGameObject(GameObjectCreateInfo& createStruct, const std::function<void(GameObject*)>& callback) {//The function pointer is potentially dangerous if used from game objects
+
+    std::unique_lock lock{creationQueueMutex};//should be enough for this
+    gameObjectsCreationQueue.emplace(createStruct,callback);
+}
+
+void GameInstance::DestroyGameObject(GameObject *gameObject) {
+    std::unique_lock lock {destructionQueueMutex};
+    gameObjectsDestructionQueue.emplace(gameObject->Handle);
+}
+
+ResourceArray<GameObject, 2000> & GameInstance::GetGameObjects() const {
+    return *GameObjects;
+}
+
 
 void GameInstance::run(const std::string &appName) {
 
@@ -105,16 +132,18 @@ void GameInstance::run(const std::string &appName) {
     delete GameObjects;
 }
 
-
 void GameInstance::SetMainCamera(GameObjectHandle editor_camera) {//might do an override that takes a GOC_Camera pointer directly
     const auto& cameraObj =  GameObjects->get(editor_camera);
     const auto camComponent = cameraObj.GetComponent<GOC_Camera>();
     mainCamera = camComponent;
 
 }
+
 void GameInstance::SetMainCamera(GOC_Camera* camComp) {
     mainCamera = camComp;
 }
+
+
 
 void GameInstance::SetDirectionalLight(GOC_DirectionalLight *DirLightComp) {
     directionLight = DirLightComp;
@@ -122,33 +151,4 @@ void GameInstance::SetDirectionalLight(GOC_DirectionalLight *DirLightComp) {
 
 glm::mat4 GameInstance::getMainCameraViewMatrix() {
     return instance->mainCamera->GetViewMatrix();
-}
-
-
-/*
- * Object will only be available next simulation tick, but a callback can be provided to recieve the
- **/
-void GameInstance::CreateNewGameObject(GameObjectCreateInfo& createStruct, const std::function<void(GameObject*)>& callback) {//The function pointer is potentially dangerous if used from game objects
-
-    std::unique_lock lock{creationQueueMutex};//should be enough for this
-    gameObjectsCreationQueue.emplace(createStruct,callback);
-}
-
-void GameInstance::DestroyGameObject(GameObject *gameObject) {
-    std::unique_lock lock {destructionQueueMutex};
-    gameObjectsDestructionQueue.emplace(gameObject->Handle);
-}
-
-ResourceArray<GameObject, 2000> & GameInstance::GetGameObjects() const {
-    return *GameObjects;
-}
-
-
-
-void GameInstance::LoadingRoutine() {
-    AssetManager::LoadingRoutine();//should be ran privately by the asset manager directly
-}
-
-void GameInstance::UnloadingRoutine() {
-    AssetManager::UnloadingRoutine();
 }
