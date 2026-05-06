@@ -7,7 +7,6 @@
 #include "DirectionalLight.h"
 #include "DirectionalLights.h"
 #include "MeshFileLoading.h"
-#include "RenderedObject.h"
 #include "SpotLights.h"
 #include "volk.h"
 
@@ -88,7 +87,7 @@ throw std::runtime_error(message);                                              
 #endif
 
 #include "DefaultVertex.h"
-#include "RenderedObjectData.h"
+#include "../API/include/RenderedObjectData.h"
 #include "SceneData.h"
 #include "ShaderUtilities.h"
 #include "PointLights.h"
@@ -256,6 +255,10 @@ void OsmiumBindlessInstance::UnloadTexture(TextureHandle textureHandle) const {
     m_textures->Remove(textureHandle);
 }
 
+MeshHandle OsmiumBindlessInstance::LoadMesh(const std::filesystem::path &path) {
+    return LoadMesh(path.string());
+}
+
 MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename) {
     std::vector<DefaultVertex> vertices;
     std::vector<uint32_t> indices;
@@ -283,14 +286,30 @@ void OsmiumBindlessInstance::UnloadMesh(MeshHandle meshHandle) const {
     m_meshes->Remove(meshHandle);
 }
 
-RenderObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(const BindlessRenderedObject &renderedObject) {
+RenderedObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(const BindlessRenderedObject &renderedObject) {
     return {
         .mesh = renderedObject.mesh,
         .index = m_renderedObjects[renderedObject.mesh].Add(renderedObject.pushData)
     };
 }
 
-void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(const RenderObjectHandle &renderedObject) {
+bool OsmiumBindlessInstance::UpdateRenderedObjectInstance(RenderedObjectHandle &renderedObjectHandle,
+    const BindlessRenderedObject &bindlessRenderedObject) {
+    if (m_renderedObjects.contains(renderedObjectHandle.mesh) && m_renderedObjects[renderedObjectHandle.mesh].contains(renderedObjectHandle.index)) {
+        if (renderedObjectHandle.mesh != bindlessRenderedObject.mesh) {
+            //object has changed mesh
+            UnregisterRenderedObjectInstance(renderedObjectHandle);
+            renderedObjectHandle = RegisterRenderedObjectInstance(bindlessRenderedObject);
+            return true;
+        }
+        //updating in place
+        m_renderedObjects[renderedObjectHandle.mesh][renderedObjectHandle.index] = bindlessRenderedObject.pushData;
+        return true;
+    }
+    return false;
+}
+
+void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(const RenderedObjectHandle &renderedObject) {
     auto pushdata = m_renderedObjects.at(renderedObject.mesh);//might want to sanitize this a bit
     pushdata.Remove(renderedObject.index);
     if (pushdata.GetCount() == 0) m_renderedObjects.erase(renderedObject.mesh);
@@ -486,8 +505,8 @@ void OsmiumBindlessInstance::init(const bool ImGuiEnabled) {
     m_spotLightInstances = std::make_unique<ResourceArray<SpotLightPushConstants, 255> >();
     m_directionalLightInstances = std::make_unique<ResourceArray<DirectionalLightPushConstants, 255> >();
 
-    m_DefaultSphereHandle = LoadMesh("../OsmiumGL/DefaultResources/models/sphere.obj");
-    m_FlatConeHandle = LoadMesh("../OsmiumGL/DefaultResources/models/flattenedCone.obj");
+    m_DefaultSphereHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/sphere.obj"));
+    m_FlatConeHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/flattenedCone.obj"));
     createDefaultTextureImage();
 
     WindowResizingHandling();

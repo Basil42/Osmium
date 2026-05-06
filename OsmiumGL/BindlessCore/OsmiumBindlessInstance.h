@@ -22,7 +22,7 @@ namespace Sync {
 
 struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
-struct RenderObjectHandle;
+struct RenderedObjectHandle;
 struct RenderedObjectPushData;
 struct MeshData;
 struct BindlessRenderedObject;
@@ -52,16 +52,15 @@ public:
 
     TextureHandle LoadTexture(const std::filesystem::path& path);
     TextureHandle LoadTexture(const std::string &filename);
-
     void UnloadTexture(TextureHandle textureHandle) const;
 
+    MeshHandle LoadMesh(const std::filesystem::path& path);
     MeshHandle LoadMesh(const std::string &filename);
-
     void UnloadMesh(MeshHandle meshHandle) const;
 
-    RenderObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
-
-    void UnregisterRenderedObjectInstance(const RenderObjectHandle& renderedObject);
+    RenderedObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
+    bool UpdateRenderedObjectInstance(RenderedObjectHandle& renderedObjectHandle, const BindlessRenderedObject& bindlessRenderedObject);
+    void UnregisterRenderedObjectInstance(const RenderedObjectHandle& renderedObject);
 
     PointLightHandle RegisterPointLightInstance(const PointLightPushConstants &lightData) const;
     void UnregisterPointLightInstance(const PointLightHandle& lightHandle) const;

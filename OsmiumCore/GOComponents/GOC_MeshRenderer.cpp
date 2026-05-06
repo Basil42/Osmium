@@ -17,24 +17,13 @@
 #include "../Base/GameInstance.h"
 #include "AssetManagement/AssetType/TextureAsset.h"
 
-std::vector<GOC_MeshRenderer*> GOC_MeshRenderer::renderers = std::vector<GOC_MeshRenderer*>();
+
 void GOC_MeshRenderer::Update() {
-    if (!registered) return;
-    //build transform data
-    //std::array<std::byte, sizeof(glm::mat4) + sizeof(glm::mat4)> pushData;
-    glm::mat4 modelMatrix = transform->getTransformMatrix();
-    const auto Modelptr = glm::value_ptr(modelMatrix);
-    memcpy(&pushData[0], Modelptr, sizeof(modelMatrix));
-
-    // glm::mat4 normalMatrix = glm::transpose(glm::inverse(viewMatrix*modelMatrix));
-    // const auto normalPtr = glm::value_ptr(normalMatrix);
-    // memcpy(&pushData[sizeof(modelMatrix)], normalPtr, sizeof(normalMatrix));
-
-    //add more for specialized materials with more constants
+    //can update everything during the render data update
 }
 
 auto GOC_MeshRenderer::GetMeshHandle() const -> MeshHandle {
-    return mesh;
+    return m_renderedObjectHandle.mesh;
 }
 
 auto GOC_MeshRenderer::GetMeshAssetHandle() const -> std::optional<AssetId> {
@@ -49,60 +38,50 @@ auto GOC_MeshRenderer::GetSpecularMapAssetHandle() const -> std::optional<AssetI
     return specularMapAssetHandle;
 }
 
-
-glm::mat4 GOC_MeshRenderer::viewMatrix = glm::mat4(1.0f);
-void GOC_MeshRenderer::GORenderUpdate() {
-    viewMatrix = GameInstance::getMainCameraViewMatrix();
-    for (const auto entry: renderers) {
-        entry->RenderUpdate();
+void GOC_MeshRenderer::RenderUpdate() {
+    //per object and slow but simple
+    //TODO either have a guard against pending texture loads, or have the default value fallback to the default texture
+    if (!registered) {
+        m_renderedObject.pushData.model = transform->getTransformMatrix();//other fields should be updated on command
+        m_renderedObjectHandle = OsmiumGL::RegisterRenderedObject(m_renderedObject);
+        registered = true;
+    }
+    if (shouldUpdateRenderObject) {
+        m_renderedObject.pushData.model = transform->getTransformMatrix();
+        OsmiumGL::UpdateRenderedObject(m_renderedObjectHandle,m_renderedObject);
     }
 }
 
-void GOC_MeshRenderer::RenderUpdate() {
-    if (shouldUpdateRenderObject)UpdateRenderedObject();
-    if (!registered)return;
-    OsmiumGL::SubmitPushConstantDataGO(renderedObject,pushData);
-}
-
-GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, MaterialHandle materialHandle): GameObjectComponent(parent) {
-    mesh = meshHandle;
-    material = materialHandle;
+GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, TextureHandle AlbedoTextureHandle, TextureHandle SmoothnessMapHandle, TextureHandle specularMapHandle): GameObjectComponent(parent) {
+    m_renderedObject.mesh = meshHandle;
+    m_renderedObject.pushData = {
+        .model = glm::mat4(1.0f),
+        .normalSpecPushData = {
+            .SmoothnessMapIndex = SmoothnessMapHandle
+            },
+        .shadingData ={
+            .albedoMapIndex = AlbedoTextureHandle,
+            .specularMapIndex = specularMapHandle//might want to package this info in the smoothnessmap
+        }
+    };
     transform = parent->GetComponent<GOC_Transform>();
     if (!transform)transform = parent->Addcomponent<GOC_Transform>();
     //needs tol be completed
+    m_renderedObjectHandle.mesh = meshHandle;
+    m_renderedObjectHandle.index = -1;//initializing it to invalid value to avoid error tied to unregistered rendered objects
 }
 
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(parent) {
     transform = parent->GetComponent<GOC_Transform>();
-    mesh = -1;//empty by default
-    material = OsmiumGL::GetDefaultMaterial();//OsmiumGL::GetBlinnPhongHandle();//maybe blinn phong by default
-    materialInstance = OsmiumGL::GetDefaultMaterialInstance(material);
-    renderers.push_back(this);
+    //TODO resonable default, probably fetching default texture handle from the GL
 }
 
 GOC_MeshRenderer::~GOC_MeshRenderer() {
+    //TODO: unregister from the GL, or maybe assert that we are unregistered before unloading
     if (MeshAssetHandle.has_value()) AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
-    if (materialInstance != OsmiumGL::GetDefaultMaterialInstance(material))OsmiumGL::DestroyMaterialInstance(materialInstance);
     if (albedoMapAssetHandle.has_value())AssetManager::UnloadAsset(albedoMapAssetHandle.value(),false);
     if (specularMapAssetHandle.has_value())AssetManager::UnloadAsset(specularMapAssetHandle.value(),false);
 
-}
-
-void GOC_MeshRenderer::UpdateRenderedObject() {
-    shouldUpdateRenderObject = false;
-    if (registered) {
-        std::cout << "Unregistered object : " << name.c_str() << std::endl;
-        OsmiumGL::UnregisterRenderedObject(renderedObject);
-        registered = false;
-    }
-
-    if (mesh <= MAX_LOADED_MESHES && material <= MAX_LOADED_MATERIALS && materialInstance <= MAX_LOADED_MATERIAL_INSTANCES) {
-        std::cout << "Registered object : " << name.c_str() << std::endl;
-        renderedObject.mesh = mesh;
-        renderedObject.material = material;
-        renderedObject.matInstance = materialInstance;
-        registered = OsmiumGL::RegisterRenderedObject(renderedObject);
-    }
 }
 
 void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
@@ -113,10 +92,7 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
     std::cout << "callback test" << std::endl;
     auto meshAsset = dynamic_cast<MeshAsset*>(asset);//should be garanteed to be valid here
     MeshAssetHandle = meshAsset->id;
-    mesh = meshAsset->GetMeshHandle();
-    shouldUpdateRenderObject = true;
-    //UpdateRenderedObject();
-
+    m_renderedObject.mesh = meshAsset->GetMeshHandle();//not changing the handle here because the GL needs it to update the data, There should be a way to garantee it is not changed here
 }
 
 void GOC_MeshRenderer::OnMaterialLoaded(Asset *asset) {
@@ -130,9 +106,7 @@ void GOC_MeshRenderer::SetMeshAsset(AssetId asset_id) {
 
     if (MeshAssetHandle.has_value())
         AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
-    mesh = -1;
     MeshAssetHandle.reset();
-    shouldUpdateRenderObject = true;
     std::function<void(Asset*)> callback = [this](auto && PH1) { OnMeshLoaded(std::forward<decltype(PH1)>(PH1)); };
 
     AssetManager::LoadAsset(asset_id, callback);
@@ -145,55 +119,30 @@ void GOC_MeshRenderer::SetMaterialAsset(AssetId asset_id) {
 }
 
 void GOC_MeshRenderer::SetMesh(MeshHandle Mesh) {
-    mesh = Mesh;
-    shouldUpdateRenderObject = true;
-    //UpdateRenderedObject();
-}
-
-void GOC_MeshRenderer::SetMaterial(MaterialHandle Material, bool defaultInstance) {
-    material = Material;
-    if (defaultInstance)materialInstance = OsmiumGL::GetLoadedMaterialDefaultInstance(material);
-    shouldUpdateRenderObject = true;
-    //UpdateRenderedObject();
-}
-
-void GOC_MeshRenderer::SetMaterialInstance(MatInstanceHandle matInstance) {
-    materialInstance = matInstance;
-    shouldUpdateRenderObject = true;
-    //UpdateRenderedObject();
+    m_renderedObject.mesh = Mesh;
 }
 
 void GOC_MeshRenderer::SetBlinnPhongAlbedoMap(AssetId asset_id) {
-    assert(material == OsmiumGL::GetBlinnPhongHandle());//just to be sur eto not accidentally use it on generic material
-    if (!HasOwnMaterialInstance) {
-        materialInstance = OsmiumGL::CreateMaterialInstance(material);
-        HasOwnMaterialInstance = true;
-    }
     std::cout << "requesting setting albedo texture." << std::endl;
+    if (albedoMapAssetHandle.has_value()) {
+        AssetManager::UnloadAsset(albedoMapAssetHandle.value(),false);
+    }
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
-        OsmiumGL::SetTextureInMaterialInstance(materialInstance,0,handle);
-        albedoMap = handle;
+        m_renderedObject.pushData.shadingData.albedoMapIndex = handle;
         albedoMapAssetHandle = asset->id;
-        shouldUpdateRenderObject = true;
         std::cout << "marked object for renderer upate" << std::endl;
     });
-
-
 }
 
 void GOC_MeshRenderer::SetBlinnPhongSpecularMap(AssetId asset_id) {
-    assert(material == OsmiumGL::GetBlinnPhongHandle());
-    if (!HasOwnMaterialInstance) {
-        materialInstance = OsmiumGL::CreateMaterialInstance(material);
-        HasOwnMaterialInstance = true;
+    if (specularMapAssetHandle.has_value()) {
+        AssetManager::UnloadAsset(specularMapAssetHandle.value(),false);
     }
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
-        OsmiumGL::SetTextureInMaterialInstance(materialInstance,1,handle);
-        SpecularMap = handle;
+        m_renderedObject.pushData.shadingData.specularMapIndex = handle;
         specularMapAssetHandle = asset->id;
-        shouldUpdateRenderObject = true;
     });
 }
 

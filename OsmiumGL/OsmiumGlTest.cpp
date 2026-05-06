@@ -2,7 +2,7 @@
 
 #include "DirectionalLights.h"
 #include "PointLights.h"
-#include "RenderedObjectData.h"
+#include "API/include/RenderedObjectData.h"
 #include "BindlessCore/OsmiumBindlessInstance.h"
 #include "BindlessCore/Utilities/CoreUtils.h"
 #include "BindlessCore/Utilities/logger.h"

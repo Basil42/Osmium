@@ -4,6 +4,7 @@
 
 #include "HierarchyWindow.h"
 
+#include "imgui.h"
 #include "ResourceArray.h"
 #include "Base/GameInstance.h"
 

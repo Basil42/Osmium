@@ -12,86 +12,37 @@
 #include "crossguid/guid.hpp"
 
 std::unique_ptr<OsmiumBindlessInstance> instance;
-std::unique_ptr<std::map<RenderedObject,std::vector<std::byte>>> pushConstantStagingVectors;
 
 void OsmiumGL::Init(const std::string &appName,bool ImguiEnabled, std::span<Sync::DependencySignal> externalRenderProviders, std::span<Sync::DependencySignal> externalRenderConsumers) {//TODO pass the sync spans here
     instance = std::make_unique<OsmiumBindlessInstance>(externalRenderProviders, externalRenderConsumers,VkExtent2D(800,600), appName.c_str(), ImguiEnabled);
 
-    pushConstantStagingVectors = std::make_unique<std::map<RenderedObject,std::vector<std::byte>>>();
 }
 
-
-void SubmitPushConstantDataGO(RenderedObject rendered_object, std::span<std::byte>& data) {
-    if (!pushConstantStagingVectors->contains(rendered_object)) {
-        (*pushConstantStagingVectors)[rendered_object] = std::vector<std::byte>();
-    }
-    pushConstantStagingVectors->at(rendered_object).insert(pushConstantStagingVectors->at(rendered_object).end(),data.begin(),data.end());
-}
-
-
-void OsmiumGL::SubmitPushConstantBuffers() {
-    //instance->SubmitObjectPushDataBuffers(pushConstantStagingVectors);
-}
-#ifndef DYNAMIC_RENDERING
-void OsmiumGL::StartFrame() {
-
-    OsmiumGLInstance::StartFrame();
-}
-
-void OsmiumGL::EndFrame(std::mutex& ImGuiMutex,std::condition_variable& imGuiCV,bool& isImgGuiFrameRendered) {
-    SubmitPushConstantBuffers();
-    instance->EndFrame(ImGuiMutex,imGuiCV,isImgGuiFrameRendered);
-    ClearGOPushConstantBuffers();
-}
-#endif
 
 void OsmiumGL::Shutdown() {
-    //instance->Shutdown();
-
-}
-
-MaterialHandle OsmiumGL::GetBlinnPhongHandle() {
-    //return instance->GetBlinnPhongHandle();
-    return 0;
+    instance->CloseWindow();
 }
 
 
-void OsmiumGL::ClearGOPushConstantBuffers() {
-
-    //I do this to not reallocate vectors every frame
-    std::vector<RenderedObject> StaleRenderedObjects;//I'd prefer a faster structure
-    for (auto& [fst, snd] : *pushConstantStagingVectors) {
-        if (snd.empty())StaleRenderedObjects.push_back(fst);//no object of that kind has submitted this frame
-        else snd.clear();
-    }
-    for (auto& staleObject: StaleRenderedObjects) {
-        pushConstantStagingVectors->erase(staleObject);
-    }
+void OsmiumGL::UpdateRenderedObject(RenderedObjectHandle& renderedObjectHandle, const BindlessRenderedObject &renderedObject) {
+    instance->UpdateRenderedObjectInstance(renderedObjectHandle,renderedObject);
 }
 
 void OsmiumGL::UpdateMainCameraData(const glm::mat4 &mat, const float radianVFoV) {
     //instance->UpdateCameraData(mat, radianVFoV);
 }
 
-MatInstanceHandle OsmiumGL::GetLoadedMaterialDefaultInstance(MaterialHandle material) {
-    //return instance->GetLoadedMaterialDefaultInstance(material);
-    return 0;
-}
-
 MeshHandle OsmiumGL::LoadMesh(const xg::Guid &id) {
-    //return instance->LoadMesh(ResourceFolder / id.str());
-
-    return 0;
+    return instance->LoadMesh(ResourceFolder / id.str());
 }
 
 
-bool OsmiumGL::RegisterRenderedObject(const RenderedObject &rendered_object) {
-    return false;//return instance->AddRenderedObject(rendered_object);
+RenderedObjectHandle OsmiumGL::RegisterRenderedObject(const BindlessRenderedObject&rendered_object) {
+    return instance->RegisterRenderedObjectInstance(rendered_object);
 }
 
-void OsmiumGL::UnregisterRenderedObject(RenderedObject rendered_object) {
-    pushConstantStagingVectors->erase(rendered_object);
-    //instance->RemoveRenderedObject(rendered_object);
+void OsmiumGL::UnregisterRenderedObject(const RenderedObjectHandle& rendered_object) {
+    instance->UnregisterRenderedObjectInstance(rendered_object);
 }
 
 void OsmiumGL::UnloadMesh(unsigned long mesh_handle,bool immediate = false) {
@@ -126,38 +77,6 @@ void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, floa
 
 void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants> &pointLightData) {
     //instance->UpdateDynamicPointLights(pointLightData);
-}
-
-void OsmiumGL::RenderFrame() {
-    //TODO Sync, probably in the Renderframe function itself
-    SubmitPushConstantBuffers();//I'll probably end doing thsi somewhere better suited to it
-    //instance->RenderFrame(imgui_update_sync);
-    ClearGOPushConstantBuffers();
-}
-
-MaterialHandle OsmiumGL::GetDefaultMaterial() {
-    return 0;//instance->GetDefaultMaterialHandle();
-}
-
-MatInstanceHandle OsmiumGL::GetDefaultMaterialInstance(MaterialHandle material) {
-    return 0;//instance->GetLoadedMaterialDefaultInstance(material);
-}
-
-void OsmiumGL::RegisterPointLightLightShape(MeshHandle mesh_handle) {
-    //instance->RegisterPointLightShapeMesh(mesh_handle);
-}
-
-MatInstanceHandle OsmiumGL::CreateMaterialInstance(MaterialHandle material) {
-    return 0;//instance->CreateBlinnPhongMaterialInstance(material);
-}
-
-void OsmiumGL::DestroyMaterialInstance(MatInstanceHandle material_instance) {
-     //instance->DestroyBlinnPhongMaterialInstance(material_instance);
-}
-
-void OsmiumGL::SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding,
-                                            TextureHandle texture) {
-    //instance->SetShadingStageTextureOnBlinnPhongMaterialInstance(material_instance,binding,texture);
 }
 
 void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> &dirLightData) {

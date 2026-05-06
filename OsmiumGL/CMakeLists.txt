@@ -15,8 +15,6 @@ set_property(TARGET volk PROPERTY FOLDER "ThirdParty")
 
 set(OSMIUMGL_SOURCES
         API/src/OsmiumGL_API.cpp
-        API/src/RenderedObject.cpp
-        Core/src/MaterialData.cpp
         #ShaderUtilities/src/MainPipeline.cpp
         ShaderUtilities/src/spirv_reflect.c
         ShaderUtilities/src/spirv_reflect.cpp
@@ -28,8 +26,6 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         API/include/OsmiumGL_API.h
         DebugUtils/InitUtilVk.h
         Core/include/PassBindings.h
-        API/include/RenderedObject.h
-        Core/include/MaterialData.h
         Core/include/config.h
         Core/include/MeshData.h
         ShaderUtilities/include/VertexDescriptor.h
@@ -51,7 +47,7 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         BindlessCore/Utilities/VkCheck.h
         BindlessCore/Utilities/CoreUtils.h
         ShaderUtilities/include/SceneData.h
-        ShaderUtilities/include/RenderedObjectData.h
+        API/include/RenderedObjectData.h
         ShaderUtilities/include/SpotLights.h
 
 )

@@ -5,6 +5,7 @@
 #ifndef RENDEREDOBJECTDATA_H
 #define RENDEREDOBJECTDATA_H
 #include <glm/glm.hpp>
+using MeshHandle = uint32_t;
 struct NormalSpecData {
     uint32_t SmoothnessMapIndex = 0;
 };
@@ -19,9 +20,9 @@ struct RenderedObjectPushData {
     ShadingData shadingData;
 };
 
-struct RenderObjectHandle {
-    unsigned int mesh;
-    unsigned int index;
+struct RenderedObjectHandle {
+    uint32_t mesh;
+    uint32_t index;
 };
 
 //no support for materials

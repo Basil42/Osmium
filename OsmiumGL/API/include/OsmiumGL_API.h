@@ -6,13 +6,13 @@
 #define OSMIUMGL_API_H
 #include <condition_variable>
 #include <vector>
-#include "RenderedObject.h"
 #include "VertexDescriptor.h"
 #include <filesystem>
 #include <span>
 #include <glm/fwd.hpp>
 
 #include "imgui.h"
+#include "RenderedObjectData.h"
 #include "SyncUtils.h"
 
 
@@ -29,37 +29,13 @@ namespace  OsmiumGL {
 
 
     void Init(const std::string &appName, bool ImGuiEnabled = false, std::span<Sync::DependencySignal> externalRenderProviders ={}, std::span<Sync::DependencySignal> externalRenderConsumers={});
-
-
-    void test();
-
-    void SubmitPushConstantBuffers();
-
-    //run imgui in between;
-    [[deprecated("use sync struct and single function render call")]]void StartFrame();
-    [[deprecated("use sync struct and single function render call")]]void EndFrame(std::mutex &ImGuiMutex, std::condition_variable &imGuiCV, bool &isImgGuiFrameRendered);
     void Shutdown();
-
-    MaterialHandle GetBlinnPhongHandle();
-
-    MatInstanceHandle GetDefaultMaterialInstance();
-
-
-    void SubmitPushConstantDataGO(RenderedObject rendered_object, std::span<std::byte>& data);
-
-    //Mesh renderer gameobject constant buffer updates
-    void ClearGOPushConstantBuffers();
 
     void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
 
-    MatInstanceHandle GetLoadedMaterialDefaultInstance(MaterialHandle material);
-
-
-    //std::map<RenderedObject,std::vector<std::byte>> pushConstantStagingVectors;
-
-    bool RegisterRenderedObject(const RenderedObject &rendered_object);
-
-    void UnregisterRenderedObject(RenderedObject rendered_object);
+    RenderedObjectHandle RegisterRenderedObject(const BindlessRenderedObject &rendered_object);
+    void UpdateRenderedObject(RenderedObjectHandle& rendered_object,const BindlessRenderedObject& data);
+    void UnregisterRenderedObject(const RenderedObjectHandle& rendered_object);
 
     void UnloadMesh(unsigned long mesh_handle, bool immediate);
 
@@ -78,25 +54,13 @@ namespace  OsmiumGL {
 
     bool ShouldClose();
 
-
-    void TestDynamicRenderer(const std::string& str);
-
     void UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
 
     void UpdateDynamicPointLights(const std::span<PointLightPushConstants>& pointLightData);
 
     void RenderFrame();
 
-    MaterialHandle GetDefaultMaterial();
-
-    MatInstanceHandle GetDefaultMaterialInstance(MaterialHandle material);
-
-    void RegisterPointLightLightShape(MeshHandle mesh_handle);
-
-    MatInstanceHandle CreateMaterialInstance(MaterialHandle material);
-    void DestroyMaterialInstance(MatInstanceHandle material_instance);
-
-    void SetTextureInMaterialInstance(MatInstanceHandle material_instance, unsigned int binding, TextureHandle texture);
+    void RegisterPointLightLightShape(MeshHandle mesh_handle);//TODO refactor this for the simplified point light workflow
 
     void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& dirLightData);
 

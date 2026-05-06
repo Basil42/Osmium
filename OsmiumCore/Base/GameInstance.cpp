@@ -72,7 +72,8 @@ void GameInstance::RenderDataUpdate() const {
     mainCamera->RenderUpdate();
 
     directionLight->RenderUpdate();
-    GOC_MeshRenderer::GORenderUpdate();
+    //TODO replace this by a more straightforward update looping through meshrenderers
+    //GOC_MeshRenderer::GORenderUpdate();
     GOC_PointLight::GORenderUpdate();
 }
 
