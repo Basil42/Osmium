@@ -132,6 +132,11 @@ T* ResourceArray<T, MAX_Capacity>::getRef(unsigned int handle) {
 }
 
 template<typename T, size_t MAX_Capacity>
+T & ResourceArray<T, MAX_Capacity>::operator[](unsigned int handle) {
+  return get(handle);
+}
+
+template<typename T, size_t MAX_Capacity>
 unsigned int ResourceArray<T, MAX_Capacity>::emplace_new(T *&newEntryPtr) {//to add to the array without copy
   if (resourceVector.size() == MAX_Capacity) [[unlikely]] {
     throw std::out_of_range("Resource array resource capacity exceeded");
