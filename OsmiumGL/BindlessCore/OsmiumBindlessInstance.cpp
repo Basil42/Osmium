@@ -96,10 +96,13 @@ throw std::runtime_error(message);                                              
 #include "Utilities/CoreUtils.h"
 
 
-OsmiumBindlessInstance::OsmiumBindlessInstance(std::span<Sync::DependencySignal>externalRenderProducers,std::span<Sync::DependencySignal>externalRenderConsumers,VkExtent2D size, const char* appName,bool ImguiEnabled) :
+OsmiumBindlessInstance::OsmiumBindlessInstance(const std::span<Sync::DependencySignal> externalRenderProducers, // NOLINT(*-pro-type-member-init)
+                                               const std::span<Sync::DependencySignal> externalRenderConsumers,
+                                               const VkExtent2D size, const char *appName, const bool enableImGui) :
 m_windowSize(size) ,
-m_externalRenderProviders(externalRenderProducers),//extrnal sync spans can be empty
-m_externalRenderConsumers(externalRenderConsumers){ // NOLINT(*-pro-type-member-init)
+m_imGuiEnabled(enableImGui),//external sync spans can be empty
+m_externalRenderProviders(externalRenderProducers),
+m_externalRenderConsumers(externalRenderConsumers){
     // Vulkan Loader
     VK_CHECK(volkInitialize());
     // Create the GLTF Window
@@ -108,7 +111,7 @@ m_externalRenderConsumers(externalRenderConsumers){ // NOLINT(*-pro-type-member-
     const char* windowTitle = appName;
     m_window = glfwCreateWindow(static_cast<int>(m_windowSize.width), static_cast<int>(m_windowSize.height),
                                 windowTitle, nullptr, nullptr);
-    init(ImguiEnabled);
+    init();
 }
 
 OsmiumBindlessInstance::~OsmiumBindlessInstance() {
@@ -155,6 +158,7 @@ void OsmiumBindlessInstance::run() {
         for (auto& providers : m_externalRenderProviders) {
             providers.WaitForProductsAndRearm();
         }
+        glfwPollEvents();
         m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
 
         // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
@@ -370,7 +374,6 @@ void OsmiumBindlessInstance::UnregisterSpotlightInstance(const SpotLightHandle &
 }
 
 void OsmiumBindlessInstance::StartNewImguiFrame() {
-    glfwPollEvents();
         if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
             ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
             return;
@@ -416,8 +419,7 @@ bool OsmiumBindlessInstance::ShouldClose() {
     return glfwWindowShouldClose(m_window);//this function is apparently thread safe
 }
 
-void OsmiumBindlessInstance::init(const bool ImGuiEnabled) {
-    m_imGuiEnabled = ImGuiEnabled;
+void OsmiumBindlessInstance::init() {
     m_context.init();
 
     m_allocator.init(VmaAllocatorCreateInfo{
@@ -519,9 +521,11 @@ void OsmiumBindlessInstance::destroy() {
     m_swapchain.deinit();
     m_samplerPool.deinit();
 
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    if (m_imGuiEnabled) {
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+    }
 
     vkFreeDescriptorSets(device, m_descriptorPool, 1, &m_textureDescriptorSet);
 

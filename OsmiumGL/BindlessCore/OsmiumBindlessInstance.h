@@ -36,7 +36,7 @@ using SpotLightHandle = unsigned int;
 
 class OsmiumBindlessInstance {
 public:
-    explicit OsmiumBindlessInstance(std::span<Sync::DependencySignal>externalRenderProducers,std::span<Sync::DependencySignal>externalRenderConsumers, VkExtent2D size = {800, 600}, const char* appName = "Osmium", bool ImGuiEnable = false);
+    explicit OsmiumBindlessInstance(std::span<Sync::DependencySignal>externalRenderProducers,std::span<Sync::DependencySignal>externalRenderConsumers, VkExtent2D size = {800, 600}, const char* appName = "Osmium", bool enableImGui = false);
 
     ~OsmiumBindlessInstance();
 
@@ -89,7 +89,7 @@ public:
     bool ShouldClose();
 
 private:
-    void init(bool ImGuiEnabled);
+    void init();
 
     void destroy();
 
@@ -185,7 +185,7 @@ private:
         uint64_t frameNumber; // Timeline value for synchronization (increases each frame)
     };
 
-    bool m_imGuiEnabled = false;
+    const bool m_imGuiEnabled = false;
     std::vector<FrameData> m_frameData{}; // Collection of per-frame resources to support multiple frames in flight
     VkSemaphore m_frameTimelineSemaphore{}; // Timeline semaphore used to synchronize CPU submission with GPU completion
     uint32_t m_frameRingCurrent{0}; // Current frame index in the ring buffer (cycles through available frames)
