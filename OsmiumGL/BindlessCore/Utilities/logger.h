@@ -70,6 +70,7 @@
 #ifdef APIENTRY
 #undef APIENTRY
 #endif
+#undef NOMINMAX
 #define NOMINMAX  // Prevent windows.h from defining min and max macros
 #include <windows.h>
 #include <debugapi.h>
