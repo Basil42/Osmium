@@ -58,6 +58,9 @@ public:
     MeshHandle LoadMesh(const std::string &filename);
     void UnloadMesh(MeshHandle meshHandle) const;
 
+    MeshHandle GetDefaultSphereMeshHandle();
+    MeshHandle GetDefaultTextureHandle();
+
     RenderedObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
     bool UpdateRenderedObjectInstance(RenderedObjectHandle& renderedObjectHandle, const BindlessRenderedObject& bindlessRenderedObject);
     void UnregisterRenderedObjectInstance(const RenderedObjectHandle& renderedObject);
@@ -87,6 +90,7 @@ public:
     void EndImgGuiFrame();
 
     bool ShouldClose();
+
 
 private:
     void init();

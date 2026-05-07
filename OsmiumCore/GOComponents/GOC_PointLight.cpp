@@ -43,7 +43,7 @@ GOC_PointLight::GOC_PointLight(GameObject *parent): GameObjectComponent(parent) 
             .color = glm::vec4(1.0f,1.0f,1.0f,1.0f),
     }};
         lightHandle = constants.Add(value);
-    if (LightShapeMesh == MAX_LOADED_MESHES) SetMeshAsset(Asset::getAssetId("../OsmiumGL/DefaultResources/models/sphere.obj"));
+    if (LightShapeMesh == MAX_LOADED_MESHES) LightShapeMesh = OsmiumGL::GetDefaultSphereMeshHandle();
 
 
 }

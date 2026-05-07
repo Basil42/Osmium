@@ -156,7 +156,7 @@ void AssetManager::UnloadAsset(AssetId assetId, bool immediate = false) {
     UnloadingPending.notify_one();
     //AssetDatabase.at(assetId)->Unload(immediate);
 }
-
+#ifdef EDITOR
 /**
  * Register assets to the asset database from a source file, if it is not imported or has changed it will automatically be imported,
  * the function will then load the imported version of the asset
@@ -215,6 +215,7 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
     }
         AssetDatabase.emplace(asset->id, asset);
 }
+#endif
 
 void AssetManager::BuildAssetDatabase() {
     std::unique_lock assetDatabaseLock(assetDatabaseMutex);

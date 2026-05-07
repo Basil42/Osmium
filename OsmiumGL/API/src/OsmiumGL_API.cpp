@@ -103,4 +103,8 @@ ImTextureRef OsmiumGL::GetImGuiRenderTarget() {
     return instance->GetImGuiRenderTarget();
 }
 
+MeshHandle OsmiumGL::GetDefaultSphereMeshHandle() {
+    return instance->GetDefaultSphereMeshHandle();
+}
+
 

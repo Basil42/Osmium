@@ -49,9 +49,9 @@ public:
     static void LoadAsset(AssetId assetId, const std::function<void(Asset *)> &callback);
     static void UnloadAsset(AssetId assetId, bool immediate);
 
-
+#ifdef EDITOR
     static void RegisterAssetFromSource(const std::filesystem::path &path);
-
+#endif
     static void BuildAssetDatabase();
     static void LoadAssetDatabase();
 
