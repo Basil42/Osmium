@@ -8,7 +8,6 @@
 
 
 bool GameObject::RemoveComponent(const GameObjectComponent *component) {//remove a specific component, prefer removing by type, as this needs to search for the component
-    auto handle = component->GetObjectHandle();
     auto it =components.begin();
     while (it != components.end()) {
         if (it->second == component) {

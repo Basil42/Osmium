@@ -7,3 +7,7 @@ GameObjectComponent::GameObjectComponent(GameObject *parent) {
     this->parent = parent;
     //handle = getNewHandle();
 }
+
+const GameObject & GameObjectComponent::GetParent() const {
+    return *parent;
+}

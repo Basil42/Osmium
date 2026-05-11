@@ -90,13 +90,9 @@ void GOC_Transform::SetTransformMatrix(const glm::vec3& translation, const glm::
     model = glm::recompose(scale,rotation,translation,skew,perspective);
 }
 
-GOC_Transform::GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform = nullptr): GameObjectComponent(parent) {
+GOC_Transform::GOC_Transform(GameObject* parent,GOC_Transform *NewParentTransform = nullptr): GameObjectComponent(parent) {
     SetTransformMatrix(glm::mat4(1.0f));
-    if (NewParentTransform) {
-        parentTransform = NewParentTransform->GetObjectHandle();
-    } else {
-        parentTransform = 0; //0 shoudl be the root transform
-    }
+    parentTransform = NewParentTransform;//I could use std::optional here
 }
 
 GOC_Transform::GOC_Transform(GameObject *parent) : GameObjectComponent(parent) {

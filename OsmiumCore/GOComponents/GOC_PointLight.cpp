@@ -6,32 +6,23 @@
 
 #include <glm/glm.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/transform.hpp>
 
 #include "OsmiumGL_API.h"
-#include "AssetManagement/Asset.h"
-#include "AssetManagement/AssetType/MeshAsset.h"
+#include "ResourceArray.h"
+#include "Base/GameObject.h"
+#include "GOComponents/GOC_Transform.h"
 
 
+ResourceArray<PointLightPushConstants,50> GOC_PointLight::PushConstantDataStagingArray;
 
-ResourceArray<PointLightPushConstants,50> GOC_PointLight::constants;
-std::optional<AssetId> GOC_PointLight::AssetHandle;
-MeshHandle GOC_PointLight::LightShapeMesh = MAX_LOADED_MESHES;
 
-void GOC_PointLight::OnMeshLoaded(Asset *asset) {
-    if (asset->getType() != mesh) {
-        std::cerr << "trying to assign non mesh asset to light shape" << std::endl;
-        return;
-    }
-    auto meshAsset = dynamic_cast<MeshAsset *>(asset);
-    AssetHandle = meshAsset->id;
-    LightShapeMesh = meshAsset->GetMeshHandle();
-    OsmiumGL::RegisterPointLightLightShape(LightShapeMesh);
+unsigned int GOC_PointLight::GetLightHandle() const{
+    return m_lightHandle;
 }
 
 void GOC_PointLight::GORenderUpdate() {
-    //it might be nice to keep two collection, one dedicated to static lights
-    if (LightShapeMesh != MAX_LOADED_MESHES)OsmiumGL::UpdateDynamicPointLights(constants);
+    //it might be nice to keep two collection, one dedicated to static lights, but it shoudl be the GL's concern
+    //TODO api entry point here to trigger the renderupdate from inside the GL
 }
 
 GOC_PointLight::GOC_PointLight(GameObject *parent): GameObjectComponent(parent) {
@@ -42,35 +33,44 @@ GOC_PointLight::GOC_PointLight(GameObject *parent): GameObjectComponent(parent) 
         .fragConstant = {
             .color = glm::vec4(1.0f,1.0f,1.0f,1.0f),
     }};
-        lightHandle = constants.Add(value);
-    if (LightShapeMesh == MAX_LOADED_MESHES) LightShapeMesh = OsmiumGL::GetDefaultSphereMeshHandle();
-
+        m_lightHandle = PushConstantDataStagingArray.Add(value);
 
 }
 
 GOC_PointLight::~GOC_PointLight() {
-    constants.Remove(lightHandle);
+    PushConstantDataStagingArray.Remove(m_lightHandle);
 }
-//All these are unsafe at the moment
+
+glm::vec3 GOC_PointLight::GetPosition() const {
+    return PushConstantDataStagingArray[m_lightHandle].vertConstant.model[3];//this could be incorrect if w is not 1 but I can worry about it later
+}
+
 void GOC_PointLight::SetPosition(const glm::vec3 &pos) const {
-    PointLightPushConstants &constantValue = constants.get(lightHandle);
+    PointLightPushConstants &constantValue = PushConstantDataStagingArray.get(m_lightHandle);
     //I could deduplicate this similar to radius
     constantValue.vertConstant.model = glm::translate(glm::mat4(1.0f),pos);
 }
 
-void GOC_PointLight::SetColorAndIntensity(const glm::vec3 &col, const float intensity) const {
-    PointLightPushConstants &constantValue = constants.get(lightHandle);
+glm::vec4 GOC_PointLight::GetColorAndIntensity() const {//get color in RGB, intensity in A
+    return PushConstantDataStagingArray[m_lightHandle].fragConstant.color;
+}
+
+void GOC_PointLight::SetColorAndIntensity(const glm::vec3 &col, const float intensity) const {//set color in RGB, intensity in A
+    PointLightPushConstants &constantValue = PushConstantDataStagingArray.get(m_lightHandle);
     constantValue.fragConstant.color = glm::vec4(col,intensity);
 }
 
+float GOC_PointLight::GetRadius() const {
+    return PushConstantDataStagingArray[m_lightHandle].radius;
+}
 
-void GOC_PointLight::SetRadius(const float radius) {
-    PointLightPushConstants &constantValue = constants.get(lightHandle);
-    constantValue.radius = radius;
+
+void GOC_PointLight::SetRadius(const float radius) const {
+    PushConstantDataStagingArray[m_lightHandle].radius = radius;
 }
 
 void GOC_PointLight::GetValues(glm::vec3 &pos, float &radius, glm::vec3 &col, float &intensity) const {
-    const auto& values =  constants.get(lightHandle);
+    const auto& values =  PushConstantDataStagingArray.get(m_lightHandle);
     pos = values.vertConstant.model[3];
     col = values.fragConstant.color;
     radius = values.radius;
@@ -79,16 +79,8 @@ void GOC_PointLight::GetValues(glm::vec3 &pos, float &radius, glm::vec3 &col, fl
 }
 
 void GOC_PointLight::SetValues(const glm::vec3 &pos, const glm::vec3 &color, const float radius, const float intensity) {
-    auto &[vertConstant, radiusConstant, fragConstant] = constants.get(lightHandle);
+    auto &[vertConstant, radiusConstant, fragConstant] = PushConstantDataStagingArray.get(m_lightHandle);
     vertConstant.model = glm::translate(glm::mat4(1.0f),pos);
     radiusConstant = radius;
     fragConstant.color = glm::vec4(color,intensity);
-}
-
-void GOC_PointLight::SetMeshAsset(AssetId asset_id) {
-    if (AssetHandle.has_value())AssetManager::UnloadAsset(AssetHandle.value(),false);
-    LightShapeMesh = MAX_LOADED_MESHES;
-    AssetHandle.reset();
-    std::function<void(Asset*)> callback = [this](auto && PH1) {OnMeshLoaded(std::forward<decltype(PH1)>(PH1));};
-    AssetManager::LoadAsset(asset_id, callback);
 }

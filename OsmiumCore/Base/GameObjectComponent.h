@@ -8,13 +8,11 @@
 
 
 class GameObject;
-typedef unsigned long GOC_Handle;
 class GameObjectComponent {
 protected:
     explicit GameObjectComponent(GameObject* parent);
-
+    const GameObject& GetParent() const;
 private:
-    GOC_Handle handle;
     GameObject* parent;
 
 public:
@@ -23,7 +21,6 @@ public:
     //all render updates should probably be static members
     virtual void RenderUpdate() {}
     [[nodiscard]] GameObject* GetGameObject() const {return parent;}
-    [[nodiscard]] GOC_Handle GetObjectHandle() const {return handle;}
     GameObjectComponent() = delete;
     virtual ~GameObjectComponent() = default;
 };

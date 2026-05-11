@@ -4,12 +4,9 @@
 
 #ifndef GOC_POINTLIGHT_H
 #define GOC_POINTLIGHT_H
-#include <vector>
-
 #include "GOC_MeshRenderer.h"
 #include "PointLights.h"
 #include "ResourceArray.h"
-#include "../../OsmiumGL/Core/include/config.h"
 #include "Base/GameObjectComponent.h"
 
 
@@ -18,20 +15,15 @@ class GOC_PointLight : public GameObjectComponent{
     const std::string name = "PointLight";
 
 
-    unsigned int lightHandle;
-    static ResourceArray<PointLightPushConstants,50> constants;//let's say 50 for demo purposes
-    static std::optional<AssetId> AssetHandle;
-    static MeshHandle LightShapeMesh;
+    static ResourceArray<PointLightPushConstants, 50> PushConstantDataStagingArray;
 
-    static void OnMeshLoaded(Asset* asset);
+    unsigned int GetLightHandle() const;
 public:
     const std::string & Name() override { return name; }
 
+    static void GORenderUpdate();//TODO render update in a singel memcopy
 
-
-    static void GORenderUpdate();
-
-    void Update() override{};//TODO add a changelist to resolve during update
+    void Update() override{};//Most update will come from somewhere else
 
     void RenderUpdate() override{};//might need to just get rid of this one
 
@@ -39,17 +31,19 @@ public:
     explicit GOC_PointLight(GameObject * parent);
     ~GOC_PointLight() override;
 
-    glm::vec3 GetPosition();
+    glm::vec3 GetPosition() const;
     void SetPosition(const glm::vec3 & pos) const;
-    glm::vec4 GetColorAndIntensity();
+    glm::vec4 GetColorAndIntensity() const;
     void SetColorAndIntensity(const glm::vec3 & col, float intensity) const;
 
-    float GetRadius();
-    void SetRadius(float radius);
+    float GetRadius() const;
+    void SetRadius(float radius) const;
     void GetValues(glm::vec3 & pos, float &radius, glm::vec3 & col, float &intensity) const;
     void SetValues(const glm::vec3 & pos, const glm::vec3 & color, float radius, float intensity);
     
     void SetMeshAsset(AssetId asset_id);
+
+    unsigned int m_lightHandle;
 };
 
 

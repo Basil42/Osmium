@@ -293,6 +293,14 @@ void OsmiumBindlessInstance::UnloadMesh(MeshHandle meshHandle) const {
     m_meshes->Remove(meshHandle);
 }
 
+MeshHandle OsmiumBindlessInstance::GetDefaultSphereMeshHandle() const{
+    return m_DefaultSphereHandle;
+}
+
+TextureHandle OsmiumBindlessInstance::GetDefaultTextureHandle() const {
+    return m_DefaultTextureIndex;//it would be nice to assert if the GL is initialized here
+}
+
 RenderedObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(const BindlessRenderedObject &renderedObject) {
     return {
         .mesh = renderedObject.mesh,

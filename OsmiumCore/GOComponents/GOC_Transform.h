@@ -11,7 +11,7 @@
 #include "../Base/GameObject.h"
 #include "../Base/GameObjectComponent.h"
 #include "../Base/GameObjectCreation.h"
-#include "../Helpers/Properties.h"
+
 struct GOC_TransformCreateData : GameObjectComponentCreateInfo{//afraid this solution will quickly slow down compilation
     GameObjectHandle parent;
 
@@ -21,14 +21,14 @@ class GOC_Transform final : public GameObjectComponent {
 
 private:
     glm::mat4 model = glm::mat4(1.0f);
-    GOC_Handle parentTransform;
-    std::vector<GOC_Handle> childrenTransforms;
+    GOC_Transform* parentTransform;
+    std::vector<GOC_Transform*> childrenTransforms;//pointers are stored in memory stable containers
     glm::vec3 cachedScale = glm::vec3(1.0f);
     glm::quat cachedRotation = glm::quat();
     glm::vec4 cachedPerspective;
     glm::vec3 cachedSkew;
-    [[nodiscard]] GOC_Handle getParentTransform() const { return parentTransform; }
-    void setParent(const GOC_Handle &newParentTransform){ parentTransform = newParentTransform; }
+    [[nodiscard]] GOC_Transform& getParentTransform() const { return *parentTransform; }
+    void setParent(GOC_Transform* newParentTransform){ parentTransform = newParentTransform; }
     //glm::vec3 getRootPosition();
     //glm::vec3 getRootScale();
     //glm::vec4 getRootRotation();
@@ -47,7 +47,7 @@ public:
 
     void SetTransformMatrix(glm::mat4 mat);
     void SetTransformMatrix(const glm::vec3& translation, const glm::quat& rotation, const glm::vec3& scale, const glm::vec3 &skew, const glm::vec4& perspective);
-    explicit GOC_Transform(GameObject* parent,const GOC_Transform *NewParentTransform);
+    explicit GOC_Transform(GameObject* parent,GOC_Transform *NewParentTransform);
     explicit GOC_Transform(GameObject* parent);//That should be essentially automated
     ~GOC_Transform() override;
 

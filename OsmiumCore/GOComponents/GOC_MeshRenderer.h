@@ -22,7 +22,7 @@ using TextureHandle = unsigned int;
 
 
 class GOC_MeshRenderer : public GameObjectComponent {
-    GOC_Transform* transform;//outside of ECS a reference to the transform seems acceptable
+    GOC_Transform* transform;//TODO verify this pointer is reliable
     //Data for renderdata update
     RenderedObjectHandle m_renderedObjectHandle;
     BindlessRenderedObject m_renderedObject;

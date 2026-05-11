@@ -60,8 +60,8 @@ public:
     MeshHandle LoadMesh(const std::string &filename);
     void UnloadMesh(MeshHandle meshHandle) const;
 
-    MeshHandle GetDefaultSphereMeshHandle();
-    MeshHandle GetDefaultTextureHandle();
+    MeshHandle GetDefaultSphereMeshHandle() const;
+    TextureHandle GetDefaultTextureHandle() const;
 
     RenderedObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
     bool UpdateRenderedObjectInstance(RenderedObjectHandle& renderedObjectHandle, const BindlessRenderedObject& bindlessRenderedObject);
