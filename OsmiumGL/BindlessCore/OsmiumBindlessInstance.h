@@ -63,21 +63,25 @@ public:
     MeshHandle GetDefaultSphereMeshHandle() const;
     TextureHandle GetDefaultTextureHandle() const;
 
-    RenderedObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
-    bool UpdateRenderedObjectInstance(RenderedObjectHandle& renderedObjectHandle, const BindlessRenderedObject& bindlessRenderedObject);
-    void UnregisterRenderedObjectInstance(const RenderedObjectHandle& renderedObject);
 
-    PointLightHandle RegisterPointLightInstance(const PointLightPushConstants &lightData) const;
-    void UnregisterPointLightInstance(const PointLightHandle& lightHandle) const;
-    bool UpdatePointLight(const PointLightHandle& lightHandle, const PointLightPushConstants &lightData) const;
+    void UpdateRenderedObjects(MeshHandle mesh,std::span<RenderedObjectPushData> span);
+    void UpdatePointLights(std::span<PointLightPushConstants> span);
 
-    DirectionalLightHandle RegisterDirectionalLightInstance(const DirectionalLightPushConstants &lightData) const;
-    void UnregisterDirectionalLightInstance(const DirectionalLightHandle& lightHandle) const;
-    bool UpdateDirectionalLight(const DirectionalLightHandle& lightHandle, const DirectionalLightPushConstants &lightData) const;
-
-    SpotLightHandle RegisterSpotlightInstance(const SpotLightPushConstants& lightData) const;
-    bool UpdateSpotlightInstance(const SpotLightHandle& lightHandle, const SpotLightPushConstants& lightData)const;
-    void UnregisterSpotlightInstance(const SpotLightHandle& lightHandle) const;
+    //None of these are necessary and I could jut update all of them througha  big memcpy, I can always do something more granular later
+    // RenderedObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);
+    // bool UpdateRenderedObjectInstance(RenderedObjectHandle& renderedObjectHandle, const BindlessRenderedObject& bindlessRenderedObject);
+    // void UnregisterRenderedObjectInstance(const RenderedObjectHandle& renderedObject);
+    // PointLightHandle RegisterPointLightInstance(const PointLightPushConstants &lightData) const;
+    // void UnregisterPointLightInstance(const PointLightHandle& lightHandle) const;
+    // bool UpdatePointLight(const PointLightHandle& lightHandle, const PointLightPushConstants &lightData) const;
+    //
+    // DirectionalLightHandle RegisterDirectionalLightInstance(const DirectionalLightPushConstants &lightData) const;
+    // void UnregisterDirectionalLightInstance(const DirectionalLightHandle& lightHandle) const;
+    // bool UpdateDirectionalLight(const DirectionalLightHandle& lightHandle, const DirectionalLightPushConstants &lightData) const;
+    //
+    // SpotLightHandle RegisterSpotlightInstance(const SpotLightPushConstants& lightData) const;
+    // bool UpdateSpotlightInstance(const SpotLightHandle& lightHandle, const SpotLightPushConstants& lightData)const;
+    // void UnregisterSpotlightInstance(const SpotLightHandle& lightHandle) const;
 
     void StartNewImguiFrame();
 
@@ -92,6 +96,7 @@ public:
     void EndImgGuiFrame();
 
     bool ShouldClose();
+
 
 
 private:
@@ -147,10 +152,11 @@ private:
     utils::SamplerPool m_samplerPool; // The sampler pool, used to create a sampler for the texture
 
     std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;
-    std::map<MeshHandle, ResourceArray<RenderedObjectPushData,255>> m_renderedObjects;
-    std::unique_ptr<ResourceArray<PointLightPushConstants,255>> m_pointLightInstances;
-    std::unique_ptr<ResourceArray<SpotLightPushConstants,255>> m_spotLightInstances;
-    std::unique_ptr<ResourceArray<DirectionalLightPushConstants,255>> m_directionalLightInstances;
+    //These get memcopied to on render update
+    std::map<MeshHandle, std::vector<RenderedObjectPushData>> m_renderedObjectsPushConstants;
+    std::vector<PointLightPushConstants> m_pointLightPushConstants;
+    std::vector<SpotLightPushConstants> m_spotLightPushConstants;
+    std::vector<DirectionalLightPushConstants> m_directionalLightPushConstants;
     std::unique_ptr<ResourceArray<utils::ImageResource,255>> m_textures; //probably shoudl be tied to the descriptor pool limit (10000 ?)
     unsigned int m_DefaultTextureIndex; // index for a white 1x1 texture used as a default
     unsigned int m_DefaultSphereHandle;//TODO load the default sphere

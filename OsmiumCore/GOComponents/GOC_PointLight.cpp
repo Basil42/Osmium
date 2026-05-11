@@ -22,7 +22,7 @@ unsigned int GOC_PointLight::GetLightHandle() const{
 
 void GOC_PointLight::GORenderUpdate() {
     //it might be nice to keep two collection, one dedicated to static lights, but it shoudl be the GL's concern
-    //TODO api entry point here to trigger the renderupdate from inside the GL
+    OsmiumGL::PointLightsRenderUpdate(PushConstantDataStagingArray);
 }
 
 GOC_PointLight::GOC_PointLight(GameObject *parent): GameObjectComponent(parent) {

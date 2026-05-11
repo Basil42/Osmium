@@ -38,32 +38,20 @@ auto GOC_MeshRenderer::GetSpecularMapAssetHandle() const -> std::optional<AssetI
     return specularMapAssetHandle;
 }
 
-void GOC_MeshRenderer::RenderUpdate() {
-    //per object and slow but simple
-    //TODO either have a guard against pending texture loads, or have the default value fallback to the default texture
-    if (!registered) {
-        m_renderedObject.pushData.model = transform->getTransformMatrix();//other fields should be updated on command
-        m_renderedObjectHandle = OsmiumGL::RegisterRenderedObject(m_renderedObject);
-        registered = true;
-    }
-    if (shouldUpdateRenderObject) {
-        m_renderedObject.pushData.model = transform->getTransformMatrix();
-        OsmiumGL::UpdateRenderedObject(m_renderedObjectHandle,m_renderedObject);
-    }
-}
 
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, TextureHandle AlbedoTextureHandle, TextureHandle SmoothnessMapHandle, TextureHandle specularMapHandle): GameObjectComponent(parent) {
-    m_renderedObject.mesh = meshHandle;
-    m_renderedObject.pushData = {
-        .model = glm::mat4(1.0f),
-        .normalSpecPushData = {
-            .SmoothnessMapIndex = SmoothnessMapHandle
+    auto& stagingPushDataArray = MeshRendererPushConstantsStagingArrays[meshHandle];
+    stagingPushDataArray.Add(
+        {
+            .model = glm::mat4(1.0f),
+            .normalSpecPushData = {
+                .SmoothnessMapIndex = SmoothnessMapHandle
             },
-        .shadingData ={
-            .albedoMapIndex = AlbedoTextureHandle,
-            .specularMapIndex = specularMapHandle//might want to package this info in the smoothnessmap
-        }
-    };
+            .shadingData = {
+                .albedoMapIndex = AlbedoTextureHandle,
+                .specularMapIndex = specularMapHandle //might want to package this info in the smoothnessmap
+            },
+        });
     transform = parent->GetComponent<GOC_Transform>();
     if (!transform)transform = parent->Addcomponent<GOC_Transform>();
     //needs tol be completed
@@ -144,5 +132,9 @@ void GOC_MeshRenderer::SetBlinnPhongSpecularMap(AssetId asset_id) {
         m_renderedObject.pushData.shadingData.specularMapIndex = handle;
         specularMapAssetHandle = asset->id;
     });
+}
+
+void GOC_MeshRenderer::GORenderUpdate() {
+    OsmiumGL::RenderedObjectsRenderUpdate();
 }
 

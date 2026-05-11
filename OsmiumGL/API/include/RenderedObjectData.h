@@ -24,13 +24,6 @@ struct RenderedObjectHandle {
     uint32_t mesh;
     uint32_t index;
 };
-
-//no support for materials
-struct BindlessRenderedObject {
-    uint32_t mesh;//index in the internal mesh resource array
-    RenderedObjectPushData pushData;
-    //shading data here
-};
 //These comparaison pile up to be expensive, it would probably be faster to just hash the whole thing
 inline bool operator==(const NormalSpecData r1,const NormalSpecData r2) {
     return r1.SmoothnessMapIndex == r2.SmoothnessMapIndex;

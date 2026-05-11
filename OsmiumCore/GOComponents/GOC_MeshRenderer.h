@@ -11,6 +11,7 @@
 #include <array>
 
 #include "RenderedObjectData.h"
+#include "ResourceArray.h"
 #include "../Base/GameObjectComponent.h"
 #include "../AssetManagement/AssetManager.h"
 #define PushDataSize sizeof(glm::mat4)
@@ -24,8 +25,8 @@ using TextureHandle = unsigned int;
 class GOC_MeshRenderer : public GameObjectComponent {
     GOC_Transform* transform;//TODO verify this pointer is reliable
     //Data for renderdata update
+    static std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>> MeshRendererPushConstantsStagingArrays;
     RenderedObjectHandle m_renderedObjectHandle;
-    BindlessRenderedObject m_renderedObject;
     bool registered = false;
     bool shouldUpdateRenderObject = false;
 
@@ -56,6 +57,8 @@ public:
 
     void SetBlinnPhongAlbedoMap(AssetId asset_id);
     void SetBlinnPhongSpecularMap(AssetId asset_id);
+
+    static void GORenderUpdate();
 
     // GOC_MeshRenderer(GameObject* parent,
     //     MeshAsset* meshAsset,

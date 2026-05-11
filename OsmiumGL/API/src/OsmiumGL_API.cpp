@@ -75,8 +75,13 @@ void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, floa
     //instance->UpdateDirectionalLightData(direction,color,intensity);
 }
 
-void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants> &pointLightData) {
-    //instance->UpdateDynamicPointLights(pointLightData);
+//TODO (future add option to do limited updates by passing an offset
+void OsmiumGL::RenderedObjectsRenderUpdate(MeshHandle mesh,const std::span<RenderedObjectPushData>& renderedObjectsData) {
+    instance->UpdateRenderedObjects(mesh,renderedObjectsData);
+}
+
+void OsmiumGL::PointLightsRenderUpdate(const std::span<PointLightPushConstants> &pointLightData) {
+    instance->UpdatePointLights(pointLightData);
 }
 
 void OsmiumGL::RenderFrame() {

@@ -54,8 +54,7 @@ printf("\n");                                                                   
 #include "imgui.h"
 #include "imgui_internal.h" //used in docking
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "stb_image.h"//implementation done in OsmiumCommon which is already a dependency
 
 // Frame pacing
 #ifdef _WIN32
@@ -99,10 +98,10 @@ throw std::runtime_error(message);                                              
 OsmiumBindlessInstance::OsmiumBindlessInstance(const std::span<Sync::DependencySignal> externalRenderProducers, // NOLINT(*-pro-type-member-init)
                                                const std::span<Sync::DependencySignal> externalRenderConsumers,
                                                const VkExtent2D size, const char *appName, const bool enableImGui) :
-m_windowSize(size) ,
-m_imGuiEnabled(enableImGui),//external sync spans can be empty
-m_externalRenderProviders(externalRenderProducers),
-m_externalRenderConsumers(externalRenderConsumers){
+    m_windowSize(size) ,
+    m_imGuiEnabled(enableImGui),//external sync spans can be empty
+    m_externalRenderProviders(externalRenderProducers),
+    m_externalRenderConsumers(externalRenderConsumers){
     // Vulkan Loader
     VK_CHECK(volkInitialize());
     // Create the GLTF Window
@@ -301,97 +300,34 @@ TextureHandle OsmiumBindlessInstance::GetDefaultTextureHandle() const {
     return m_DefaultTextureIndex;//it would be nice to assert if the GL is initialized here
 }
 
-RenderedObjectHandle OsmiumBindlessInstance::RegisterRenderedObjectInstance(const BindlessRenderedObject &renderedObject) {
-    return {
-        .mesh = renderedObject.mesh,
-        .index = m_renderedObjects[renderedObject.mesh].Add(renderedObject.pushData)
-    };
-}
-
-bool OsmiumBindlessInstance::UpdateRenderedObjectInstance(RenderedObjectHandle &renderedObjectHandle,
-    const BindlessRenderedObject &bindlessRenderedObject) {
-    if (m_renderedObjects.contains(renderedObjectHandle.mesh) && m_renderedObjects[renderedObjectHandle.mesh].contains(renderedObjectHandle.index)) {
-        if (renderedObjectHandle.mesh != bindlessRenderedObject.mesh) {
-            //object has changed mesh
-            UnregisterRenderedObjectInstance(renderedObjectHandle);
-            renderedObjectHandle = RegisterRenderedObjectInstance(bindlessRenderedObject);
-            return true;
-        }
-        //updating in place
-        m_renderedObjects[renderedObjectHandle.mesh][renderedObjectHandle.index] = bindlessRenderedObject.pushData;
-        return true;
+//Unhappy about this update method as it's cost is constant but fairly high, maybe being able to send limited span would be better
+void OsmiumBindlessInstance::UpdateRenderedObjects(MeshHandle mesh, std::span<RenderedObjectPushData> span) {
+    auto& renderedObjectsTargetSpan = m_renderedObjectsPushConstants[mesh];
+    const size_t stagedSize = span.size();
+    if (const size_t currentSize = renderedObjectsTargetSpan.size();
+        currentSize != stagedSize) {
+        renderedObjectsTargetSpan.resize(stagedSize);
     }
-    return false;
+    memcpy(renderedObjectsTargetSpan.data(), span.data(), stagedSize);
 }
 
-void OsmiumBindlessInstance::UnregisterRenderedObjectInstance(const RenderedObjectHandle &renderedObject) {
-    auto pushdata = m_renderedObjects.at(renderedObject.mesh);//might want to sanitize this a bit
-    pushdata.Remove(renderedObject.index);
-    if (pushdata.GetCount() == 0) m_renderedObjects.erase(renderedObject.mesh);
-}
+void OsmiumBindlessInstance::UpdatePointLights(const std::span<PointLightPushConstants> span) {
+    const size_t stagedSize = span.size();
+    if (const size_t currentSize = m_pointLightPushConstants.size();
+        stagedSize != currentSize)
+        m_pointLightPushConstants.resize(span.size());
 
-PointLightHandle OsmiumBindlessInstance::RegisterPointLightInstance(const PointLightPushConstants &lightData) const {
-    return m_pointLightInstances->Add(lightData);
-}
-
-void OsmiumBindlessInstance::UnregisterPointLightInstance(const PointLightHandle &lightHandle) const {
-    m_pointLightInstances->Remove(lightHandle);
-}
-
-bool OsmiumBindlessInstance::UpdatePointLight(const PointLightHandle &lightHandle, const PointLightPushConstants &lightData) const {
-    if (m_pointLightInstances->contains(lightHandle)) {
-        m_pointLightInstances->get(lightHandle) = lightData;
-        return true;
-    }
-    return false;
-
-}
-
-DirectionalLightHandle OsmiumBindlessInstance::
-RegisterDirectionalLightInstance(const DirectionalLightPushConstants &lightData) const {
-    return m_directionalLightInstances->Add(lightData);
-}
-
-void OsmiumBindlessInstance::UnregisterDirectionalLightInstance(const DirectionalLightHandle &lightHandle) const {
-    m_directionalLightInstances->Remove(lightHandle);//is it safe to attempt to remove a non-existent element
-}
-
-bool OsmiumBindlessInstance::UpdateDirectionalLight(const DirectionalLightHandle &lightHandle,
-                                                    const DirectionalLightPushConstants &lightData) const {
-    if (m_directionalLightInstances->contains(lightHandle)) {
-        m_directionalLightInstances->get(lightHandle) = lightData;
-        return true;
-    }
-    return false;
-}
-
-SpotLightHandle OsmiumBindlessInstance::RegisterSpotlightInstance(
-    const SpotLightPushConstants &lightData) const {
-    return m_spotLightInstances->Add(lightData);
-}
-
-bool OsmiumBindlessInstance::UpdateSpotlightInstance(const SpotLightHandle &lightHandle,
-                                                     const SpotLightPushConstants &lightData) const {
-    if (m_spotLightInstances->contains(lightHandle)) {
-        m_spotLightInstances->get(lightHandle) = lightData;
-        return true;
-    }
-    return false;
-}
-
-
-void OsmiumBindlessInstance::UnregisterSpotlightInstance(const SpotLightHandle &lightHandle) const {
-    m_spotLightInstances->Remove(lightHandle);
+    memcpy(m_pointLightPushConstants.data(), span.data(), stagedSize);
 }
 
 void OsmiumBindlessInstance::StartNewImguiFrame() {
-        if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
-            ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
-            return;
-        }
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+    if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
+        ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
+        return;
+    }
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
 
@@ -399,7 +335,7 @@ void OsmiumBindlessInstance::StartNewImguiFrame() {
     if (const VkExtent2D viewportSize = {.width=static_cast<uint32_t>(windowSize.x), .height=static_cast<uint32_t>(windowSize.y)};
         m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
         onViewportSizeChange(viewportSize);
-        }
+    }
 }
 
 bool & OsmiumBindlessInstance::GetVsync() {
@@ -514,9 +450,6 @@ void OsmiumBindlessInstance::init() {
 
     m_meshes = std::make_unique<ResourceArray<utils::MeshResource, 255> >();
     m_textures = std::make_unique<ResourceArray<utils::ImageResource, 255> >();
-    m_pointLightInstances = std::make_unique<ResourceArray<PointLightPushConstants, 255> >();
-    m_spotLightInstances = std::make_unique<ResourceArray<SpotLightPushConstants, 255> >();
-    m_directionalLightInstances = std::make_unique<ResourceArray<DirectionalLightPushConstants, 255> >();
 
     m_DefaultSphereHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/sphere.obj"));
     m_FlatConeHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/flattenedCone.obj"));
@@ -815,7 +748,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     DBG_VK_SCOPE(cmd); //sample uses this for NSight, which I'll look into if Arc supports it
 
     utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(),VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                            VK_IMAGE_LAYOUT_GENERAL);//needed for either color output or imgui
+                                        VK_IMAGE_LAYOUT_GENERAL);//needed for either color output or imgui
     updateSceneBuffers(cmd);
 
     constexpr std::array<VkDeviceSize, 1> offsets = {0};
@@ -952,7 +885,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     //sample binds a buffer containing all vertices
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_NormalSpecPipeline);
-    for (const auto& mesh: m_renderedObjects) {
+    for (const auto& mesh: m_renderedObjectsPushConstants) {
         auto &meshResource = m_meshes->get(mesh.first);
         auto &pushDataCollection = mesh.second;
         vkCmdBindVertexBuffers(cmd, 0, 1, &meshResource.VertexBuffer.buffer, offsets.data());
@@ -1084,7 +1017,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         auto &pointLightResource = m_meshes->get(m_DefaultSphereHandle);
         vkCmdBindVertexBuffers(cmd,0,1,&pointLightResource.VertexBuffer.buffer, offsets.data());
         vkCmdBindIndexBuffer(cmd, pointLightResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-        for (auto &light : *m_pointLightInstances) {
+        for (auto &light : m_pointLightPushConstants) {
             PointLightPushConstantData = light;
             vkCmdPushConstants2(cmd, &PointLightPushConstantInfo);
             vkCmdDrawIndexed(cmd, pointLightResource.IndexCount, 1, 0, 0, 0);
@@ -1122,7 +1055,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
         auto &spotLightResource = m_meshes->get(m_FlatConeHandle);
         vkCmdBindVertexBuffers(cmd,0,1,&spotLightResource.VertexBuffer.buffer, offsets.data());
         vkCmdBindIndexBuffer(cmd, spotLightResource.IndicesBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-        for (auto &light : *m_spotLightInstances) {
+        for (auto &light : m_spotLightPushConstants) {
             SpotLightPushConstantData = light;
             vkCmdPushConstants2(cmd, &SpotLightPushConstantInfo);
             vkCmdDrawIndexed(cmd,spotLightResource.IndexCount, 1, 0, 0, 0);
@@ -1157,7 +1090,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             .pValues = &DirLightPushConstantData,
         };
         //should not need to rebind a vertex buffer (there should not be a vertex input available)
-        for (auto &light : *m_directionalLightInstances) {
+        for (auto &light : m_directionalLightPushConstants) {
             DirLightPushConstantData = light;
             vkCmdPushConstants2(cmd, &PushConstantInfo);
             vkCmdDraw(cmd,3,1,0,0);//maybe 4 vertices for a full screen pass ?
@@ -1274,7 +1207,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadingPipeline);
-        for (const auto& mesh : m_renderedObjects) {
+        for (const auto& mesh : m_renderedObjectsPushConstants) {
             auto &meshResource = m_meshes->get(mesh.first);
             auto &pushDataCollection = mesh.second;
             vkCmdBindVertexBuffers(cmd,0,1,&meshResource.VertexBuffer.buffer, offsets.data());

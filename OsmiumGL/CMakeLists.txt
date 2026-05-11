@@ -15,7 +15,6 @@ set_property(TARGET volk PROPERTY FOLDER "ThirdParty")
 
 set(OSMIUMGL_SOURCES
         API/src/OsmiumGL_API.cpp
-        #ShaderUtilities/src/MainPipeline.cpp
         ShaderUtilities/src/spirv_reflect.c
         ShaderUtilities/src/spirv_reflect.cpp
         BindlessCore/OsmiumBindlessInstance.cpp
@@ -33,7 +32,6 @@ set(OSMIUMGL_EXECUTABLE_HEADERS
         DebugUtils/ErrorChecking.h
         ShaderUtilities/include/PointLights.h
         ShaderUtilities/include/DirectionalLight.h
-        #ShaderUtilities/include/MainPipeline.h
         ShaderUtilities/include/spirv.h
         ShaderUtilities/include/spirv_reflect.h
         Common/include/Texture.h
@@ -85,12 +83,8 @@ if(WIN32)
     target_link_libraries(OsmiumGL PRIVATE winmm.lib)
 endif()
 
-#target_link_libraries(OsmiumGL PRIVATE Vulkan::Vulkan)
-#target_link_libraries(OsmiumGL PRIVATE Vulkan::Headers)
 target_link_libraries(OsmiumGL PUBLIC volk)
 target_link_libraries(OsmiumGL PRIVATE OsmiumCommon)
-#target_link_libraries(OsmiumGL PRIVATE vk-bootstrap)
-#target_link_libraries(OsmiumGL PRIVATE vk-bootstrap-compiler-warnings)
 target_compile_features(OsmiumGL PRIVATE cxx_std_20)
 
 #set(CMAKE_EXE_LINKER_FLAGS " -static")
@@ -110,16 +104,7 @@ else ()
 endif ()
 add_dependencies(compile_default_shaders copy_default_resources)
 add_dependencies(OsmiumGL compile_default_shaders)
-#add_custom_target(copy_default_shaders COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/TestShaders ${CMAKE_CURRENT_BINARY_DIR}/TestShaders)
-#add_custom_target(compileDefaultShader COMMAND cmd /c ${CMAKE_CURRENT_BINARY_DIR}/TestShaders/TrivialTriangleCompile.bat)
-#add_dependencies(compileDefaultShader copy_default_shaders )
-#add_dependencies(OsmiumGL compileDefaultShader)
-#add_custom_target(compileBlinnPhongShaders COMMAND cmd /c ${CMAKE_CURRENT_BINARY_DIR}/DefaultResources/shaders/BlinnPhongCompile.bat)
-#add_dependencies(OsmiumGL compileBlinnPhongShaders)
-#add_dependencies(compileBlinnPhongShaders copy_default_resources)
 
 add_executable(OsmiumGLTest OsmiumGlTest.cpp)
 target_link_libraries(OsmiumGLTest PRIVATE OsmiumGL)
 target_link_libraries(OsmiumGLTest PRIVATE OsmiumCommon)
-#target_compile_features(OsmiumGL PRIVATE cxx_std_20)
-#set_target_properties(OsmiumGL PROPERTIES LINKER_LANGUAGE CXX)

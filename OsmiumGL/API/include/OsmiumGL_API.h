@@ -13,6 +13,7 @@
 
 #include "imgui.h"
 #include "RenderedObjectData.h"
+#include "SpotLights.h"
 #include "SyncUtils.h"
 
 
@@ -56,11 +57,15 @@ namespace  OsmiumGL {
 
     void UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
 
-    void UpdateDynamicPointLights(const std::span<PointLightPushConstants>& pointLightData);
+    void RenderedObjectsRenderUpdate(MeshHandle mesh,const std::span<RenderedObjectPushData>& renderedObjectsData);
+
+    void PointLightsRenderUpdate(const std::span<PointLightPushConstants>& pointLightData);
+
+    void DirectionalRenderUpdate(const std::span<DirectionalLightPushConstants>& directionalLightData);
+
+    void SpotLightsRenderUpdate(const std::span<SpotLightPushConstants>& spotLightData);
 
     void RenderFrame();
-
-    void RegisterPointLightLightShape(MeshHandle mesh_handle);//TODO refactor this for the simplified point light workflow
 
     void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& dirLightData);
 
@@ -75,6 +80,8 @@ namespace  OsmiumGL {
     ImTextureRef GetImGuiRenderTarget();
 
     MeshHandle GetDefaultSphereMeshHandle();
+
+
 };
 
 
