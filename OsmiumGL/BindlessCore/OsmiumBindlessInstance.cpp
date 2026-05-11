@@ -152,34 +152,37 @@ void OsmiumBindlessInstance::InitImGui() const {
     ImGui::GetIO().ConfigFlags = ImGuiConfigFlags_ViewportsEnable | ImGuiConfigFlags_DockingEnable;
 }
 
-void OsmiumBindlessInstance::run() {
+void OsmiumBindlessInstance::run() {//used for tests or if the rendering happens purely on its own thread (Osmium uses the same thread for render data update and rendering
     while (!ShouldClose()) {
+        RenderFrame();
+    }
+}
 
-        for (auto& providers : m_externalRenderProviders) {
-            providers.WaitForProductsAndRearm();
+void OsmiumBindlessInstance::RenderFrame() {
+    for (auto& providers : m_externalRenderProviders) {
+        providers.WaitForProductsAndRearm();
+    }
+    glfwPollEvents();
+    m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
+
+    // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
+    if (prepareFrameResources()) {
+        VkCommandBuffer cmd = beginCommandRecording();
+
+        frameDrawCommands(cmd);
+
+        SubmitFrame(cmd);
+    }
+
+    if (m_imGuiEnabled) {
+        ImGui::EndFrame();
+        if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
         }
-        glfwPollEvents();
-        m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
-
-        // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
-        if (prepareFrameResources()) {
-            VkCommandBuffer cmd = beginCommandRecording();
-
-            frameDrawCommands(cmd);
-
-            SubmitFrame(cmd);
-        }
-
-        if (m_imGuiEnabled) {
-            ImGui::EndFrame();
-            if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
-                ImGui::UpdatePlatformWindows();
-                ImGui::RenderPlatformWindowsDefault();
-            }
-        }
-        for (auto& consumer : m_externalRenderConsumers) {
-            consumer.SignalProductComplete();
-        }
+    }
+    for (auto& consumer : m_externalRenderConsumers) {
+        consumer.SignalProductComplete();
     }
 }
 

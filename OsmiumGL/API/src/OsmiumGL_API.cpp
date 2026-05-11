@@ -79,6 +79,10 @@ void OsmiumGL::UpdateDynamicPointLights(const std::span<PointLightPushConstants>
     //instance->UpdateDynamicPointLights(pointLightData);
 }
 
+void OsmiumGL::RenderFrame() {
+    instance->RenderFrame();
+}
+
 void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> &dirLightData) {
     //instance->UpdateDirectionalLights(dirLightData);
 }

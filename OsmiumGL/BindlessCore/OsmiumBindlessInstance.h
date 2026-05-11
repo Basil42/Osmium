@@ -44,6 +44,8 @@ public:
 
     void run();
 
+    void RenderFrame();
+
     void UpdateCameraInfo(const glm::mat4 &view);
 
     void UpdateCameraSettings(float radianVFOV);
