@@ -4,7 +4,7 @@
 
 #ifndef TEXTURE_H
 #define TEXTURE_H
-#include <vulkan/vulkan_core.h>
+#include "vk_mem_alloc.h"
 
 struct Texture {
   VkSampler sampler;

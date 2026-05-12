@@ -51,7 +51,10 @@ public:
 
 #ifdef EDITOR
     static void RegisterAssetFromSource(const std::filesystem::path &path);
+#else
+    static void RegisterAsset(const std::filesystem::path &path);
 #endif
+
     static void BuildAssetDatabase();
     static void LoadAssetDatabase();
 

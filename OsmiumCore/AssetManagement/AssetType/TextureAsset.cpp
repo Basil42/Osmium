@@ -24,7 +24,7 @@ std::mutex & TextureAsset::GetRessourceMutex() {
     return Resources::ResourceManager::getResourceMutex(Resources::ResourceType_Texture);
 }
 
-unsigned long TextureAsset::GetTextureHandle() const {
+uint32_t TextureAsset::GetTextureHandle() const {
     return textureHandle;
 }
 

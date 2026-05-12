@@ -24,9 +24,9 @@ void OsmiumGL::Shutdown() {
 }
 
 
-void OsmiumGL::UpdateRenderedObject(RenderedObjectHandle& renderedObjectHandle, const BindlessRenderedObject &renderedObject) {
-    instance->UpdateRenderedObjectInstance(renderedObjectHandle,renderedObject);
-}
+// void OsmiumGL::UpdateRenderedObject(RenderedObjectHandle& renderedObjectHandle, const RenderedObjectPushData &renderedObject) {
+//     instance->UpdateRenderedObjectInstance(renderedObjectHandle,renderedObject);
+// }
 
 void OsmiumGL::UpdateMainCameraData(const glm::mat4 &mat, const float radianVFoV) {
     //instance->UpdateCameraData(mat, radianVFoV);
@@ -37,13 +37,13 @@ MeshHandle OsmiumGL::LoadMesh(const xg::Guid &id) {
 }
 
 
-RenderedObjectHandle OsmiumGL::RegisterRenderedObject(const BindlessRenderedObject&rendered_object) {
-    return instance->RegisterRenderedObjectInstance(rendered_object);
-}
-
-void OsmiumGL::UnregisterRenderedObject(const RenderedObjectHandle& rendered_object) {
-    instance->UnregisterRenderedObjectInstance(rendered_object);
-}
+// RenderedObjectHandle OsmiumGL::RegisterRenderedObject(const BindlessRenderedObject&rendered_object) {
+//     return instance->RegisterRenderedObjectInstance(rendered_object);
+// }
+//
+// void OsmiumGL::UnregisterRenderedObject(const RenderedObjectHandle& rendered_object) {
+//     instance->UnregisterRenderedObjectInstance(rendered_object);
+// }
 
 void OsmiumGL::UnloadMesh(unsigned long mesh_handle,bool immediate = false) {
     //instance->UnloadMesh(mesh_handle, immediate);
@@ -114,6 +114,10 @@ ImTextureRef OsmiumGL::GetImGuiRenderTarget() {
 
 MeshHandle OsmiumGL::GetDefaultSphereMeshHandle() {
     return instance->GetDefaultSphereMeshHandle();
+}
+
+uint32_t OsmiumGL::GetDefaultTextureHandle() {
+    return instance->GetDefaultTextureHandle();
 }
 
 

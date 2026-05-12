@@ -24,8 +24,8 @@ add_executable(OsmiumEditor
         ${OSMIUM_EDITOR_SOURCES}
         ${OSMIUM_EDITOR_HEADERS}
         )
-
-target_link_libraries(OsmiumEditor PRIVATE E_OsmiumCore IMGUI)
+target_compile_definitions(OsmiumEditor PRIVATE VK_NO_PROTOTYPES)
+target_link_libraries(OsmiumEditor PRIVATE E_OsmiumCore)
 target_link_libraries(OsmiumEditor PRIVATE glm::glm)
 target_include_directories(OsmiumEditor PUBLIC GUI/include)
 target_compile_definitions(OsmiumEditor PUBLIC EDITOR=1)

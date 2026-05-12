@@ -33,7 +33,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(glm)
 find_package(Vulkan REQUIRED)
-target_compile_definitions(IMGUI PRIVATE VK_NO_PROTOTYPES)
+target_compile_definitions(IMGUI PUBLIC VK_NO_PROTOTYPES)
 target_link_libraries(IMGUI PRIVATE Vulkan::Vulkan)
 add_subdirectory(${PROJECT_SOURCE_DIR}/vk-bootstrap)
 add_subdirectory(${PROJECT_SOURCE_DIR}/crossguid)

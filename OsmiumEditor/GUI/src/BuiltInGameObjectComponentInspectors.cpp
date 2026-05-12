@@ -69,7 +69,7 @@ namespace GUI{
                 if (asset->getType() != texture)continue;
                 const bool is_selected = albedoHandle.has_value() && (albedoHandle.value() == id);
                 if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
-                    comp->SetBlinnPhongAlbedoMap(id);
+                    comp->SetAlbedoMap(id);
                 }
             }
             ImGui::EndCombo();
@@ -86,12 +86,28 @@ namespace GUI{
                 if (asset->getType() != texture)continue;
                 const bool is_selected = SpecularHandle.has_value() && (SpecularHandle.value() == id);
                 if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
-                    comp->SetBlinnPhongSpecularMap(id);
+                    comp->SetSpecularMap(id);
                 }
             }
             ImGui::EndCombo();
         }
-
+        auto smoothnessAssetPreview = "None";
+        const std::optional<AssetId> smoothnessHandle = comp->GetSmoothnessMapAssetHandle();
+        if (smoothnessHandle.has_value()) {
+            const Asset* smoothnessAssetRef = nullptr;
+            smoothnessAssetRef = AssetManager::GetAsset(smoothnessHandle.value());
+            smoothnessAssetPreview = smoothnessAssetRef->name.c_str();
+        }
+        if (ImGui::BeginCombo("Smoothness",smoothnessAssetPreview,ImGuiComboFlags_None)) {
+            for (const auto&[id, asset] : AssetManager::GetAssetDataBase()) {//TODO get sub collection like a cached list of all textures
+                if (asset->getType() != texture)continue;
+                const bool is_selected = smoothnessHandle.has_value() && (smoothnessHandle.value() == id);
+                if (ImGui::Selectable(asset->name.c_str(), is_selected)) {
+                    comp->SetSmoothnessMap(id);
+                }
+            }
+            ImGui::EndCombo();
+        }
     }
     static const bool registered_GOC_MeshRenderer = registerType<GOC_MeshRenderer>("Mesh Renderer");
 

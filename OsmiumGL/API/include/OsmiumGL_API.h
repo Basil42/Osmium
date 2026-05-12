@@ -4,7 +4,6 @@
 
 #ifndef OSMIUMGL_API_H
 #define OSMIUMGL_API_H
-#include <condition_variable>
 #include <vector>
 #include "VertexDescriptor.h"
 #include <filesystem>
@@ -34,9 +33,10 @@ namespace  OsmiumGL {
 
     void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
 
-    RenderedObjectHandle RegisterRenderedObject(const BindlessRenderedObject &rendered_object);
-    void UpdateRenderedObject(RenderedObjectHandle& rendered_object,const BindlessRenderedObject& data);
-    void UnregisterRenderedObject(const RenderedObjectHandle& rendered_object);
+    //removing the targeted rendered objects updates for now (I'll need some granular update for scalability
+    // RenderedObjectHandle RegisterRenderedObject(MeshHandle mesh,const RenderedObjectPushData &rendered_object);
+    // void UpdateRenderedObject(RenderedObjectHandle& rendered_object,const RenderedObjectPushData& data);
+    // void UnregisterRenderedObject(const RenderedObjectHandle& rendered_object);
 
     void UnloadMesh(unsigned long mesh_handle, bool immediate);
 
@@ -82,6 +82,7 @@ namespace  OsmiumGL {
     MeshHandle GetDefaultSphereMeshHandle();
 
 
+    uint32_t GetDefaultTextureHandle();
 };
 
 

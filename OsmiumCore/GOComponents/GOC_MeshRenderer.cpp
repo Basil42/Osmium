@@ -17,7 +17,7 @@
 #include "../Base/GameInstance.h"
 #include "AssetManagement/AssetType/TextureAsset.h"
 
-
+std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>> GOC_MeshRenderer::MeshRendererPushConstantsStagingArrays;
 void GOC_MeshRenderer::Update() {
     //can update everything during the render data update
 }
@@ -36,6 +36,10 @@ auto GOC_MeshRenderer::GetAlbedoMapAssetHandle() const -> std::optional<AssetId>
 
 auto GOC_MeshRenderer::GetSpecularMapAssetHandle() const -> std::optional<AssetId> {
     return specularMapAssetHandle;
+}
+
+auto GOC_MeshRenderer::GetSmoothnessMapAssetHandle() const -> std::optional<AssetId> {
+    return smoothnessMapAssetHandle;
 }
 
 
@@ -61,7 +65,19 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, Te
 
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(parent) {
     transform = parent->GetComponent<GOC_Transform>();
-    //TODO resonable default, probably fetching default texture handle from the GL
+    m_renderedObjectHandle.mesh = OsmiumGL::GetDefaultSphereMeshHandle();
+    auto defautlTextureHandle = OsmiumGL::GetDefaultTextureHandle();
+    m_renderedObjectHandle.index = MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh].Add({
+        .model = transform->getTransformMatrix(),
+        .normalSpecPushData{
+            .SmoothnessMapIndex = defautlTextureHandle,
+        },
+        .shadingData{
+            .albedoMapIndex = defautlTextureHandle,
+            .specularMapIndex = defautlTextureHandle,
+        }
+    });
+
 }
 
 GOC_MeshRenderer::~GOC_MeshRenderer() {
@@ -73,68 +89,90 @@ GOC_MeshRenderer::~GOC_MeshRenderer() {
 }
 
 void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
+
     if(asset->getType() != AssetType::mesh) {
         std::cout << "tried to assign a non mesh asset as mesh to a GOC_MeshRenderer" << std::endl;
         return;
     }
+
     std::cout << "callback test" << std::endl;
     auto meshAsset = dynamic_cast<MeshAsset*>(asset);//should be garanteed to be valid here
-    MeshAssetHandle = meshAsset->id;
-    m_renderedObject.mesh = meshAsset->GetMeshHandle();//not changing the handle here because the GL needs it to update the data, There should be a way to garantee it is not changed here
-}
+    auto newMeshHandle = meshAsset->GetMeshHandle();
 
-void GOC_MeshRenderer::OnMaterialLoaded(Asset *asset) {
-    if (asset->getType() != AssetType::material) {
-        std::cout << "tried to assign a non material asset as material to a GOC_MeshRenderer" << std::endl;
+    if (MeshAssetHandle.has_value()) {
+        MeshRendererPushConstantsStagingArrays[newMeshHandle].Add(MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);//moving existing push data under another mesh's collection
+        MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh].Remove(m_renderedObjectHandle.index);
+        if (MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh].GetCount() == 0)MeshRendererPushConstantsStagingArrays.erase(m_renderedObjectHandle.mesh);
+        AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
+    }else {
+        const auto smoothnessMapHandle = (smoothnessMapAssetHandle.has_value() ? dynamic_cast<TextureAsset*>(AssetManager::GetAsset(smoothnessMapAssetHandle.value()))->GetTextureHandle() : OsmiumGL::GetDefaultTextureHandle());
+        const auto albedoMapHandle = (albedoMapAssetHandle.has_value() ? dynamic_cast<TextureAsset*>(AssetManager::GetAsset(albedoMapAssetHandle.value()))->GetTextureHandle() : OsmiumGL::GetDefaultTextureHandle());
+        const auto specularMapHandle = (specularMapAssetHandle.has_value() ? dynamic_cast<TextureAsset*>(AssetManager::GetAsset(specularMapAssetHandle.value()))->GetTextureHandle() : OsmiumGL::GetDefaultTextureHandle());
+        MeshRendererPushConstantsStagingArrays[newMeshHandle].Add({
+            .model = transform->getTransformMatrix(),
+            .normalSpecPushData {
+                .SmoothnessMapIndex = smoothnessMapHandle
+            },
+            .shadingData {
+                .albedoMapIndex = albedoMapHandle,
+                .specularMapIndex = specularMapHandle,
+            }
+        });
     }
-    throw std::runtime_error("material asset assignement not implemented");
+
+    MeshAssetHandle.reset();
+    MeshAssetHandle = meshAsset->id;
 }
 
 void GOC_MeshRenderer::SetMeshAsset(AssetId asset_id) {
-
-    if (MeshAssetHandle.has_value())
-        AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
-    MeshAssetHandle.reset();
     std::function<void(Asset*)> callback = [this](auto && PH1) { OnMeshLoaded(std::forward<decltype(PH1)>(PH1)); };
 
     AssetManager::LoadAsset(asset_id, callback);
 
 }
 
-void GOC_MeshRenderer::SetMaterialAsset(AssetId asset_id) {
-    std::function<void(Asset*)> callback = [this](auto && PH1) { OnMaterialLoaded(std::forward<decltype(PH1)>(PH1)); };
-    AssetManager::LoadAsset(asset_id, callback);
-}
-
-void GOC_MeshRenderer::SetMesh(MeshHandle Mesh) {
-    m_renderedObject.mesh = Mesh;
-}
-
-void GOC_MeshRenderer::SetBlinnPhongAlbedoMap(AssetId asset_id) {
+void GOC_MeshRenderer::SetAlbedoMap(AssetId asset_id) {
     std::cout << "requesting setting albedo texture." << std::endl;
     if (albedoMapAssetHandle.has_value()) {
         AssetManager::UnloadAsset(albedoMapAssetHandle.value(),false);
+        albedoMapAssetHandle.reset();
     }
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
-        m_renderedObject.pushData.shadingData.albedoMapIndex = handle;
+        MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh][m_renderedObjectHandle.index].shadingData.albedoMapIndex = handle;
         albedoMapAssetHandle = asset->id;
         std::cout << "marked object for renderer upate" << std::endl;
     });
 }
 
-void GOC_MeshRenderer::SetBlinnPhongSpecularMap(AssetId asset_id) {
+void GOC_MeshRenderer::SetSpecularMap(AssetId asset_id) {
     if (specularMapAssetHandle.has_value()) {
         AssetManager::UnloadAsset(specularMapAssetHandle.value(),false);
+        specularMapAssetHandle.reset();
     }
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
-        TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
-        m_renderedObject.pushData.shadingData.specularMapIndex = handle;
+        const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
+        MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh][m_renderedObjectHandle.index].shadingData.specularMapIndex = handle;
         specularMapAssetHandle = asset->id;
     });
 }
 
+void GOC_MeshRenderer::SetSmoothnessMap(AssetId asset_id) {
+    if (smoothnessMapAssetHandle.has_value()) {
+        AssetManager::UnloadAsset(smoothnessMapAssetHandle.value(),false);
+        smoothnessMapAssetHandle.reset();
+    }
+    AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
+        const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
+        MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh][m_renderedObjectHandle.index].normalSpecPushData.SmoothnessMapIndex = handle;
+        smoothnessMapAssetHandle = asset->id;
+    });
+}
+
 void GOC_MeshRenderer::GORenderUpdate() {
-    OsmiumGL::RenderedObjectsRenderUpdate();
+    for (std::pair MeshSpanPair: MeshRendererPushConstantsStagingArrays) {//inelegant but works
+        OsmiumGL::RenderedObjectsRenderUpdate(MeshSpanPair.first,MeshSpanPair.second);
+    }
+
 }
 

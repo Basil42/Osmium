@@ -17,7 +17,7 @@ protected:
 
 public:
     [[nodiscard]]auto GetRessourceMutex() -> std::mutex & override;
-    [[nodiscard]] auto GetTextureHandle() const -> unsigned long;
+    [[nodiscard]] auto GetTextureHandle() const -> uint32_t;
     explicit TextureAsset(const xg::Guid &id);
 #ifdef EDITOR
     TextureAsset(const xg::Guid &id, const std::string &filename);

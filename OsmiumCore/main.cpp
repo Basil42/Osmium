@@ -4,6 +4,7 @@
 // Created by Shadow on 11/28/2024.
 //
 int main(int argc, char *argv[]) {
+    //TODO fix the core test
     GameInstance game;
     //TODO add an option to let the engine manage the ImgGUI frame content itself (debug GUI mode)
     game.run("Core test");

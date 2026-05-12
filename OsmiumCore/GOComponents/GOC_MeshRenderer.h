@@ -30,16 +30,16 @@ class GOC_MeshRenderer : public GameObjectComponent {
     bool registered = false;
     bool shouldUpdateRenderObject = false;
 
-    //actual handles are now stored in the rendered object directly, now that I don't need to juggle mat instances
+    //these handles are used for reference counting
     std::optional<AssetId> MeshAssetHandle;
     std::optional<AssetId> albedoMapAssetHandle;
     std::optional<AssetId> specularMapAssetHandle;
+    std::optional<AssetId> smoothnessMapAssetHandle;
 
     void OnMeshLoaded(Asset* asset);
     void OnAlbedoMapLoaded(Asset* asset);
     void OnSmoothnessMapLoaded(Asset* asset);
     void OnSpecularMapLoaded(Asset* asset);
-    void OnMaterialLoaded(Asset* asset);//TODO: remove this
 
 public:
     void Update() override;
@@ -47,16 +47,17 @@ public:
     [[nodiscard]] auto GetMeshAssetHandle() const -> std::optional<AssetId>;
     [[nodiscard]] auto GetAlbedoMapAssetHandle() const -> std::optional<AssetId>;
     [[nodiscard]] auto GetSpecularMapAssetHandle() const -> std::optional<AssetId>;
+    [[nodiscard]] auto GetSmoothnessMapAssetHandle() const -> std::optional<AssetId>;
 
 
-    void RenderUpdate() override;
     void SetMeshAsset(AssetId asset_id);//assign a mesh asset to the mesh renderer
-    void SetMaterialAsset(AssetId asset_id);
-    void SetMesh(MeshHandle Mesh);//assign a mesh already managed by the graphics library through a handle
+    //removed using mesh handles directly, as it dodges reference counting.
+    //void SetMesh(MeshHandle Mesh);
     //temporary implementation for grading, without reflection
 
-    void SetBlinnPhongAlbedoMap(AssetId asset_id);
-    void SetBlinnPhongSpecularMap(AssetId asset_id);
+    void SetAlbedoMap(AssetId asset_id);
+    void SetSpecularMap(AssetId asset_id);
+    void SetSmoothnessMap(AssetId asset_id);
 
     static void GORenderUpdate();
 
