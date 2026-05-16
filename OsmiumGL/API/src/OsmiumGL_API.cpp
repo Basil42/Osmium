@@ -92,9 +92,6 @@ void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConst
     //instance->UpdateDirectionalLights(dirLightData);
 }
 
-void OsmiumGL::StartNewImguiFrame() {
-    instance->StartNewImguiFrame();
-}
 
 bool & OsmiumGL::GetVsync() {
     return instance->GetVsync();
@@ -118,10 +115,6 @@ MeshHandle OsmiumGL::GetDefaultSphereMeshHandle() {
 
 uint32_t OsmiumGL::GetDefaultTextureHandle() {
     return instance->GetDefaultTextureHandle();
-}
-
-void OsmiumGL::InitImgui() {
-    instance->InitImGui();
 }
 
 

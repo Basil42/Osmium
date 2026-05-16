@@ -16,9 +16,6 @@
 #include "SpotLights.h"
 #include "SyncUtils.h"
 
-namespace Sync {
-    struct DependencySignal;
-}
 
 struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
@@ -83,7 +80,6 @@ public:
     // bool UpdateSpotlightInstance(const SpotLightHandle& lightHandle, const SpotLightPushConstants& lightData)const;
     // void UnregisterSpotlightInstance(const SpotLightHandle& lightHandle) const;
 
-    void StartNewImguiFrame();
 
     bool & GetVsync();
 
@@ -197,7 +193,7 @@ private:
         uint64_t frameNumber; // Timeline value for synchronization (increases each frame)
     };
 
-    bool m_imGuiEnabled = false;
+    const bool m_imGuiEnabled = false;
     std::vector<FrameData> m_frameData{}; // Collection of per-frame resources to support multiple frames in flight
     VkSemaphore m_frameTimelineSemaphore{}; // Timeline semaphore used to synchronize CPU submission with GPU completion
     uint32_t m_frameRingCurrent{0}; // Current frame index in the ring buffer (cycles through available frames)
@@ -217,8 +213,6 @@ private:
     float m_fov;
     float m_zNear = 0.1f;
     float m_zFar = 100.f;
-    std::span<Sync::DependencySignal> m_externalRenderProviders;//Render data copy
-    std::span<Sync::DependencySignal> m_externalRenderConsumers;//Render data copy and optionally GUI
 
     std::shared_mutex m_WindowCloseMutex;
 

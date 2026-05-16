@@ -69,8 +69,6 @@ namespace  OsmiumGL {
 
     void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants>& dirLightData);
 
-    void StartNewImguiFrame();
-
     bool& GetVsync();
 
     void RequestSwapchainRebuild();

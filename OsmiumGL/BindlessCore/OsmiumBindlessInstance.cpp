@@ -149,7 +149,6 @@ void OsmiumBindlessInstance::InitImGui() {
 
     ImGui_ImplVulkan_Init(&initInfo);
     ImGui::GetIO().ConfigFlags = ImGuiConfigFlags_ViewportsEnable | ImGuiConfigFlags_DockingEnable;
-    m_imGuiEnabled = true;
 }
 
 void OsmiumBindlessInstance::run() {//used for tests or if the rendering happens purely on its own thread (Osmium uses the same thread for render data update and rendering
@@ -159,8 +158,25 @@ void OsmiumBindlessInstance::run() {//used for tests or if the rendering happens
 }
 
 void OsmiumBindlessInstance::RenderFrame() {
-    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_UPDATE,m_frameData[m_frameRingCurrent].frameNumber+1);
+    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_UPDATE,m_frameData[m_frameRingCurrent].frameNumber);
     glfwPollEvents();
+    if (m_imGuiEnabled) {
+        if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
+            ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
+            return;
+        }
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImVec2 windowSize = ImGui::GetContentRegionAvail();
+
+        // Verify if the viewport has a new size and resize the G-Buffer accordingly.
+        if (const VkExtent2D viewportSize = {.width=static_cast<uint32_t>(windowSize.x), .height=static_cast<uint32_t>(windowSize.y)};
+            m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
+            onViewportSizeChange(viewportSize);
+        }
+        Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START);
+    }
     m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
 
     // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
@@ -311,23 +327,6 @@ void OsmiumBindlessInstance::UpdatePointLights(const std::span<PointLightPushCon
     memcpy(m_pointLightPushConstants.data(), span.data(), stagedSize);
 }
 
-void OsmiumBindlessInstance::StartNewImguiFrame() {
-    if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
-        ImGui_ImplGlfw_Sleep(10); //we minimized so we just wait now
-        return;
-    }
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-    ImVec2 windowSize = ImGui::GetContentRegionAvail();
-
-    // Verify if the viewport has a new size and resize the G-Buffer accordingly.
-    if (const VkExtent2D viewportSize = {.width=static_cast<uint32_t>(windowSize.x), .height=static_cast<uint32_t>(windowSize.y)};
-        m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
-        onViewportSizeChange(viewportSize);
-    }
-    Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START);
-}
 
 bool & OsmiumBindlessInstance::GetVsync() {
     return m_vSync;
@@ -350,10 +349,12 @@ ImTextureRef OsmiumBindlessInstance::GetImGuiRenderTarget() const {
 void OsmiumBindlessInstance::EndImgGuiFrame() {
     ASSERT(m_imGuiEnabled,"Tried to signal end of GUI frame while ImGui is not enabled");
     if (m_imGuiEnabled) {
-        ImGui::EndFrame();
+        ImGui::Render();
         if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
+        }else {
+            std::cout << "platform update dodged" << std::endl;
         }
         Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END);//not saving the here
     }
@@ -452,6 +453,8 @@ void OsmiumBindlessInstance::init() {
     createDefaultTextureImage();
 
     WindowResizingHandling();
+
+    if (m_imGuiEnabled)InitImGui();
 }
 
 void OsmiumBindlessInstance::destroy() {
@@ -628,8 +631,7 @@ void OsmiumBindlessInstance::frameDrawCommands(VkCommandBuffer cmd) {
     };
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END,m_frameData[m_frameRingCurrent].frameNumber+1);
-
+    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END,m_frameData[m_frameRingCurrent].frameNumber);
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
     //endDynamicRenderingToSwapchain(cmd);

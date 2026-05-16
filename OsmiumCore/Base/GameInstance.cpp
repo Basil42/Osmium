@@ -25,12 +25,11 @@ void GameInstance::UnloadingRoutine() {
 }
 
 void GameInstance::GameTick() {
-    //double lastFrameTime = glfwGetTime();
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
         Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_UPDATE,m_TickFrameCounter);
 #ifdef EDITOR
-        Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END,m_TickFrameCounter);
+        Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_EDITOR,m_TickFrameCounter);
 #endif
 
         //note: the dependency mutexes are not locked from this point on.
@@ -60,14 +59,16 @@ void GameInstance::GameTick() {
         }
         //notify consumers
 
-        Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_TICK);
-        m_TickFrameCounter++;
+        m_TickFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_TICK);
     }
 }
 
 void GameInstance::RenderDataUpdate() {
-    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_TICK,m_RenderUpdateFrameCounter);
-    if (mainCamera == nullptr) return;
+    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_TICK,m_RenderUpdateFrameCounter-1);//Render update should be a frame forward and "propel" the rest of the process with it
+    if (mainCamera == nullptr) {
+        m_RenderUpdateFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_UPDATE);
+        return;
+    }
     //this is quite janky and annoying to extend
     mainCamera->RenderUpdate();
 
@@ -75,8 +76,7 @@ void GameInstance::RenderDataUpdate() {
 
     GOC_MeshRenderer::GORenderUpdate();
     GOC_PointLight::GORenderUpdate();
-    Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_UPDATE);
-    m_RenderUpdateFrameCounter++;
+    m_RenderUpdateFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_UPDATE);
 }
 
 
@@ -117,6 +117,7 @@ void GameInstance::run() {
     auto LoadingThread = std::thread(&GameInstance::LoadingRoutine);//maybe I need some kind of staging method here
     auto UnloadingThread = std::thread(&GameInstance::UnloadingRoutine);
 
+    m_RenderUpdateFrameCounter =  Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_UPDATE);
     //Render thread has both render data copy and rendering, as they cannot be concurrent anyway
     while(!OsmiumGL::ShouldClose()) {
         OsmiumGL::RenderFrame();

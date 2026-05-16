@@ -73,12 +73,9 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
 
 void EditorGUI::RenderImGuiFrameTask() {
 
-    //Do the actual Imgui init here, no need to wait in theory as everything is initialized but not ticking
-    OsmiumGL::InitImgui();
-    OsmiumGL::StartNewImguiFrame();
     //init docking
     //docking in imgui, lifted from the bindless example
-    OsmiumGL::StartNewImguiFrame();
+    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START,m_EditorFrameCounter);//wait for the gl to start the frame
     constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
                                              ImGuiDockNodeFlags_NoDockingInCentralNode;
     ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
@@ -95,12 +92,9 @@ void EditorGUI::RenderImGuiFrameTask() {
     ImGui::Begin("Viewport");
     ImGui::End();
     ImGui::PopStyleVar();
-    ImGui::EndFrame();
-    OsmiumGL::ImguiEndImGuiFrame();
     //There should not be a need to actually display that frame
     while (!OsmiumGL::ShouldClose()) {//condition check can lock
-        Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_UPDATE,m_EditorFrameCounter);
-        OsmiumGL::StartNewImguiFrame();
+        Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START,m_EditorFrameCounter);//will pass through on the first frame
         // [optional] Show the menu bar
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
@@ -130,8 +124,6 @@ void EditorGUI::RenderImGuiFrameTask() {
             // ImGui::ColorPicker3("Clear Color", &m_clearColor.float32[0]);
         }
         ImGui::End();
-        ImGui::Render();
-
         OsmiumGL::ImguiEndImGuiFrame();
         m_EditorFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_EDITOR);
     }
