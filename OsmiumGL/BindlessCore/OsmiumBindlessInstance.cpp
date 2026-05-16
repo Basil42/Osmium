@@ -148,7 +148,7 @@ void OsmiumBindlessInstance::InitImGui() {
     //some compiler let you do this inside the aggregate, but not mine
 
     ImGui_ImplVulkan_Init(&initInfo);
-    ImGui::GetIO().ConfigFlags = ImGuiConfigFlags_ViewportsEnable | ImGuiConfigFlags_DockingEnable;
+    ImGui::GetIO().ConfigFlags = ImGuiConfigFlags_DockingEnable;//ImGuiConfigFlags_ViewportsEnable | ImGuiConfigFlags_DockingEnable;
 }
 
 void OsmiumBindlessInstance::run() {//used for tests or if the rendering happens purely on its own thread (Osmium uses the same thread for render data update and rendering
@@ -353,8 +353,6 @@ void OsmiumBindlessInstance::EndImgGuiFrame() {
         if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
-        }else {
-            std::cout << "platform update dodged" << std::endl;
         }
         Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END);//not saving the here
     }

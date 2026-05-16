@@ -72,29 +72,23 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
 }
 
 void EditorGUI::RenderImGuiFrameTask() {
-
-    //init docking
-    //docking in imgui, lifted from the bindless example
-    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START,m_EditorFrameCounter);//wait for the gl to start the frame
-    constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
-                                             ImGuiDockNodeFlags_NoDockingInCentralNode;
-    ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
-    //conditionally create docking layout, might need to be moved to init
-    if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
-        //ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
-        ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
-        ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
-        // Split the central node
-        ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
-    }
-    // We define "viewport" with no padding and retrieve the rendering area
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("Viewport");
-    ImGui::End();
-    ImGui::PopStyleVar();
     //There should not be a need to actually display that frame
     while (!OsmiumGL::ShouldClose()) {//condition check can lock
         Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START,m_EditorFrameCounter);//will pass through on the first frame
+        ImGuiID dockID = ImGui::DockSpaceOverViewport();
+        //conditionally create docking layout, might need to be moved to init
+        if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
+            ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
+            ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
+            ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
+            // Split the central node
+            ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
+        }
+        // We define "viewport" with no padding and retrieve the rendering area
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::Begin("Viewport");
+        ImGui::End();
+        ImGui::PopStyleVar();
         // [optional] Show the menu bar
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
