@@ -13,8 +13,8 @@
 
 std::unique_ptr<OsmiumBindlessInstance> instance;
 
-void OsmiumGL::Init(const std::string &appName,bool ImguiEnabled, std::span<Sync::DependencySignal> externalRenderProviders, std::span<Sync::DependencySignal> externalRenderConsumers) {//TODO pass the sync spans here
-    instance = std::make_unique<OsmiumBindlessInstance>(externalRenderProviders, externalRenderConsumers,VkExtent2D(800,600), appName.c_str(), ImguiEnabled);
+void OsmiumGL::Init(const std::string &appName,bool ImguiEnabled) {
+    instance = std::make_unique<OsmiumBindlessInstance>(VkExtent2D(800,600), appName.c_str(), ImguiEnabled);
 
 }
 
@@ -118,6 +118,10 @@ MeshHandle OsmiumGL::GetDefaultSphereMeshHandle() {
 
 uint32_t OsmiumGL::GetDefaultTextureHandle() {
     return instance->GetDefaultTextureHandle();
+}
+
+void OsmiumGL::InitImgui() {
+    instance->InitImGui();
 }
 
 

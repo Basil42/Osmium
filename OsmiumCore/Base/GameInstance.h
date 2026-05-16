@@ -28,19 +28,10 @@ struct ImGuiSyncStruct {
 template <typename T,size_t Max_Capacity>class ResourceArray;
 class GOC_Camera;
 class GameInstance {
-    //syncing stuff
-    std::span<Sync::DependencySignal> m_GameLoopExternalProviders;//implicitly the render data copy but they technically cannot run in parrallel, the editor can be
-    std::span<Sync::DependencySignal> m_GameLoopExternalConsumers;//also the render date copy and editor
-
-    Sync::DependencySignal m_RenderDataProvidersSync {
-        .requiredProduts = 1,//render and tick, but render is happening on the same thread
-    };
-    Sync::DependencySignal m_TickProvidersSync {
-        .requiredProduts = 1,//only render data update, the editor is an external provider/consumer, both the tick and render wait on its signal
-    };
-
     bool simShouldShutoff = false;
 
+    uint64_t m_TickFrameCounter=0;
+    uint64_t m_RenderUpdateFrameCounter=0;
     ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;
     std::mutex creationQueueMutex;
     std::queue<std::pair<GameObjectCreateInfo,std::function<void(GameObject*)>>> gameObjectsCreationQueue;
@@ -58,17 +49,16 @@ class GameInstance {
     static void UnloadingRoutine();
     //we pass this through parameters so we can latert launch the game in editor context
     void GameTick();
-    void RenderLoop();
 
-    void RenderDataUpdate() const;
+    void RenderDataUpdate();
 
 public:
-    GameInstance(std::span<Sync::DependencySignal> GameLoopExternalProviders,std::span<Sync::DependencySignal> GameLoopExternalConsumers);
+    explicit GameInstance(const std::string &appName = "Osmium");
     void CreateNewGameObject(GameObjectCreateInfo &createStruct, const std::function<void(GameObject *)>& callback = nullptr);//The object itself will be available next simulation tick
     void DestroyGameObject(GameObject * gameObject);
     [[nodiscard]] ResourceArray<GameObject,MAX_GAMEOBJECTS>& GetGameObjects() const;
 
-    void run(const std::string &appName);
+    void run();
 
     void SetMainCamera(GameObjectHandle editor_camera);
 

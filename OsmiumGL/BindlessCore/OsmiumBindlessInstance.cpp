@@ -95,13 +95,13 @@ throw std::runtime_error(message);                                              
 #include "Utilities/CoreUtils.h"
 
 
-OsmiumBindlessInstance::OsmiumBindlessInstance(const std::span<Sync::DependencySignal> externalRenderProducers, // NOLINT(*-pro-type-member-init)
-                                               const std::span<Sync::DependencySignal> externalRenderConsumers,
-                                               const VkExtent2D size, const char *appName, const bool enableImGui) :
+OsmiumBindlessInstance::OsmiumBindlessInstance(const VkExtent2D size, const char *appName, const bool enableImGui) : // NOLINT(*-pro-type-member-init)
     m_windowSize(size) ,
-    m_imGuiEnabled(enableImGui),//external sync spans can be empty
-    m_externalRenderProviders(externalRenderProducers),
-    m_externalRenderConsumers(externalRenderConsumers){
+    m_imGuiEnabled(enableImGui)//external sync spans can be empty
+    {
+
+    ASSERT(glfwInit(), "Failed to initialize GLFW");
+    ASSERT(glfwVulkanSupported(), "GLFW: Vulkan is not supported");
     // Vulkan Loader
     VK_CHECK(volkInitialize());
     // Create the GLTF Window
@@ -118,7 +118,7 @@ OsmiumBindlessInstance::~OsmiumBindlessInstance() {
     glfwDestroyWindow(m_window);
 }
 
-void OsmiumBindlessInstance::InitImGui() const {
+void OsmiumBindlessInstance::InitImGui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
@@ -149,6 +149,7 @@ void OsmiumBindlessInstance::InitImGui() const {
 
     ImGui_ImplVulkan_Init(&initInfo);
     ImGui::GetIO().ConfigFlags = ImGuiConfigFlags_ViewportsEnable | ImGuiConfigFlags_DockingEnable;
+    m_imGuiEnabled = true;
 }
 
 void OsmiumBindlessInstance::run() {//used for tests or if the rendering happens purely on its own thread (Osmium uses the same thread for render data update and rendering
@@ -158,9 +159,7 @@ void OsmiumBindlessInstance::run() {//used for tests or if the rendering happens
 }
 
 void OsmiumBindlessInstance::RenderFrame() {
-    for (auto& providers : m_externalRenderProviders) {
-        providers.WaitForProductsAndRearm();
-    }
+    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_UPDATE,m_frameData[m_frameRingCurrent].frameNumber+1);
     glfwPollEvents();
     m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
 
@@ -173,16 +172,8 @@ void OsmiumBindlessInstance::RenderFrame() {
         SubmitFrame(cmd);
     }
 
-    if (m_imGuiEnabled) {
-        ImGui::EndFrame();
-        if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
-        }
-    }
-    for (auto& consumer : m_externalRenderConsumers) {
-        consumer.SignalProductComplete();
-    }
+
+    Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER);//no need to keep track of the counter
 }
 
 void OsmiumBindlessInstance::UpdateCameraInfo(const glm::mat4 &view) {
@@ -328,7 +319,6 @@ void OsmiumBindlessInstance::StartNewImguiFrame() {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
 
     // Verify if the viewport has a new size and resize the G-Buffer accordingly.
@@ -336,6 +326,7 @@ void OsmiumBindlessInstance::StartNewImguiFrame() {
         m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
         onViewportSizeChange(viewportSize);
     }
+    Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START);
 }
 
 bool & OsmiumBindlessInstance::GetVsync() {
@@ -358,7 +349,14 @@ ImTextureRef OsmiumBindlessInstance::GetImGuiRenderTarget() const {
 
 void OsmiumBindlessInstance::EndImgGuiFrame() {
     ASSERT(m_imGuiEnabled,"Tried to signal end of GUI frame while ImGui is not enabled");
-    m_imGuiSyncSignal.SignalProductComplete();
+    if (m_imGuiEnabled) {
+        ImGui::EndFrame();
+        if ((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
+        Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END);//not saving the here
+    }
 }
 
 bool OsmiumBindlessInstance::ShouldClose() {
@@ -394,8 +392,6 @@ void OsmiumBindlessInstance::init() {
 
     //descriptor pool for things that cannot avoid them, like loading texture into gpu memory
     createDescriptorPool();
-
-    if (m_imGuiEnabled)InitImGui();
 
     //Getting sampler for the gbuffer
 
@@ -632,7 +628,7 @@ void OsmiumBindlessInstance::frameDrawCommands(VkCommandBuffer cmd) {
     };
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    m_imGuiSyncSignal.WaitForProductsAndRearm();
+    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END,m_frameData[m_frameRingCurrent].frameNumber+1);
 
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 

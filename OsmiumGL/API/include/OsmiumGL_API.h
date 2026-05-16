@@ -28,7 +28,7 @@ namespace xg {
 namespace  OsmiumGL {
 
 
-    void Init(const std::string &appName, bool ImGuiEnabled = false, std::span<Sync::DependencySignal> externalRenderProviders ={}, std::span<Sync::DependencySignal> externalRenderConsumers={});
+    void Init(const std::string &appName, bool ImGuiEnabled = false);
     void Shutdown();
 
     void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
@@ -83,6 +83,8 @@ namespace  OsmiumGL {
 
 
     uint32_t GetDefaultTextureHandle();
+
+    void InitImgui();
 };
 
 

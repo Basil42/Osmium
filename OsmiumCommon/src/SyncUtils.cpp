@@ -4,15 +4,17 @@
 #include "SyncUtils.h"
 
 
-void Sync::DependencySignal::WaitForProductsAndRearm() {
-    std::unique_lock lock(mutex);
-    cv.wait(lock, [this]() { return products >= requiredProduts; });
-    products = 0;
+std::array<Sync::SynchronizationManager::CompletionSignal,Sync::SYNC_STAGE_MAX_VALUE> Sync::SynchronizationManager::SyncPoints{};
+uint_fast64_t Sync::SynchronizationManager::Signal(const SyncStageComplete stage) {
+    auto& sync = SyncPoints[stage];
+    std::unique_lock lock(sync.mutex);
+    uint64_t newCount = SyncPoints[stage].value++;
+    lock.unlock();
+    sync.cv.notify_all();
+    return newCount;
 }
 
-void Sync::DependencySignal::SignalProductComplete() {
-    std::unique_lock<std::mutex> lock(mutex);
-    products++;
-    lock.unlock();
-    cv.notify_all();//there should never be several consumer for a given signal
+void Sync::SynchronizationManager::Wait(SyncStageComplete stage, uint_fast64_t frame) {
+    std::unique_lock lock(SyncPoints[stage].mutex);
+    SyncPoints[stage].cv.wait(lock, [stage, frame]()->bool {return SyncPoints[stage].value >= frame;});
 }

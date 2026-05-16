@@ -6,7 +6,6 @@
 
 #include <condition_variable>
 #include <imgui.h>
-#include <mutex>
 
 //most of these include will be moved to more specialized inspector and window classes
 #include "HierarchyWindow.h"
@@ -15,20 +14,17 @@
 #include "OsmiumGL_API.h"
 #include "AssetManagement/Asset.h"
 #include "Base/GameInstance.h"
-#include "Base/GameObject.h"
-#include "Base/GameObjectCreation.h"
 #include "GOComponents/GOC_MeshRenderer.h"
 #include "GOComponents/GOC_Transform.h"
 #include "GOComponents/GOC_Camera.h"
 #include "GOComponents/GOC_DirectionalLight.h"
-#include "GOComponents/GOC_PointLight.h"
 
 void EditorGUI::Run() {
     hierarchyWindow = new HierarchyWindow(OsmiumInstance, selectedGameObject);
     inspectorWindow = new InspectorWindow(OsmiumInstance, selectedGameObject);
 
     std::thread GUIThread = std::thread(&EditorGUI::RenderImGuiFrameTask, this);
-    OsmiumInstance->run("Editor");//TODO display a project name + editor
+    OsmiumInstance->run();
 
     GUIThread.join();
     delete inspectorWindow;
@@ -76,7 +72,34 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
 }
 
 void EditorGUI::RenderImGuiFrameTask() {
-    while (OsmiumGL::ShouldClose()) {//condition check can lock
+
+    //Do the actual Imgui init here, no need to wait in theory as everything is initialized but not ticking
+    OsmiumGL::InitImgui();
+    OsmiumGL::StartNewImguiFrame();
+    //init docking
+    //docking in imgui, lifted from the bindless example
+    OsmiumGL::StartNewImguiFrame();
+    constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
+                                             ImGuiDockNodeFlags_NoDockingInCentralNode;
+    ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
+    //conditionally create docking layout, might need to be moved to init
+    if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
+        //ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
+        ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
+        ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
+        // Split the central node
+        ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
+    }
+    // We define "viewport" with no padding and retrieve the rendering area
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("Viewport");
+    ImGui::End();
+    ImGui::PopStyleVar();
+    ImGui::EndFrame();
+    OsmiumGL::ImguiEndImGuiFrame();
+    //There should not be a need to actually display that frame
+    while (!OsmiumGL::ShouldClose()) {//condition check can lock
+        Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_UPDATE,m_EditorFrameCounter);
         OsmiumGL::StartNewImguiFrame();
         // [optional] Show the menu bar
         if (ImGui::BeginMainMenuBar()) {
@@ -110,29 +133,13 @@ void EditorGUI::RenderImGuiFrameTask() {
         ImGui::Render();
 
         OsmiumGL::ImguiEndImGuiFrame();
+        m_EditorFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_EDITOR);
     }
 }
 
 EditorGUI::EditorGUI() {
-    OsmiumInstance = new GameInstance(std::span(m_EditorConsumers),std::span(m_EditorProviders));
-    //init docking
-    //docking in imgui, lifted from the bindless example
-    constexpr ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode |
-                                             ImGuiDockNodeFlags_NoDockingInCentralNode;
-    ImGuiID dockID = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockFlags);
-    //conditionally create docking layout, might need to be moved to init
-    if (!ImGui::DockBuilderGetNode(dockID)->IsSplitNode() && !ImGui::FindWindowByName("Viewport")) {
-        //ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
-        ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
-        ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
-        // Split the central node
-        ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
-    }
-    // We define "viewport" with no padding and retrieve the rendering area
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("Viewport");
-    ImGui::End();
-    ImGui::PopStyleVar();
+    OsmiumInstance = new GameInstance();
+    //TODO create editor camera here
 }
 
 

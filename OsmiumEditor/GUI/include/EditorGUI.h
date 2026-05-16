@@ -25,8 +25,6 @@ struct ImGuiIO;
 
 class EditorGUI {
 
-    std::array<Sync::DependencySignal,1> m_EditorProviders{};
-    std::array<Sync::DependencySignal,1> m_EditorConsumers{};
     HierarchyWindow* hierarchyWindow = nullptr;
     InspectorWindow* inspectorWindow = nullptr;
     GameObjectHandle selectedGameObject = MAX_GAMEOBJECTS +1;
@@ -35,6 +33,7 @@ class EditorGUI {
     float CameraMaxSpeed = 10.0f;
     float MinCameraSpeed = 0.4f;
     float RotationSensitivity = 1.0f;
+    uint_fast64_t m_EditorFrameCounter=0;
 
 public:
     void Run();
@@ -42,9 +41,6 @@ public:
     void CameraControls(ImGuiIO& io);
 
     void RenderImGuiFrameTask();
-    Sync::DependencySignal* CreateDependencySignal();
-    void DeleteDependencySignal(Sync::DependencySignal* Signal);//should not require use
-    void AddProviderSignal(Sync::DependencySignal* Signal);
 
 
     ImVec4 ImgGuiClearColor;
@@ -54,7 +50,6 @@ public:
     GOC_Camera* EditorCamera;
     bool ShowHierarchy = true;
     bool ShowInspector = true;
-    const ImGuiSyncStruct* SyncStruct;//TODO make the editor own the imgui sync struct
 
     EditorGUI();
     ~EditorGUI();

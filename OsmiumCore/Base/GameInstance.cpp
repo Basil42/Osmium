@@ -28,11 +28,11 @@ void GameInstance::GameTick() {
     //double lastFrameTime = glfwGetTime();
     while (!OsmiumGL::ShouldClose()) {//might be thread unsafe to check this
 
+        Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_UPDATE,m_TickFrameCounter);
+#ifdef EDITOR
+        Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END,m_TickFrameCounter);
+#endif
 
-        for (auto& provider : m_GameLoopExternalProviders) {
-            provider.WaitForProductsAndRearm();
-        }
-        m_TickProvidersSync.WaitForProductsAndRearm();
         //note: the dependency mutexes are not locked from this point on.
 
 
@@ -59,14 +59,14 @@ void GameInstance::GameTick() {
             GameObjects->Remove(obj);//This should be the only call to remove on this container
         }
         //notify consumers
-        for (auto& consumer : m_GameLoopExternalConsumers) {
-            consumer.SignalProductComplete();
-        }
-        m_RenderDataProvidersSync.SignalProductComplete();
+
+        Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_TICK);
+        m_TickFrameCounter++;
     }
 }
 
-void GameInstance::RenderDataUpdate() const {
+void GameInstance::RenderDataUpdate() {
+    Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_TICK,m_RenderUpdateFrameCounter);
     if (mainCamera == nullptr) return;
     //this is quite janky and annoying to extend
     mainCamera->RenderUpdate();
@@ -75,14 +75,20 @@ void GameInstance::RenderDataUpdate() const {
 
     GOC_MeshRenderer::GORenderUpdate();
     GOC_PointLight::GORenderUpdate();
+    Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_UPDATE);
+    m_RenderUpdateFrameCounter++;
 }
 
 
-GameInstance::GameInstance(const std::span<Sync::DependencySignal> GameLoopExternalProviders, // NOLINT(*-easily-swappable-parameters)
-                           const std::span<Sync::DependencySignal> GameLoopExternalConsumers) :
-    m_GameLoopExternalProviders(GameLoopExternalProviders),
-    m_GameLoopExternalConsumers(GameLoopExternalConsumers) {
+GameInstance::GameInstance(const std::string &appName)
+    {
 
+    instance = this;
+    GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
+    OsmiumGL::Init(appName,true);//no direct dependecies , the syncing is done at the engine level
+
+
+    AssetManager::LoadAssetDatabase();
 }
 /*
  * Object will only be available next simulation tick, but a callback can be provided to recieve the
@@ -103,14 +109,10 @@ ResourceArray<GameObject, 2000> & GameInstance::GetGameObjects() const {
 }
 
 
-void GameInstance::run(const std::string &appName) {
-
-    instance = this;
-    GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
-    OsmiumGL::Init(appName);
+void GameInstance::run() {
 
 
-    AssetManager::LoadAssetDatabase();
+
     auto SimulationThread = std::thread(&GameInstance::GameTick,this);
     auto LoadingThread = std::thread(&GameInstance::LoadingRoutine);//maybe I need some kind of staging method here
     auto UnloadingThread = std::thread(&GameInstance::UnloadingRoutine);
@@ -118,9 +120,7 @@ void GameInstance::run(const std::string &appName) {
     //Render thread has both render data copy and rendering, as they cannot be concurrent anyway
     while(!OsmiumGL::ShouldClose()) {
         OsmiumGL::RenderFrame();
-        m_RenderDataProvidersSync.WaitForProductsAndRearm();//waiting for tick to complete
         RenderDataUpdate();
-        m_TickProvidersSync.SignalProductComplete();//signaling tick that it can launch again (if all its external providers are done)
     }
 
     AssetManager::Shutdown();
