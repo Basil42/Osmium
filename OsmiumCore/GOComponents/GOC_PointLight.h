@@ -21,7 +21,7 @@ class GOC_PointLight : public GameObjectComponent{
 public:
     const std::string & Name() override { return name; }
 
-    static void GORenderUpdate();//TODO render update in a singel memcopy
+    static void GORenderUpdate();
 
     void Update() override{};//Most update will come from somewhere else
 

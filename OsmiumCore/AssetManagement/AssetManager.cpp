@@ -215,8 +215,17 @@ void AssetManager::RegisterAssetFromSource(const std::filesystem::path &path) {
     }
         AssetDatabase.emplace(asset->id, asset);
 }
+#else
+void AssetManager::RegisterAsset(const std::filesystem::path &path) {
+    assert(!path.has_extension());
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        std::cerr << "failed to open asset"
+    }
+    char uintReader[sizeof(uint32_t)];
+    //TODO modify serialization method to have a header (or meta data in name)
+}
 #endif
-
 void AssetManager::BuildAssetDatabase() {
     std::unique_lock assetDatabaseLock(assetDatabaseMutex);
     AssetDatabase.clear();

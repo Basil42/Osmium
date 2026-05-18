@@ -81,7 +81,13 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(pare
 }
 
 GOC_MeshRenderer::~GOC_MeshRenderer() {
-    //TODO: unregister from the GL, or maybe assert that we are unregistered before unloading
+    if (registered) {
+        MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh].Remove(m_renderedObjectHandle.index);
+        if (MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh].GetCount() == 0) {
+            MeshRendererPushConstantsStagingArrays.erase(m_renderedObjectHandle.mesh);
+        }
+        registered = false;
+    }
     if (MeshAssetHandle.has_value()) AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
     if (albedoMapAssetHandle.has_value())AssetManager::UnloadAsset(albedoMapAssetHandle.value(),false);
     if (specularMapAssetHandle.has_value())AssetManager::UnloadAsset(specularMapAssetHandle.value(),false);

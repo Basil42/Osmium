@@ -23,7 +23,7 @@ using TextureHandle = unsigned int;
 
 
 class GOC_MeshRenderer : public GameObjectComponent {
-    GOC_Transform* transform;//TODO verify this pointer is reliable
+    GOC_Transform* transform;
     //Data for renderdata update
     static std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>> MeshRendererPushConstantsStagingArrays;
     RenderedObjectHandle m_renderedObjectHandle;

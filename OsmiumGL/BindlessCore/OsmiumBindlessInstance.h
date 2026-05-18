@@ -14,10 +14,6 @@
 #include "SceneData.h"
 #include "CoreUtils.h"
 #include "SpotLights.h"
-#include "SyncUtils.h"
-
-#include
-#include
 
 
 struct DirectionalLightPushConstants;

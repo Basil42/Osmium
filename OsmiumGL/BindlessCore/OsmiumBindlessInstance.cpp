@@ -8,6 +8,7 @@
 #include "DirectionalLights.h"
 #include "MeshFileLoading.h"
 #include "SpotLights.h"
+#include "SyncUtils.h"
 #include "volk.h"
 
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
