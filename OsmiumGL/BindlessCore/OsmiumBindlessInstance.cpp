@@ -284,7 +284,7 @@ MeshHandle OsmiumBindlessInstance::LoadMesh(const std::filesystem::path &path) {
 MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename) {
     std::vector<DefaultVertex> vertices;
     std::vector<uint32_t> indices;
-    MeshFileLoading::LoadFromObj(vertices, indices, filename);
+    MeshFileLoading::LoadFromObj(vertices, indices, filename);//TODO handle api call that try to load from serialized data
 
     utils::MeshResource resource;
     VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
