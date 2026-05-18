@@ -20,15 +20,15 @@
 #include "GOComponents/GOC_DirectionalLight.h"
 
 void EditorGUI::Run() {
-    hierarchyWindow = new HierarchyWindow(OsmiumInstance, selectedGameObject);
-    inspectorWindow = new InspectorWindow(OsmiumInstance, selectedGameObject);
+    m_hierarchyWindow = new HierarchyWindow(OsmiumInstance, selectedGameObject);
+    m_inspectorWindow = new InspectorWindow(OsmiumInstance, selectedGameObject);
 
     std::thread GUIThread = std::thread(&EditorGUI::RenderImGuiFrameTask, this);
     OsmiumInstance->run();
 
     GUIThread.join();
-    delete inspectorWindow;
-    delete hierarchyWindow;
+    delete m_inspectorWindow;
+    delete m_hierarchyWindow;
 }
 
 void EditorGUI::CameraControls(ImGuiIO &io) {
@@ -81,8 +81,10 @@ void EditorGUI::RenderImGuiFrameTask() {
             ImGui::DockBuilderGetCentralNode(dockID)->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;// Remove "Tab" from the central node
             ImGuiID leftID = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Left, 0.2f, nullptr, &dockID);
             ImGui::DockBuilderDockWindow("Viewport", dockID); // Dock "Viewport" to  central node
+            ImGuiID rightId = ImGui::DockBuilderSplitNode(dockID, ImGuiDir_Right, 0.2f, nullptr, &dockID);
+            ImGui::DockBuilderDockWindow("Inspector", rightId);
             // Split the central node
-            ImGui::DockBuilderDockWindow("Settings", leftID); // Dock "Settings" to the left node
+            ImGui::DockBuilderDockWindow("Hierarchy", leftID); // Dock "Hierarchy" to the left node
         }
         // We define "viewport" with no padding and retrieve the rendering area
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -111,13 +113,9 @@ void EditorGUI::RenderImGuiFrameTask() {
         }
         ImGui::End();
         //Proted for the sample as an example
-        if (ImGui::Begin("Settings")) {
-            // ImGui::RadioButton("image 1", &m_imageID, 0);
-            // ImGui::RadioButton("image 2", &m_imageID, 1);
-            ImGui::Separator();
-            // ImGui::ColorPicker3("Clear Color", &m_clearColor.float32[0]);
-        }
-        ImGui::End();
+        m_hierarchyWindow->Render(ImGui::GetIO());
+        m_inspectorWindow->Render(ImGui::GetIO());
+
         OsmiumGL::ImguiEndImGuiFrame();
         m_EditorFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_EDITOR);
     }

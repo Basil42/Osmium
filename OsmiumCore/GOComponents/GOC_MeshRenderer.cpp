@@ -65,6 +65,7 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, Te
 
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(parent) {
     transform = parent->GetComponent<GOC_Transform>();
+    assert(transform);
     m_renderedObjectHandle.mesh = OsmiumGL::GetDefaultSphereMeshHandle();
     auto defautlTextureHandle = OsmiumGL::GetDefaultTextureHandle();
     m_renderedObjectHandle.index = MeshRendererPushConstantsStagingArrays[m_renderedObjectHandle.mesh].Add({

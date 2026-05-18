@@ -25,8 +25,8 @@ struct ImGuiIO;
 
 class EditorGUI {
 
-    HierarchyWindow* hierarchyWindow = nullptr;
-    InspectorWindow* inspectorWindow = nullptr;
+    HierarchyWindow* m_hierarchyWindow = nullptr;
+    InspectorWindow* m_inspectorWindow = nullptr;
     GameObjectHandle selectedGameObject = MAX_GAMEOBJECTS +1;
     float CameraSpeedDelta = 0.5f;
     glm::vec3 cameraSpeed = glm::vec3(0.0f);

@@ -220,7 +220,7 @@ void AssetManager::RegisterAsset(const std::filesystem::path &path) {
     assert(!path.has_extension());
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
-        std::cerr << "failed to open asset"
+        std::cerr << "failed to open asset" << std::endl;
     }
     char uintReader[sizeof(uint32_t)];
     //TODO modify serialization method to have a header (or meta data in name)
