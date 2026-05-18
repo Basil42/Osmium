@@ -83,6 +83,9 @@ namespace  OsmiumGL {
     uint32_t GetDefaultTextureHandle();
 
     void InitImgui();
+
+    const glm::mat4& GetMainCameraViewMatrix();
+    const glm::mat4& GetMainCameraProjectionMatrix();
 };
 
 

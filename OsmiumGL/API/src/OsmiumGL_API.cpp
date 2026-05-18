@@ -117,4 +117,12 @@ uint32_t OsmiumGL::GetDefaultTextureHandle() {
     return instance->GetDefaultTextureHandle();
 }
 
+const glm::mat4& OsmiumGL::GetMainCameraViewMatrix() {
+    return instance->GetCurrentViewMatrix();
+}
+
+const glm::mat4 & OsmiumGL::GetMainCameraProjectionMatrix() {
+    return instance->GetCurrentProjectionMatrix();
+}
+
 

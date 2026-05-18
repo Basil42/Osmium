@@ -16,6 +16,9 @@
 #include "SpotLights.h"
 #include "SyncUtils.h"
 
+#include
+#include
+
 
 struct DirectionalLightPushConstants;
 struct PointLightPushConstants;
@@ -44,7 +47,9 @@ public:
     void RenderFrame();
 
     void UpdateCameraInfo(const glm::mat4 &view);
+    const glm::mat4& GetCurrentViewMatrix() const;
 
+    const glm::mat4 & GetCurrentProjectionMatrix() const;
     void UpdateCameraSettings(float radianVFOV);
 
     void UpdateAmbientLightSettings(glm::vec4 ambientLight);

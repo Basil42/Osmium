@@ -198,6 +198,14 @@ void OsmiumBindlessInstance::UpdateCameraInfo(const glm::mat4 &view) {
 
 }
 
+const glm::mat4 & OsmiumBindlessInstance::GetCurrentViewMatrix() const {
+    return m_CameraInfoStruct.viewMatrix;
+}
+
+const glm::mat4 &OsmiumBindlessInstance::GetCurrentProjectionMatrix() const {
+    return m_CameraInfoStruct.projectionMatrix;
+}
+
 //setup and setting changes for the camera (fov only for now, but we could send an arbitrary struct in
 void OsmiumBindlessInstance::UpdateCameraSettings(float radianVFOV) {
     auto ViewportSize = glm::vec2(m_viewportSize.width, m_viewportSize.height);

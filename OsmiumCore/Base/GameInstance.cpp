@@ -15,7 +15,6 @@
 #include "ResourceArray.h"
 #include "GOComponents/GOC_PointLight.h"
 
-GameInstance* GameInstance::instance = nullptr;//TODO refactor camera access to get rid of this
 void GameInstance::LoadingRoutine() {
     AssetManager::LoadingRoutine();//should be run privately by the asset manager directly
 }
@@ -82,11 +81,8 @@ void GameInstance::RenderDataUpdate() {
 
 GameInstance::GameInstance(const std::string &appName)
     {
-
-    instance = this;
     GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
     OsmiumGL::Init(appName,true);//no direct dependecies , the syncing is done at the engine level
-
 
     AssetManager::LoadAssetDatabase();
 }
@@ -152,5 +148,5 @@ void GameInstance::SetDirectionalLight(GOC_DirectionalLight *DirLightComp) {
 }
 
 glm::mat4 GameInstance::getMainCameraViewMatrix() {
-    return instance->mainCamera->GetViewMatrix();
+    return OsmiumGL::GetMainCameraViewMatrix();
 }

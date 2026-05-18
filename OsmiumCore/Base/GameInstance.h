@@ -41,8 +41,6 @@ class GameInstance {
     std::condition_variable destructionQueueConditionVariable;
     GOC_Camera* mainCamera = nullptr;//stable for game objects, should probably use some kind of handle though
     GOC_DirectionalLight * directionLight = nullptr;
-    static GameInstance * instance;
-
 
     static void LoadingRoutine();
 
