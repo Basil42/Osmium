@@ -224,6 +224,8 @@ void AssetManager::RegisterAsset(const std::filesystem::path &path) {
     }
     char uintReader[sizeof(uint32_t)];
     //TODO modify serialization method to have a header (or meta data in name)
+    throw std::runtime_error("deserialization without soruce asset access is not implented");
+
 }
 #endif
 void AssetManager::BuildAssetDatabase() {
