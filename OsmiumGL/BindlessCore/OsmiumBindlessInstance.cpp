@@ -7,6 +7,7 @@
 #include "DirectionalLight.h"
 #include "DirectionalLights.h"
 #include "MeshFileLoading.h"
+#include "MeshSerialization.h"
 #include "SpotLights.h"
 #include "SyncUtils.h"
 #include "volk.h"
@@ -278,13 +279,56 @@ void OsmiumBindlessInstance::UnloadTexture(TextureHandle textureHandle) const {
 }
 
 MeshHandle OsmiumBindlessInstance::LoadMesh(const std::filesystem::path &path) {
-    return LoadMesh(path.string());
+    return LoadMesh(path.string(), path.has_extension() && path.extension() == ".obj");
 }
 
-MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename) {
+MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename, const bool fromObjFile) {
     std::vector<DefaultVertex> vertices;
     std::vector<uint32_t> indices;
-    MeshFileLoading::LoadFromObj(vertices, indices, filename);//TODO handle api call that try to load from serialized data
+    if (fromObjFile)MeshFileLoading::LoadFromObj(vertices, indices, filename);
+    else {
+        Serialization::MeshSerializationData data;
+        Serialization::DeserializeMeshAsset(std::filesystem::path(filename),data);
+        //reinterleaving the data for expediency, I'd want to separate them like in the previous iteration
+        vertices.resize(data.vertexCount);
+        indices.resize(data.indiceCount);
+        uint32_t vertexDataStride = 0;
+        for (const auto attribute : data.attributeTypes) {
+            vertexDataStride += Serialization::GetAttributeSize(attribute);
+        }
+        std::vector<glm::vec3> positions(data.vertexCount);
+        std::vector<glm::vec2> texCoords(data.vertexCount);
+        std::vector<glm::vec3> normals(data.vertexCount);
+        std::byte* dataPointer = data.data.data();
+        for (const auto attribute : data.attributeTypes) {
+            const unsigned int stride = Serialization::GetAttributeSize(attribute) * data.vertexCount;
+               switch (attribute) {
+                   case Serialization::MeshAttributeType::VERTEX_POSITION: {
+                       memcpy(positions.data(), dataPointer, stride);
+                       break;
+                   }
+                   case Serialization::MeshAttributeType::VERTEX_TEXCOORD: {
+                       memcpy(texCoords.data(), dataPointer, stride);
+                       break;
+                   }
+                       case Serialization::MeshAttributeType::VERTEX_NORMAL: {
+                       memcpy(normals.data(), dataPointer, stride);
+                       break;
+                   }
+                       default: {
+                       break;//not part of default vertex, skipping over
+                   }
+               }
+                       dataPointer += stride;
+        }
+        for (int i = 0; i < data.vertexCount ; i++) {
+            vertices[i].position = positions[i];
+            vertices[i].texCoordinates = texCoords[i];
+            vertices[i].normal = normals[i];
+        }
+        //getting indice buffer
+        memcpy(indices.data(), dataPointer, data.indiceCount * sizeof(uint32_t));
+    }
 
     utils::MeshResource resource;
     VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
@@ -455,8 +499,8 @@ void OsmiumBindlessInstance::init() {
     m_meshes = std::make_unique<ResourceArray<utils::MeshResource, 255> >();
     m_textures = std::make_unique<ResourceArray<utils::ImageResource, 255> >();
 
-    m_DefaultSphereHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/sphere.obj"));
-    m_FlatConeHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/flattenedCone.obj"));
+    m_DefaultSphereHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/sphere.obj"), true);
+    m_FlatConeHandle = LoadMesh(std::string("../OsmiumGL/DefaultResources/models/flattenedCone.obj"), true);
     createDefaultTextureImage();
 
     WindowResizingHandling();

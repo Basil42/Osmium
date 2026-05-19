@@ -55,7 +55,7 @@ public:
     void UnloadTexture(TextureHandle textureHandle) const;
 
     MeshHandle LoadMesh(const std::filesystem::path& path);
-    MeshHandle LoadMesh(const std::string &filename);
+    MeshHandle LoadMesh(const std::string &filename, bool fromObjFile);
     void UnloadMesh(MeshHandle meshHandle) const;
 
     MeshHandle GetDefaultSphereMeshHandle() const;

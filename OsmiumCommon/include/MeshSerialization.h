@@ -39,5 +39,8 @@ namespace Serialization{
     void UpdateMeshMetaData(const std::filesystem::path &filePath, MeshMetaData &metaData);
     void ReadMeshMetaData(const std::filesystem::path &filePath, MeshMetaData& data);
     void CreateMeshMetaData(const std::filesystem::path &filePath, MeshMetaData& data);
+
+    uint32_t GetAttributeSize(MeshAttributeType attribute, bool &importColor, bool &importTangent);
+    uint32_t GetAttributeSize(MeshAttributeType attribute);
 }
 #endif //MESHSERIALIZATION_H

@@ -83,6 +83,30 @@ void Serialization::CreateMeshMetaData(const std::filesystem::path &filePath, Me
     UpdateMeshMetaData(filePath, data);
 }
 
+uint32_t Serialization::GetAttributeSize(MeshAttributeType attribute, bool &importColor, bool &importTangent) {
+    switch (attribute) {
+        case VERTEX_POSITION:
+        case VERTEX_NORMAL:
+            return sizeof(glm::vec3);
+        case VERTEX_TEXCOORD:
+            return sizeof(glm::vec2);
+        case VERTEX_COLOR:
+            importColor = true;
+            return sizeof(glm::vec4);
+            break;
+        case VERTEX_TANGENT:
+            importTangent = true;
+            return sizeof(glm::vec3);
+        default:
+            throw std::runtime_error("Unknown attribute type while getting mesh attribute data");
+    }
+}
+uint32_t Serialization::GetAttributeSize(MeshAttributeType attribute) {
+    bool importColor = false, importTangent = false;
+    return GetAttributeSize(attribute, importColor,importTangent);
+
+}
+
 
 /**
  * Import a supported mesh file into a format that can be quickly loaded into OsmiumGL using the source file associated .meta file.
@@ -188,28 +212,9 @@ bool Serialization::ImportMeshAssetData(const std::filesystem::path &filePath, M
 
     unsigned int allocSize = 0;
     for (const auto& attribute : metaData.importedAttributes) {
-        switch (attribute) {
-            case VERTEX_POSITION:
-                allocSize += sizeof(glm::vec3);
-                break;
-            case VERTEX_TEXCOORD:
-                allocSize += sizeof(glm::vec2);
-                break;
-            case VERTEX_NORMAL:
-                allocSize += sizeof(glm::vec3);
-                break;
-            case VERTEX_COLOR:
-                allocSize += sizeof(glm::vec4);
-                importColor = true;
-                colors.resize(meshData.vertexCount);
-                break;
-            case VERTEX_TANGENT:
-                allocSize += sizeof(glm::vec3);
-                importTangent = true;
-                tangents.resize(meshData.vertexCount);
-                break;
-            default: ;
-        }
+        allocSize += GetAttributeSize(attribute, importColor, importTangent);
+        if (importColor)colors.resize(meshData.vertexCount);
+        if (importTangent)tangents.resize(meshData.vertexCount);
     }
     allocSize *= meshData.vertexCount;
     const auto indiceAllocSize = sizeof(uint32_t) * meshData.indiceCount;

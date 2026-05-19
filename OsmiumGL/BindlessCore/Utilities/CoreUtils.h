@@ -683,7 +683,7 @@ private:
   {
     const float queuePriority = 1.0F;
     m_queues.clear();
-    m_queues.emplace_back(getQueue(VK_QUEUE_GRAPHICS_BIT));
+    m_queues.emplace_back(getQueue(VK_QUEUE_GRAPHICS_BIT));//will get the queue 0 of the family 0 on the overwhelming majority of hardware
 
     // Request only one queue : graphic
     // User could request more specific queues: compute, transfer
