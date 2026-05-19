@@ -61,8 +61,13 @@ class  ResourceArray {
 
 template<typename T, size_t MAX_Capacity>
 ResourceArray<T, MAX_Capacity>::ResourceArray() {
-  backingArray.fill(MAX_Capacity +1);
-  //I could reserve the vector to max capacity here
+  try {
+    backingArray.fill(MAX_Capacity +1);
+    //I could reserve the vector to max capacity here
+  }catch (...) {
+    std::cerr << "failed to create ressource array, this is likely fatal" << std::endl;
+  }
+
 }
 
 template<typename T, size_t MAX_Capacity>
@@ -94,18 +99,22 @@ unsigned int ResourceArray<T, MAX_Capacity>::Add(T resource) {
 
 template<typename T, size_t MAX_Capacity>
 bool ResourceArray<T, MAX_Capacity>::Remove(unsigned int handle) {
-  unsigned int vectorIndex = backingArray[handle];
-  if (vectorIndex >= MAX_Capacity +1) [[unlikely]]{
-    std::cout << "Attempted to remove a non-valid resource handle" << std::endl;
+  try {
+    unsigned int vectorIndex = backingArray[handle];
+    if (vectorIndex >= MAX_Capacity +1) [[unlikely]]{
+      std::cout << "Attempted to remove a non-valid resource handle" << std::endl;
+      return false;
+    }
+    resourceVector.erase(resourceVector.begin() + vectorIndex);
+    backingArray[handle] = MAX_Capacity + 1;
+    //realigning backing array
+    for (unsigned int &index : backingArray) {
+      if (index > vectorIndex && index < MAX_Capacity +1) --index;
+    }
+    return true;
+  } catch (...) {
     return false;
   }
-  resourceVector.erase(resourceVector.begin() + vectorIndex);
-  backingArray[handle] = MAX_Capacity + 1;
-  //realigning backing array
-  for (unsigned int &index : backingArray) {
-    if (index > vectorIndex && index < MAX_Capacity +1) --index;
-  }
-  return true;
 }
 
 template<typename T, size_t MAX_Capacity>
