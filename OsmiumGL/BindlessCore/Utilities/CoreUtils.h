@@ -461,7 +461,7 @@ private:
   VkInstance                         m_instance{};        // The Vulkan instance
   VkPhysicalDevice                   m_physicalDevice{};  // The physical device (GPU)
   VkDevice                           m_device{};          // The logical device (interface to the physical device)
-  std::vector<QueueInfo>             m_queues{};          // The queue used to submit command buffers to the GPU
+  std::vector<QueueInfo>             m_queues{};          // The queue used to submit command buffers to the GPU, in order, graphics,loading,unloading
   VkDebugUtilsMessengerEXT           m_callback{VK_NULL_HANDLE};  // The debug callback
   std::vector<VkExtensionProperties> m_instanceExtensionsAvailable{};
   std::vector<VkExtensionProperties> m_deviceExtensionsAvailable{};
@@ -474,11 +474,12 @@ public:
   Context() = default;
   ~Context() { assert(m_device == VK_NULL_HANDLE && "Missing destroy()"); }
 
-  void init()
+  void init(GLFWwindow* window, VkSurfaceKHR& surface)
   {
     initInstance();
+    glfwCreateWindowSurface(getInstance(), window, nullptr, &surface);
     selectPhysicalDevice();
-    initLogicalDevice();
+    initLogicalDevice(surface);
   }
 
   // Destroy internal resources and reset its initial state
@@ -498,6 +499,8 @@ public:
   VkPhysicalDevice getPhysicalDevice() const { return m_physicalDevice; }
   VkInstance       getInstance() const { return m_instance; }
   const QueueInfo& getGraphicsQueue() const { return m_queues[0]; }
+  const QueueInfo& getLoadingQueue() const { return m_queues[1]; }
+  const QueueInfo& getUnloadingQueue() const { return m_queues[2]; }
   uint32_t         getApiVersion() const { return m_apiVersion; }
 
   VkPhysicalDeviceFeatures2                        getPhysicalDeviceFeatures() const { return m_deviceFeatures; }
@@ -679,20 +682,113 @@ private:
    * Note: the feature structure is used to add all features up to Vulkan 1.4, but it can be used to add specific features.
    *       This class does not add any specific feature, or extension, but it can be added by the user.
   -*/
-  void initLogicalDevice()
+  void initLogicalDevice(VkSurfaceKHR& surface)
   {
-    const float queuePriority = 1.0F;
+    constexpr float graphicsQueuePriority = 1.0F;
+    constexpr float transferQueuePriority = 0.7F;
     m_queues.clear();
-    m_queues.emplace_back(getQueue(VK_QUEUE_GRAPHICS_BIT));//will get the queue 0 of the family 0 on the overwhelming majority of hardware
+    m_queues.resize(3);
+    //inlining a method to find required queues, as they need to be found before creating the logical device anyway
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties2(m_physicalDevice, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties2> queueFamilies(queueFamilyCount, {.sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2});
+    std::vector<unsigned int> assignedQueues(queueFamilyCount);//count of assigned queue for each family
+    vkGetPhysicalDeviceQueueFamilyProperties2(m_physicalDevice, &queueFamilyCount, queueFamilies.data());
+    QueueInfo queueInfo;
+    bool found = false;
+    //main graphics queue
+    for(uint32_t i = 0; i < queueFamilies.size(); i++) {
+      if (queueFamilies[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        if (assignedQueues[i] >= queueFamilies[i].queueFamilyProperties.queueCount)continue;//queue family is fully assigned, should not happen, just future proofing
+        VkBool32 supportsPresent = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice,i,surface,&supportsPresent);
+        if (supportsPresent == VK_TRUE) {
+          found = true;
+          //found a presenting queue family
+          queueInfo.familyIndex = i;
+          queueInfo.queueIndex = assignedQueues[i]++;//we use the first one available
+          m_queues[0] = queueInfo;
+          break;
+        }
+      }
+    }
+    if (!found)throw std::runtime_error("failed to find a queue capable of presenting!");
+    //looking for the loading queue
+    bool foundLoadingQueue = false;
+    bool foundIdealLoadingQueue = false;
+    bool foundUnloadingQueue = false;
+    bool foundIdealUnloadingQueue = false;
+    //looking for dedicated transfer queue
+    for (uint32_t i = 0; i < m_queues.size(); i++) {
+      auto queuefamilyprop = queueFamilies[i].queueFamilyProperties;
+      //looking for a dedicated transfer queue, there are 2 on most consumer gpus
+      if (queuefamilyprop.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+        //valid candidate
+        if (!foundIdealLoadingQueue) {
+          //if we already found an ideal loading queue, we attempt to get one for unloading directly
+          if (!(queuefamilyprop.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+              !(queuefamilyprop.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+            //ideal candidate
+            foundIdealLoadingQueue = true;
+            if (foundLoadingQueue) {
+              //if we had a previous candidate, we unassign it
+              assignedQueues[m_queues[1].familyIndex]--;
+            }
+            foundLoadingQueue = true;
+            queueInfo.familyIndex = i;
+            queueInfo.queueIndex = assignedQueues[i]++;
+            m_queues[1] = queueInfo;
+          } else if (!foundLoadingQueue && queuefamilyprop.queueCount > assignedQueues[i]) {
+            //assign a fallback queue if there is room in this family
+            foundLoadingQueue = true;
+            queueInfo.familyIndex = i;
+            queueInfo.queueIndex = assignedQueues[i]++;
+            m_queues[1] = queueInfo;
+          }
+        }
+        //looking for an ideal unloading queue
+        if (!(queuefamilyprop.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+            !(queuefamilyprop.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+          foundIdealUnloadingQueue = true;
+          if (foundUnloadingQueue) {
+            assignedQueues[m_queues[2].familyIndex]--;
+          }
+          foundUnloadingQueue = true;
+          queueInfo.familyIndex = i;
+          queueInfo.queueIndex = assignedQueues[i]++;
+          m_queues[2] = queueInfo;
+          break;//no need for further search
+        }
+        if (!foundUnloadingQueue && queuefamilyprop.queueCount > assignedQueues[i]) {
+          //fallback queue
+          foundUnloadingQueue = true;
+          queueInfo.familyIndex = i;
+          queueInfo.queueIndex = assignedQueues[i]++;
+          m_queues[2] = queueInfo;
+        }
+      }
+    }
+
+  if (!foundLoadingQueue || !foundUnloadingQueue)throw std::runtime_error("failed to find transfer queues, this GPU doesn't meet requirement for Osmium!");
+
+    if (!foundIdealLoadingQueue)std::cout << "could not find dedicated loading GPU queue, using a fallback queue" << std::endl;
+    if (!foundIdealUnloadingQueue)std::cout << "could not find dedicated transfer GPU queue for unloading thread, using a fallback queue" << std::endl;
 
     // Request only one queue : graphic
     // User could request more specific queues: compute, transfer
-    const VkDeviceQueueCreateInfo queueCreateInfo{
-        .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = m_queues[0].familyIndex,
-        .queueCount       = 1,
-        .pQueuePriorities = &queuePriority,
-    };
+    std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos;
+    for (unsigned int i = 0 ; i < assignedQueues.size(); i++) {
+      if (assignedQueues[i] > 0) {
+        VkDeviceQueueCreateInfo queueCreateInfo{
+          .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+          .queueFamilyIndex = i,
+          .queueCount = assignedQueues[i],
+          .pQueuePriorities = (queueFamilies[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? &graphicsQueuePriority : &transferQueuePriority,};
+        QueueCreateInfos.push_back(queueCreateInfo);
+      }
+
+
+    }
 
     // Chaining all features up to Vulkan 1.4
     pNextChainPushFront(&m_features11, &m_features12);
@@ -752,9 +848,9 @@ private:
     const VkDeviceCreateInfo deviceCreateInfo{
         .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext                   = &m_deviceFeatures,
-        .queueCreateInfoCount    = 1,
-        .pQueueCreateInfos       = &queueCreateInfo,
-        .enabledExtensionCount   = uint32_t(m_deviceExtensions.size()),
+        .queueCreateInfoCount    = static_cast<uint32_t>(QueueCreateInfos.size()),
+        .pQueueCreateInfos       = QueueCreateInfos.data(),
+        .enabledExtensionCount   = static_cast<uint32_t>(m_deviceExtensions.size()),
         .ppEnabledExtensionNames = m_deviceExtensions.data(),
     };
     VK_CHECK(vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device));
@@ -766,7 +862,9 @@ private:
     debugUtilInitialize(m_device);
 
     // Get the requested queues
-    vkGetDeviceQueue(m_device, m_queues[0].familyIndex, m_queues[0].queueIndex, &m_queues[0].queue);
+    vkGetDeviceQueue(m_device, m_queues[0].familyIndex, m_queues[0].queueIndex, &m_queues[0].queue);//graphics
+    vkGetDeviceQueue(m_device,m_queues[1].familyIndex, m_queues[1].queueIndex, &m_queues[1].queue);//loading
+    vkGetDeviceQueue(m_device,m_queues[2].familyIndex, m_queues[2].queueIndex, &m_queues[2].queue);//unloading
     DBG_VK_NAME(m_queues[0].queue);
 
     // Log the enabled extensions

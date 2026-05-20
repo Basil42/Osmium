@@ -234,9 +234,9 @@ TextureHandle OsmiumBindlessInstance::LoadTexture(const std::filesystem::path &p
 }
 
 TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
-    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
+    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_loadingTransientCmdPool);
     utils::ImageResource resource = loadAndCreateImage(cmd, filename);
-    utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool, m_context.getGraphicsQueue().queue);
+    utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_loadingTransientCmdPool, m_context.getLoadingQueue().queue);
     auto resourceIndex =  m_textures->Add(resource);
 
     VkSampler_T*const  sampler = m_samplerPool.acquireSampler({
@@ -331,7 +331,7 @@ MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename, const b
     }
 
     utils::MeshResource resource;
-    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
+    VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_loadingTransientCmdPool);
     resource.VertexBuffer = m_allocator.createBufferAndUploadData(cmd, std::span(vertices),
                                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -340,7 +340,7 @@ MeshHandle OsmiumBindlessInstance::LoadMesh(const std::string &filename, const b
                                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     resource.VertexCount = static_cast<uint32_t>(vertices.size());
     resource.IndexCount = static_cast<uint32_t>(indices.size());
-    utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool, m_context.getGraphicsQueue().queue);
+    utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_loadingTransientCmdPool, m_context.getLoadingQueue().queue);
 
     return m_meshes->Add(resource);
 }
@@ -417,8 +417,7 @@ bool OsmiumBindlessInstance::ShouldClose() {
 }
 
 void OsmiumBindlessInstance::init() {
-    m_context.init();
-
+    m_context.init(m_window, m_surface);
     m_allocator.init(VmaAllocatorCreateInfo{
         .physicalDevice = m_context.getPhysicalDevice(),
         .device = m_context.getDevice(),
@@ -428,14 +427,13 @@ void OsmiumBindlessInstance::init() {
 
     m_samplerPool.init(m_context.getDevice());
 
-    glfwCreateWindowSurface(m_context.getInstance(), m_window, nullptr, &m_surface);
     DBG_VK_NAME(m_surface);
 
 
-    createTransientCommandPool(); //for single time commands buffer like ressource loading
+    createTransientCommandPools(); //for single time commands buffer like ressource loading
 
     m_swapchain.init(m_context.getPhysicalDevice(), m_context.getDevice(), m_context.getGraphicsQueue(), m_surface,
-                     m_transientCmdPool);
+                     m_graphicsTransientCmdPool);
     m_windowSize = m_swapchain.initResources(m_vSync);
     //using the surface size as the window size (surface and window size could be different)
 
@@ -455,7 +453,7 @@ void OsmiumBindlessInstance::init() {
             .minFilter = VK_FILTER_LINEAR,
         };
         VkSampler_T*const linearSampler = m_samplerPool.acquireSampler(samplerInfo);
-        VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
+        VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_graphicsTransientCmdPool);
 
         const VkFormat depthFormat = utils::findDepthFormat(m_context.getPhysicalDevice());
 
@@ -469,8 +467,8 @@ void OsmiumBindlessInstance::init() {
         };
         if (m_imGuiEnabled)gBufferInitInfo.color.push_back(VK_FORMAT_R8G8B8A8_UNORM);
         m_gBuffer.init(cmd, gBufferInitInfo);
-        utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool,
-                                     m_context.getGraphicsQueue().queue);
+        utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_graphicsTransientCmdPool,
+                                     m_context.getGraphicsQueue().queue);//using the graphics queue here is fine, we're on startup
     } //light buffers should be able to reuse the class (with maybe some added parameters)
 
     createGraphicsDescriptorSet();
@@ -545,7 +543,9 @@ void OsmiumBindlessInstance::destroy() {
     vkDestroyPipelineLayout(device, m_DirectionalLightPipelineLayout, nullptr);
     vkDestroyPipelineLayout(device, m_ShadingPipelineLayout, nullptr);
 
-    vkDestroyCommandPool(device, m_transientCmdPool, nullptr);
+    vkDestroyCommandPool(device, m_graphicsTransientCmdPool, nullptr);
+    vkDestroyCommandPool(device, m_loadingTransientCmdPool,nullptr);
+    vkDestroyCommandPool(device, m_unloadingTransientCmdPool,nullptr);
     vkDestroySurfaceKHR(m_context.getInstance(), m_surface, nullptr);
 
     vkDestroyDescriptorSetLayout(device, m_TextureDescriptorSetLayout, nullptr);
@@ -572,14 +572,23 @@ void OsmiumBindlessInstance::destroy() {
     m_context.deinit();
 }
 
-void OsmiumBindlessInstance::createTransientCommandPool() {
-    const VkCommandPoolCreateInfo cmdPoolInfo = {
+void OsmiumBindlessInstance::createTransientCommandPools() {
+    VkCommandPoolCreateInfo cmdPoolInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
         .queueFamilyIndex = m_context.getGraphicsQueue().familyIndex,
     };
-    VK_CHECK(vkCreateCommandPool(m_context.getDevice(),&cmdPoolInfo,nullptr,&m_transientCmdPool));
-    DBG_VK_NAME(m_transientCmdPool);
+    VK_CHECK(vkCreateCommandPool(m_context.getDevice(),&cmdPoolInfo,nullptr,&m_graphicsTransientCmdPool));
+    DBG_VK_NAME(m_graphicsTransientCmdPool);
+
+    cmdPoolInfo.queueFamilyIndex = m_context.getLoadingQueue().familyIndex;
+    VK_CHECK(vkCreateCommandPool(m_context.getDevice(),&cmdPoolInfo,nullptr,&m_loadingTransientCmdPool));
+    DBG_VK_NAME(m_loadingTransientCmdPool);
+
+    cmdPoolInfo.queueFamilyIndex = m_context.getUnloadingQueue().familyIndex;
+    VK_CHECK(vkCreateCommandPool(m_context.getDevice(),&cmdPoolInfo,nullptr,&m_unloadingTransientCmdPool));//could probably share the pool with loading in most hardware
+    DBG_VK_NAME(m_unloadingTransientCmdPool);
+
 }
 
 void OsmiumBindlessInstance::createFrameSubmission(uint32_t NumFrames) {
@@ -761,9 +770,9 @@ void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
     m_viewportSize = size;
     m_CameraInfoStruct.projectionMatrix = glm::perspective(m_fov,static_cast<float>(m_viewportSize.width)/ static_cast<float>(m_viewportSize.height),m_zNear,m_zFar);
     vkQueueWaitIdle(m_context.getGraphicsQueue().queue); {
-        VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_transientCmdPool);
+        VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_graphicsTransientCmdPool);
         m_gBuffer.update(cmd, m_viewportSize);
-        utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_transientCmdPool,
+        utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_graphicsTransientCmdPool,
                                      m_context.getGraphicsQueue().queue);
     }
 }
@@ -2094,11 +2103,11 @@ void OsmiumBindlessInstance::createDefaultTextureImage() {
 
     std::array<uint8_t, 4> data{255u, 255u, 255u, 255u};
     const std::span dataSpan(data.data(), 4);
-    auto cmd = utils::beginSingleTimeCommands(m_context.getDevice(),m_transientCmdPool);
+    auto cmd = utils::beginSingleTimeCommands(m_context.getDevice(),m_graphicsTransientCmdPool);//using the graphics queue in this case to initilize, but I could use the loading in queue in theoru
 
     utils::ImageResource image = m_allocator.createImageAndUploadData(cmd, dataSpan, imageInfo,
                                                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_transientCmdPool,m_context.getGraphicsQueue().queue);
+    utils::endSingleTimeCommands(cmd,m_context.getDevice(),m_graphicsTransientCmdPool,m_context.getGraphicsQueue().queue);
     DBG_VK_NAME(image.image);
     image.extent = {.width=1, .height=1};
 
