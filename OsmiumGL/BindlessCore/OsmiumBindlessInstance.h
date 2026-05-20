@@ -181,7 +181,7 @@ private:
     //cmd pools for one time commands
     VkCommandPool m_graphicsTransientCmdPool{};
     VkCommandPool m_loadingTransientCmdPool{};
-    VkCommandPool m_unloadingTransientCmdPool{};//TODO: remove unloading queue, it seems allocator does all this for me
+    VkCommandPool m_unloadingTransientCmdPool{};//unused at the moment
     VkDescriptorPool m_descriptorPool{}; // Texture/shader descriptor pool
     VkDescriptorPool m_uiDescriptorPool{}; // Ui descriptor pool
     VkDescriptorSetLayout m_TextureDescriptorSetLayout{}; // Descriptor set layout for all textures (set 0)
