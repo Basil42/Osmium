@@ -30,7 +30,7 @@ void EditorGUI::Run() {
     OsmiumInstance->CreateNewGameObject(editorCameraInfo, [this](GameObject *go) {
         go->Addcomponent<GOC_Transform>();
         EditorCamera = go->Addcomponent<GOC_Camera>();
-
+        go->hiddenInEditor = true;
         OsmiumInstance->SetMainCamera(EditorCamera);
     });
     std::thread GUIThread = std::thread(&EditorGUI::RenderImGuiFrameTask, this);
