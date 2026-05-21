@@ -55,8 +55,6 @@ namespace  OsmiumGL {
 
     bool ShouldClose();
 
-    void UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity);
-
     void RenderedObjectsRenderUpdate(MeshHandle mesh,const std::span<RenderedObjectPushData>& renderedObjectsData);
 
     void PointLightsRenderUpdate(const std::span<PointLightPushConstants>& pointLightData);

@@ -31,11 +31,6 @@ void GOC_DirectionalLight::GORenderUpdate() {
     OsmiumGL::UpdateDirectionalLights(constants);
 }
 
-void GOC_DirectionalLight::RenderUpdate() {
-    GameObjectComponent::RenderUpdate();
-    OsmiumGL::UpdateDirectionalLight(Direction,Color,Intensity);
-}
-
 void GOC_DirectionalLight::SetValues(glm::vec3 direction, glm::vec3 color, float intensity) {
     Direction = glm::normalize(direction);
     Color = color;

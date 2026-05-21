@@ -23,6 +23,16 @@ void EditorGUI::Run() {
     m_hierarchyWindow = new HierarchyWindow(OsmiumInstance, selectedGameObject);
     m_inspectorWindow = new InspectorWindow(OsmiumInstance, selectedGameObject);
 
+    GameObjectCreateInfo editorCameraInfo{
+        .name = "Editor Camera",
+        .parent = 0
+    };
+    OsmiumInstance->CreateNewGameObject(editorCameraInfo, [this](GameObject *go) {
+        go->Addcomponent<GOC_Transform>();
+        EditorCamera = go->Addcomponent<GOC_Camera>();
+
+        OsmiumInstance->SetMainCamera(EditorCamera);
+    });
     std::thread GUIThread = std::thread(&EditorGUI::RenderImGuiFrameTask, this);
     OsmiumInstance->run();
 

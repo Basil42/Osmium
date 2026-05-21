@@ -71,10 +71,6 @@ bool OsmiumGL::ShouldClose() {
     return instance->ShouldClose();
 }
 
-void OsmiumGL::UpdateDirectionalLight(glm::vec3 direction, glm::vec3 color, float intensity) {//TODO swap with the push constant setup
-    //instance->UpdateDirectionalLightData(direction,color,intensity);
-}
-
 //TODO (future add option to do limited updates by passing an offset
 void OsmiumGL::RenderedObjectsRenderUpdate(MeshHandle mesh,const std::span<RenderedObjectPushData>& renderedObjectsData) {
     instance->UpdateRenderedObjects(mesh,renderedObjectsData);

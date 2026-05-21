@@ -71,8 +71,7 @@ void GameInstance::RenderDataUpdate() {
     //this is quite janky and annoying to extend
     mainCamera->RenderUpdate();
 
-    directionLight->RenderUpdate();
-
+    GOC_DirectionalLight::GORenderUpdate();
     GOC_MeshRenderer::GORenderUpdate();
     GOC_PointLight::GORenderUpdate();
     m_RenderUpdateFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_UPDATE);
