@@ -72,8 +72,8 @@ bool OsmiumGL::ShouldClose() {
 }
 
 //TODO (future add option to do limited updates by passing an offset
-void OsmiumGL::RenderedObjectsRenderUpdate(MeshHandle mesh,const std::span<RenderedObjectPushData>& renderedObjectsData) {
-    instance->UpdateRenderedObjects(mesh,renderedObjectsData);
+void OsmiumGL::RenderedObjectsRenderUpdate(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) {
+    instance->UpdateRenderedObjects(renderedObjects);
 }
 
 void OsmiumGL::PointLightsRenderUpdate(const std::span<PointLightPushConstants> &pointLightData) {

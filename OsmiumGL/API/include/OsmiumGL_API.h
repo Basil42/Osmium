@@ -7,11 +7,13 @@
 #include <vector>
 #include "VertexDescriptor.h"
 #include <filesystem>
+#include <map>
 #include <span>
 #include <glm/fwd.hpp>
 
 #include "imgui.h"
 #include "RenderedObjectData.h"
+#include "ResourceArray.h"
 #include "SpotLights.h"
 #include "SyncUtils.h"
 
@@ -55,7 +57,7 @@ namespace  OsmiumGL {
 
     bool ShouldClose();
 
-    void RenderedObjectsRenderUpdate(MeshHandle mesh,const std::span<RenderedObjectPushData>& renderedObjectsData);
+    void RenderedObjectsRenderUpdate(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects);
 
     void PointLightsRenderUpdate(const std::span<PointLightPushConstants>& pointLightData);
 

@@ -361,14 +361,8 @@ TextureHandle OsmiumBindlessInstance::GetDefaultTextureHandle() const {
 }
 
 //Unhappy about this update method as it's cost is constant but fairly high, maybe being able to send limited span would be better
-void OsmiumBindlessInstance::UpdateRenderedObjects(MeshHandle mesh, std::span<RenderedObjectPushData> span) {
-    auto& renderedObjectsTargetSpan = m_renderedObjectsPushConstants[mesh];
-    const size_t stagedSize = span.size();
-    if (const size_t currentSize = renderedObjectsTargetSpan.size();
-        currentSize != stagedSize) {
-        renderedObjectsTargetSpan.resize(stagedSize);
-    }
-    memcpy(renderedObjectsTargetSpan.data(), span.data(), stagedSize);
+void OsmiumBindlessInstance::UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) const{
+    m_renderedObjectsPushConstants = renderedObjects;
 }
 
 void OsmiumBindlessInstance::UpdatePointLights(const std::span<PointLightPushConstants> span) {
@@ -943,6 +937,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     //sample binds a buffer containing all vertices
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_NormalSpecPipeline);
+    unsigned int drawcount = 0;
     for (const auto& mesh: m_renderedObjectsPushConstants) {
         auto &meshResource = m_meshes->get(mesh.first);
         auto &pushDataCollection = mesh.second;
@@ -954,9 +949,10 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             vkCmdPushConstants2(cmd, &normalSpecPushConstantsInfo);
             //I feel like I should be able to push all the constant in one call and then do one draw call to get all the instances on that mesh
             vkCmdDrawIndexed(cmd, meshResource.IndexCount, 1, 0, 0, 0);
+            drawcount++;
         }
     }
-
+    assert(drawcount <= 1);
     {
         //normal spec to point light barrier, the depth parts are required for intel arc
         VkMemoryBarrier2 memBarrier{

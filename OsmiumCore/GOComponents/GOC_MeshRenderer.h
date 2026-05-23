@@ -9,6 +9,7 @@
 #include <optional>
 #include <glm/mat4x4.hpp>
 #include <array>
+#include <queue>
 
 #include "RenderedObjectData.h"
 #include "ResourceArray.h"
@@ -25,8 +26,15 @@ using TextureHandle = unsigned int;
 class GOC_MeshRenderer : public GameObjectComponent {
     GOC_Transform* transform;
     //Data for renderdata update
-    static std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>> MeshRendererPushConstantsStagingArrays;
-    RenderedObjectHandle m_renderedObjectHandle;
+    static uint8_t writeArrayIndex;
+    static std::array<std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>,2> MeshRendererPushConstantsStagingArrays;
+    enum RenderedObjectOperationType {
+        Add,
+        Modify,
+        Remove
+    };
+    static std::queue<std::tuple<RenderedObjectOperationType,MeshHandle, unsigned int, RenderedObjectPushData>> RenderedObjectsOperationQueue;
+    RenderedObjectHandle m_renderedObjectHandle{};
     bool registered = false;
     bool shouldUpdateRenderObject = false;
 
@@ -60,6 +68,7 @@ public:
     void SetSmoothnessMap(AssetId asset_id);
 
     static void GORenderUpdate();
+
 
     // GOC_MeshRenderer(GameObject* parent,
     //     MeshAsset* meshAsset,
