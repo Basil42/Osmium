@@ -32,7 +32,7 @@ using SpotLightHandle = unsigned int;
 
 class OsmiumBindlessInstance {
 public:
-    explicit OsmiumBindlessInstance(VkExtent2D size = {800, 600}, const char* appName = "Osmium", bool enableImGui = false);
+    explicit OsmiumBindlessInstance(std::map<MeshHandle, ResourceArray<RenderedObjectPushData,50>>& initialRenderedObjectCollection,VkExtent2D size = {800, 600}, const char* appName = "Osmium", bool enableImGui = false);
 
     ~OsmiumBindlessInstance();
 
@@ -151,6 +151,7 @@ private:
     std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;
     //These get memcopied to on render update
     std::map<MeshHandle, ResourceArray<RenderedObjectPushData,50>>& m_renderedObjectsPushConstants;
+    //I might want to use a ping pong setup for these too
     std::vector<PointLightPushConstants> m_pointLightPushConstants;
     std::vector<SpotLightPushConstants> m_spotLightPushConstants;
     std::vector<DirectionalLightPushConstants> m_directionalLightPushConstants;

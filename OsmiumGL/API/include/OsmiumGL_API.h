@@ -30,7 +30,7 @@ namespace xg {
 namespace  OsmiumGL {
 
 
-    void Init(const std::string &appName, bool ImGuiEnabled = false);
+    void Init(std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects,const std::string &appName, bool ImGuiEnabled = false);
     void Shutdown();
 
     void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
@@ -57,7 +57,7 @@ namespace  OsmiumGL {
 
     bool ShouldClose();
 
-    void RenderedObjectsRenderUpdate(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects);
+    void RenderedObjectsRenderUpdate(std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects);
 
     void PointLightsRenderUpdate(const std::span<PointLightPushConstants>& pointLightData);
 

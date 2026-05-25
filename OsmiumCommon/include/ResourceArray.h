@@ -5,6 +5,7 @@
 #ifndef RESOURCEARRAY_H
 #define RESOURCEARRAY_H
 #include <array>
+#include <cassert>
 #include <iostream>
 #include <ostream>
 #include <stdexcept>
@@ -18,6 +19,7 @@ class  ResourceArray {
   std::vector<T> resourceVector;
   unsigned int nextHandle = 0;//handle to be used for the next assignement, loops around to look for unused handles when reaching the maximum handle
   public:
+  bool readonly = false;
   ResourceArray();
   void Reserve(size_t newCapacity);
   unsigned int Add(T resource);
@@ -80,6 +82,7 @@ void ResourceArray<T, MAX_Capacity>::Reserve(size_t newCapacity) {
 
 template<typename T, size_t MAX_Capacity>
 unsigned int ResourceArray<T, MAX_Capacity>::Add(T resource) {
+  assert(!readonly);
   if (resourceVector.size() == MAX_Capacity) [[unlikely]] {
     throw std::out_of_range("Resource array resource capacity exceeded");
   }
@@ -126,7 +129,7 @@ bool ResourceArray<T, MAX_Capacity>::contains(unsigned int handle) const{
 template<typename T, size_t MAX_Capacity>
 T& ResourceArray<T, MAX_Capacity>::get(unsigned int handle) {
   if (backingArray[handle] >= MAX_Capacity) [[unlikely]] {
-    std::cout << "Attempted to get a non valid resource,it might have been unloaded or the handle might be invalid" << std::endl;
+    std::cerr << "Attempted to get a non valid resource,it might have been unloaded or the handle might be invalid" << std::endl;
     return get(Add(T()));
   }
   return resourceVector[backingArray[handle]];

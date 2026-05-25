@@ -81,7 +81,8 @@ void GameInstance::RenderDataUpdate() {
 GameInstance::GameInstance(const std::string &appName)
     {
     GameObjects = new ResourceArray<GameObject,MAX_GAMEOBJECTS>();
-    OsmiumGL::Init(appName,true);//no direct dependecies , the syncing is done at the engine level
+
+    OsmiumGL::Init(GOC_MeshRenderer::GetRenderedObjetWriteArray(),appName,true);//no direct dependecies , the syncing is done at the engine level
 
     AssetManager::LoadAssetDatabase();
 }

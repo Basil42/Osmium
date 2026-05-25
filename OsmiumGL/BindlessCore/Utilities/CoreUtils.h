@@ -685,7 +685,7 @@ private:
   void initLogicalDevice(VkSurfaceKHR& surface)
   {
     constexpr float graphicsQueuePriority = 1.0F;
-    constexpr float transferQueuePriority = 0.7F;
+    constexpr std::array<float,2> transferQueuePriorities = {0.7F,0.7F};//2 is the maximum amount of transfer queue we might get from the same family
     m_queues.clear();
     m_queues.resize(3);
     //inlining a method to find required queues, as they need to be found before creating the logical device anyway
@@ -783,7 +783,7 @@ private:
           .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
           .queueFamilyIndex = i,
           .queueCount = assignedQueues[i],
-          .pQueuePriorities = (queueFamilies[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? &graphicsQueuePriority : &transferQueuePriority,};
+          .pQueuePriorities = (queueFamilies[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? &graphicsQueuePriority : &transferQueuePriorities[0],};
         QueueCreateInfos.push_back(queueCreateInfo);
       }
 

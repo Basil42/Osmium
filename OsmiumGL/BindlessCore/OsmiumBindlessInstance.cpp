@@ -97,9 +97,10 @@ throw std::runtime_error(message);                                              
 #include "Utilities/CoreUtils.h"
 
 
-OsmiumBindlessInstance::OsmiumBindlessInstance(const VkExtent2D size, const char *appName, const bool enableImGui) : // NOLINT(*-pro-type-member-init)
+OsmiumBindlessInstance::OsmiumBindlessInstance(std::map<MeshHandle, ResourceArray<RenderedObjectPushData,50>>& initialRenderedObjectCollection, const VkExtent2D size, const char *appName, const bool enableImGui) : // NOLINT(*-pro-type-member-init)
     m_windowSize(size) ,
-    m_imGuiEnabled(enableImGui)//external sync spans can be empty
+    m_imGuiEnabled(enableImGui),
+    m_renderedObjectsPushConstants(initialRenderedObjectCollection)
     {
 
     ASSERT(glfwInit(), "Failed to initialize GLFW");
@@ -361,7 +362,7 @@ TextureHandle OsmiumBindlessInstance::GetDefaultTextureHandle() const {
 }
 
 //Unhappy about this update method as it's cost is constant but fairly high, maybe being able to send limited span would be better
-void OsmiumBindlessInstance::UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) const{
+void OsmiumBindlessInstance::UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) const {//strange that this a legal const function
     m_renderedObjectsPushConstants = renderedObjects;
 }
 
@@ -952,7 +953,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             drawcount++;
         }
     }
-    assert(drawcount <= 1);
+    ASSERT(drawcount <= 1, "leaking rendered objects");
     {
         //normal spec to point light barrier, the depth parts are required for intel arc
         VkMemoryBarrier2 memBarrier{

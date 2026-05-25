@@ -68,7 +68,7 @@ public:
     void SetSmoothnessMap(AssetId asset_id);
 
     static void GORenderUpdate();
-
+    static std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& GetRenderedObjetWriteArray();
 
     // GOC_MeshRenderer(GameObject* parent,
     //     MeshAsset* meshAsset,

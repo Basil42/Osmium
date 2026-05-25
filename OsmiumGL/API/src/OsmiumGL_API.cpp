@@ -13,8 +13,8 @@
 
 std::unique_ptr<OsmiumBindlessInstance> instance;
 
-void OsmiumGL::Init(const std::string &appName,bool ImguiEnabled) {
-    instance = std::make_unique<OsmiumBindlessInstance>(VkExtent2D(800,600), appName.c_str(), ImguiEnabled);
+void OsmiumGL::Init(std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects,const std::string &appName,bool ImguiEnabled) {
+    instance = std::make_unique<OsmiumBindlessInstance>(renderedObjects, VkExtent2D(800,600), appName.c_str(), ImguiEnabled);
 
 }
 
@@ -72,7 +72,7 @@ bool OsmiumGL::ShouldClose() {
 }
 
 //TODO (future add option to do limited updates by passing an offset
-void OsmiumGL::RenderedObjectsRenderUpdate(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) {
+void OsmiumGL::RenderedObjectsRenderUpdate(std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) {
     instance->UpdateRenderedObjects(renderedObjects);
 }
 

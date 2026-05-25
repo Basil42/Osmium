@@ -64,6 +64,7 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, Te
     transform = parent->GetComponent<GOC_Transform>();
     if (!transform)transform = parent->Addcomponent<GOC_Transform>();
     m_renderedObjectHandle.mesh = meshHandle;
+    registered = true;
 }
 
 GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(parent) {
@@ -81,6 +82,7 @@ GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(pare
             .specularMapIndex = defautlTextureHandle,
         }
     });
+    RenderedObjectsOperationQueue.emplace(Add,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);
     registered = true;
 }
 
@@ -104,17 +106,25 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
 
     std::cout << "callback test" << std::endl;
     auto meshAsset = dynamic_cast<MeshAsset*>(asset);//should be garanteed to be valid here
-    auto newMeshHandle = meshAsset->GetMeshHandle();
+    MeshHandle newMeshHandle = meshAsset->GetMeshHandle();
 
     if (registered) {
-        MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle].Add(MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);//moving existing push data under another mesh's collection
+        auto newIndex = MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle].Add(MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);//moving existing push data under another mesh's collection
+        RenderedObjectsOperationQueue.emplace(Add,newMeshHandle,newIndex,MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle][m_renderedObjectHandle.index]);
         MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].Remove(m_renderedObjectHandle.index);
+        if (MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].GetCount() == 0)MeshRendererPushConstantsStagingArrays[writeArrayIndex].erase(m_renderedObjectHandle.mesh);
+        RenderedObjectsOperationQueue.emplace(Remove,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,RenderedObjectPushData());
         if (MeshAssetHandle.has_value())AssetManager::UnloadAsset(MeshAssetHandle.value(),false);//might be overly agressive to do here
+        m_renderedObjectHandle = {
+            .mesh = newMeshHandle,
+            .index = newIndex
+        };
+        assert(MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle].GetCount() < 2);
     }else {
         const auto smoothnessMapHandle = (smoothnessMapAssetHandle.has_value() ? dynamic_cast<TextureAsset*>(AssetManager::GetAsset(smoothnessMapAssetHandle.value()))->GetTextureHandle() : OsmiumGL::GetDefaultTextureHandle());
         const auto albedoMapHandle = (albedoMapAssetHandle.has_value() ? dynamic_cast<TextureAsset*>(AssetManager::GetAsset(albedoMapAssetHandle.value()))->GetTextureHandle() : OsmiumGL::GetDefaultTextureHandle());
         const auto specularMapHandle = (specularMapAssetHandle.has_value() ? dynamic_cast<TextureAsset*>(AssetManager::GetAsset(specularMapAssetHandle.value()))->GetTextureHandle() : OsmiumGL::GetDefaultTextureHandle());
-        MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle].Add({
+        m_renderedObjectHandle.index = MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle].Add({
             .model = transform->getTransformMatrix(),
             .normalSpecPushData {
                 .SmoothnessMapIndex = smoothnessMapHandle
@@ -124,6 +134,8 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
                 .specularMapIndex = specularMapHandle,
             }
         });
+        m_renderedObjectHandle.mesh = newMeshHandle;
+        RenderedObjectsOperationQueue.emplace(Add,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle][m_renderedObjectHandle.index]);
     }
 
     MeshAssetHandle.reset();
@@ -146,6 +158,7 @@ void GOC_MeshRenderer::SetAlbedoMap(AssetId asset_id) {
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
         MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index].shadingData.albedoMapIndex = handle;
+        //TODO update operation queueing
         albedoMapAssetHandle = asset->id;
         std::cout << "marked object for renderer upate" << std::endl;
     });
@@ -159,6 +172,8 @@ void GOC_MeshRenderer::SetSpecularMap(AssetId asset_id) {
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
         MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index].shadingData.specularMapIndex = handle;
+        //TODO update operation queueing
+
         specularMapAssetHandle = asset->id;
     });
 }
@@ -177,9 +192,16 @@ void GOC_MeshRenderer::SetSmoothnessMap(AssetId asset_id) {
 
 void GOC_MeshRenderer::GORenderUpdate() {
     //send previous write collection to GL
+    assert(MeshRendererPushConstantsStagingArrays[writeArrayIndex][0].GetCount() < 2);
+    for (auto& array : MeshRendererPushConstantsStagingArrays[writeArrayIndex]) {
+        array.second.readonly = true;
+    }
     OsmiumGL::RenderedObjectsRenderUpdate(MeshRendererPushConstantsStagingArrays[writeArrayIndex]);
     //make previous read collection the write one
     writeArrayIndex = (writeArrayIndex +1) % 2;
+    for (auto& array : MeshRendererPushConstantsStagingArrays[writeArrayIndex]) {
+        array.second.readonly = false;
+    }
     //write queued operation to new write collection, at this point both collection should be perfectly identical
     while (!RenderedObjectsOperationQueue.empty()) {
         std::tuple<RenderedObjectOperationType, MeshHandle,unsigned int, RenderedObjectPushData> operation =
@@ -197,8 +219,15 @@ void GOC_MeshRenderer::GORenderUpdate() {
                     MeshRendererPushConstantsStagingArrays[writeArrayIndex].erase(std::get<1>(operation));
                 break;
         }
-
+        RenderedObjectsOperationQueue.pop();
     }
 
+    for (int i = 0 ; i< MeshRendererPushConstantsStagingArrays[writeArrayIndex].size(); i++) {
+        assert(MeshRendererPushConstantsStagingArrays[writeArrayIndex][i].GetCount() == MeshRendererPushConstantsStagingArrays[(writeArrayIndex +1) % 2 ][i].GetCount());//mismatched collection
+    }
+}
+
+std::map<MeshHandle, ResourceArray<RenderedObjectPushData, 50>>& GOC_MeshRenderer::GetRenderedObjetWriteArray() {
+    return MeshRendererPushConstantsStagingArrays[writeArrayIndex];
 }
 
