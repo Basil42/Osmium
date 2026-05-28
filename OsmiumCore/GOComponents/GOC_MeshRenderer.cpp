@@ -26,8 +26,6 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
         std::cout << "tried to assign a non mesh asset as mesh to a GOC_MeshRenderer" << std::endl;
         return;
     }
-
-    std::cout << "callback test" << std::endl;
     auto meshAsset = dynamic_cast<MeshAsset*>(asset);//should be garanteed to be valid here
     MeshHandle newMeshHandle = meshAsset->GetMeshHandle();
 
