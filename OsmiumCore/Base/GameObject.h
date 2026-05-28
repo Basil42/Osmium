@@ -46,7 +46,7 @@ public:
     }
     template<typename T,
        typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent,T>>>
-    T* Addcomponent(){//that might be safe to call mid sim, the map elements are memory stable
+    T* Addcomponent(){//this is only safe to call during simulation
         T* component = new T(this);
         auto it = components.emplace(std::type_index(typeid(T)),component);
         return component;
