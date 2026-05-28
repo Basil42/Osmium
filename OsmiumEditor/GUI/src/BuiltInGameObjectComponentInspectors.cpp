@@ -11,7 +11,6 @@
 #ifndef BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #define BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #include <imgui.h>
-#include <filesystem>
 #include "ComponentInspector.h"
 #include "GOComponents/GOC_Transform.h"
 

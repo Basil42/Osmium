@@ -7,6 +7,8 @@
 
 #include <typeindex>
 #include <map>
+
+#include "Base/GameInstance.h"
 #include "Base/GameObjectComponent.h"
 #include "Base/GameObject.h"
 
@@ -17,8 +19,8 @@ namespace GUI{
         static std::map<std::type_index, InspectorFunction> inspectors;
         return inspectors;
     }
-    inline std::map<std::string, void(*)(GameObject*)>& GetComponentAddList() {
-        static std::map<std::string, void(*)(GameObject*)> entries;
+    inline std::map<std::string, void(*)(GameObject*,GameInstance*)>& GetComponentAddList() {
+        static std::map<std::string, void(*)(GameObject*,GameInstance*)> entries;
         return entries;
     }
 
@@ -27,8 +29,10 @@ namespace GUI{
         ImGui::Text("Component");
     }
     template<typename T, typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent, T>>>
-    void AddGameObjectComponentMenuAction(GameObject* go) {
-        go->Addcomponent<T>();
+    void AddGameObjectComponentMenuAction(GameObject* go,GameInstance* gameInstance) {
+        gameInstance->AddGameObjectOperation(go,[](GameObject* objectptr) {
+            objectptr->Addcomponent<T>();
+        });
     }
 
     template<typename T, typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent, T>>>

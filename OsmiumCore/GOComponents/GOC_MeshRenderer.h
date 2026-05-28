@@ -33,7 +33,13 @@ class GOC_MeshRenderer : public GameObjectComponent {
         Modify,
         Remove
     };
-    static std::queue<std::tuple<RenderedObjectOperationType,MeshHandle, unsigned int, RenderedObjectPushData>> RenderedObjectsOperationQueue;
+    struct Operation {
+        RenderedObjectOperationType operation;
+        MeshHandle mesh;
+        unsigned int index;
+        RenderedObjectPushData pushData;
+    };
+    static std::queue<Operation> RenderedObjectsOperationQueue;
     RenderedObjectHandle m_renderedObjectHandle{};
     bool registered = false;
     bool shouldUpdateRenderObject = false;

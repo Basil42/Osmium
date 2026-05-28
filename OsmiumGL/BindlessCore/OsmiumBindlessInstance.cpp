@@ -100,7 +100,7 @@ throw std::runtime_error(message);                                              
 OsmiumBindlessInstance::OsmiumBindlessInstance(std::map<MeshHandle, ResourceArray<RenderedObjectPushData,50>>& initialRenderedObjectCollection, const VkExtent2D size, const char *appName, const bool enableImGui) : // NOLINT(*-pro-type-member-init)
     m_windowSize(size) ,
     m_imGuiEnabled(enableImGui),
-    m_renderedObjectsPushConstants(initialRenderedObjectCollection)
+    m_renderedObjectsPushConstants(&initialRenderedObjectCollection)
     {
 
     ASSERT(glfwInit(), "Failed to initialize GLFW");
@@ -362,8 +362,8 @@ TextureHandle OsmiumBindlessInstance::GetDefaultTextureHandle() const {
 }
 
 //Unhappy about this update method as it's cost is constant but fairly high, maybe being able to send limited span would be better
-void OsmiumBindlessInstance::UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) const {//strange that this a legal const function
-    m_renderedObjectsPushConstants = renderedObjects;
+void OsmiumBindlessInstance::UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) {//strange that this a legal const function
+    m_renderedObjectsPushConstants = &renderedObjects;
 }
 
 void OsmiumBindlessInstance::UpdatePointLights(const std::span<PointLightPushConstants> span) {
@@ -939,7 +939,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_NormalSpecPipeline);
     unsigned int drawcount = 0;
-    for (const auto& mesh: m_renderedObjectsPushConstants) {
+    for (const auto& mesh: *m_renderedObjectsPushConstants) {
         auto &meshResource = m_meshes->get(mesh.first);
         auto &pushDataCollection = mesh.second;
         vkCmdBindVertexBuffers(cmd, 0, 1, &meshResource.VertexBuffer.buffer, offsets.data());
@@ -1262,7 +1262,7 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
 
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ShadingPipeline);
-        for (const auto& mesh : m_renderedObjectsPushConstants) {
+        for (const auto& mesh : *m_renderedObjectsPushConstants) {
             auto &meshResource = m_meshes->get(mesh.first);
             auto &pushDataCollection = mesh.second;
             vkCmdBindVertexBuffers(cmd,0,1,&meshResource.VertexBuffer.buffer, offsets.data());

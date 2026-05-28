@@ -56,6 +56,14 @@ void GameInstance::GameTick() {
             gameObjectsDestructionQueue.pop();
             GameObjects->Remove(obj);//This should be the only call to remove on this container
         }
+            std::unique_lock lock {GOOperationQueueMutex,std::defer_lock};
+        while (!gameobjectsThreadsafeOperationQueue.empty()) {
+            lock.lock();
+            auto operation = gameobjectsThreadsafeOperationQueue.front();
+            gameobjectsThreadsafeOperationQueue.pop();
+            lock.unlock();
+            operation.second(operation.first);
+        }
         //notify consumers
 
         m_TickFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_TICK);
@@ -91,17 +99,23 @@ GameInstance::GameInstance(const std::string &appName)
  **/
 void GameInstance::CreateNewGameObject(GameObjectCreateInfo& createStruct, const std::function<void(GameObject*)>& callback) {//The function pointer is potentially dangerous if used from game objects
 
-    std::unique_lock lock{creationQueueMutex};//should be enough for this
+    std::unique_lock lock{GOcreationQueueMutex};//should be enough for this
     gameObjectsCreationQueue.emplace(createStruct,callback);
 }
 
 void GameInstance::DestroyGameObject(GameObject *gameObject) {
-    std::unique_lock lock {destructionQueueMutex};
+    std::unique_lock lock {GOdestructionQueueMutex};
     gameObjectsDestructionQueue.emplace(gameObject->Handle);
 }
 
+
 ResourceArray<GameObject, 2000> & GameInstance::GetGameObjects() const {
     return *GameObjects;
+}
+
+void GameInstance::AddGameObjectOperation(GameObject *gameObject, const std::function<void(GameObject *)> &operation) {
+    std::unique_lock lock {GOOperationQueueMutex};
+    gameobjectsThreadsafeOperationQueue.emplace(gameObject,operation);
 }
 
 

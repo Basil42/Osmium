@@ -33,14 +33,18 @@ class GameInstance {
     uint64_t m_TickFrameCounter=0;
     uint64_t m_RenderUpdateFrameCounter=0;
     ResourceArray<GameObject,MAX_GAMEOBJECTS>*GameObjects = nullptr;
-    std::mutex creationQueueMutex;
+    std::mutex GOcreationQueueMutex;
     std::queue<std::pair<GameObjectCreateInfo,std::function<void(GameObject*)>>> gameObjectsCreationQueue;
-    std::condition_variable creationQueueConditionVariable;
-    std::mutex destructionQueueMutex;
+    // std::condition_variable GOcreationQueueConditionVariable;
+    std::mutex GOdestructionQueueMutex;
     std::queue<GameObjectHandle> gameObjectsDestructionQueue;
-    std::condition_variable destructionQueueConditionVariable;
+    // std::condition_variable GOdestructionQueueConditionVariable;
     GOC_Camera* mainCamera = nullptr;//stable for game objects, should probably use some kind of handle though
     GOC_DirectionalLight * directionLight = nullptr;
+
+    std::mutex GOOperationQueueMutex;
+    // std::condition_variable GOOperationQueueConditionVariable;
+    std::queue<std::pair<GameObject*,std::function<void(GameObject*)>>> gameobjectsThreadsafeOperationQueue;//used to queue function from outside the sim in the thread safe fashion
 
     static void LoadingRoutine();
 
@@ -55,6 +59,8 @@ public:
     void CreateNewGameObject(GameObjectCreateInfo &createStruct, const std::function<void(GameObject *)>& callback = nullptr);//The object itself will be available next simulation tick
     void DestroyGameObject(GameObject * gameObject);
     [[nodiscard]] ResourceArray<GameObject,MAX_GAMEOBJECTS>& GetGameObjects() const;
+
+    void AddGameObjectOperation(GameObject* gameObject, const std::function<void(GameObject*)>& operation);//used to do run game object related logic from non sim thread (like the editor)
 
     void run();
 

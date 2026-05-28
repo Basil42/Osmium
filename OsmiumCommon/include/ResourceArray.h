@@ -19,7 +19,6 @@ class  ResourceArray {
   std::vector<T> resourceVector;
   unsigned int nextHandle = 0;//handle to be used for the next assignement, loops around to look for unused handles when reaching the maximum handle
   public:
-  bool readonly = false;
   ResourceArray();
   void Reserve(size_t newCapacity);
   unsigned int Add(T resource);
@@ -82,7 +81,6 @@ void ResourceArray<T, MAX_Capacity>::Reserve(size_t newCapacity) {
 
 template<typename T, size_t MAX_Capacity>
 unsigned int ResourceArray<T, MAX_Capacity>::Add(T resource) {
-  assert(!readonly);
   if (resourceVector.size() == MAX_Capacity) [[unlikely]] {
     throw std::out_of_range("Resource array resource capacity exceeded");
   }

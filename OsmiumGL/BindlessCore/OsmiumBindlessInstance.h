@@ -62,7 +62,7 @@ public:
     TextureHandle GetDefaultTextureHandle() const;
 
 
-    void UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects) const;
+    void UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects);
     void UpdatePointLights(std::span<PointLightPushConstants> span);
 
     //None of these are necessary and I could jut update all of them througha  big memcpy, I can always do something more granular later
@@ -150,7 +150,7 @@ private:
 
     std::unique_ptr<ResourceArray<utils::MeshResource,255>> m_meshes;
     //These get memcopied to on render update
-    std::map<MeshHandle, ResourceArray<RenderedObjectPushData,50>>& m_renderedObjectsPushConstants;
+    std::map<MeshHandle, ResourceArray<RenderedObjectPushData,50>>const *   m_renderedObjectsPushConstants;
     //I might want to use a ping pong setup for these too
     std::vector<PointLightPushConstants> m_pointLightPushConstants;
     std::vector<SpotLightPushConstants> m_spotLightPushConstants;

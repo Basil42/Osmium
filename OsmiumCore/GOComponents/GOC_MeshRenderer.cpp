@@ -3,12 +3,10 @@
 //
 
 #include "GOC_MeshRenderer.h"
-#include "GOC_MeshRenderer.h"
 
 #include <iostream>
 
 #include "OsmiumGL_API.h"
-#include "../../OsmiumGL/Core/include/config.h"
 #include "../AssetManagement/Asset.h"
 #include "../AssetManagement/AssetType/MeshAsset.h"
 #include "../Base/GameObject.h"
@@ -19,83 +17,8 @@
 #include "AssetManagement/AssetType/TextureAsset.h"
 
 uint8_t GOC_MeshRenderer::writeArrayIndex = 0;
-std::array<std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>,2> GOC_MeshRenderer::MeshRendererPushConstantsStagingArrays;
-std::queue<std::tuple<GOC_MeshRenderer::RenderedObjectOperationType, MeshHandle,unsigned int, RenderedObjectPushData>> GOC_MeshRenderer::RenderedObjectsOperationQueue{};
-
-void GOC_MeshRenderer::Update() {
-    //can update everything during the render data update
-}
-
-auto GOC_MeshRenderer::GetMeshHandle() const -> MeshHandle {
-    return m_renderedObjectHandle.mesh;
-}
-
-auto GOC_MeshRenderer::GetMeshAssetHandle() const -> std::optional<AssetId> {
-    return MeshAssetHandle;
-}
-
-auto GOC_MeshRenderer::GetAlbedoMapAssetHandle() const -> std::optional<AssetId> {
-    return albedoMapAssetHandle;
-}
-
-auto GOC_MeshRenderer::GetSpecularMapAssetHandle() const -> std::optional<AssetId> {
-    return specularMapAssetHandle;
-}
-
-auto GOC_MeshRenderer::GetSmoothnessMapAssetHandle() const -> std::optional<AssetId> {
-    return smoothnessMapAssetHandle;
-}
-
-
-GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, TextureHandle AlbedoTextureHandle, TextureHandle SmoothnessMapHandle, TextureHandle specularMapHandle): GameObjectComponent(parent) {
-    auto& stagingPushDataArray = MeshRendererPushConstantsStagingArrays[writeArrayIndex][meshHandle];
-    m_renderedObjectHandle.index = stagingPushDataArray.Add(
-        {
-            .model = glm::mat4(1.0f),
-            .normalSpecPushData = {
-                .SmoothnessMapIndex = SmoothnessMapHandle
-            },
-            .shadingData = {
-                .albedoMapIndex = AlbedoTextureHandle,
-                .specularMapIndex = specularMapHandle //might want to package this info in the smoothnessmap
-            },
-        });
-    RenderedObjectsOperationQueue.emplace(Add,meshHandle,m_renderedObjectHandle.index,stagingPushDataArray[m_renderedObjectHandle.index]);
-    transform = parent->GetComponent<GOC_Transform>();
-    if (!transform)transform = parent->Addcomponent<GOC_Transform>();
-    m_renderedObjectHandle.mesh = meshHandle;
-    registered = true;
-}
-
-GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(parent) {
-    transform = parent->GetComponent<GOC_Transform>();
-    assert(transform);
-    m_renderedObjectHandle.mesh = OsmiumGL::GetDefaultSphereMeshHandle();
-    auto defautlTextureHandle = OsmiumGL::GetDefaultTextureHandle();
-    m_renderedObjectHandle.index = MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].Add({
-        .model = transform->getTransformMatrix(),
-        .normalSpecPushData{
-            .SmoothnessMapIndex = defautlTextureHandle,
-        },
-        .shadingData{
-            .albedoMapIndex = defautlTextureHandle,
-            .specularMapIndex = defautlTextureHandle,
-        }
-    });
-    RenderedObjectsOperationQueue.emplace(Add,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);
-    registered = true;
-}
-
-GOC_MeshRenderer::~GOC_MeshRenderer() {
-    if (registered) {
-        MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].Remove(m_renderedObjectHandle.index);
-        registered = false;
-    }
-    if (MeshAssetHandle.has_value()) AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
-    if (albedoMapAssetHandle.has_value())AssetManager::UnloadAsset(albedoMapAssetHandle.value(),false);
-    if (specularMapAssetHandle.has_value())AssetManager::UnloadAsset(specularMapAssetHandle.value(),false);
-
-}
+std::array<std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>,2> GOC_MeshRenderer::MeshRendererPushConstantsStagingArrays{};
+std::queue<GOC_MeshRenderer::Operation> GOC_MeshRenderer::RenderedObjectsOperationQueue;
 
 void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
 
@@ -110,9 +33,11 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
 
     if (registered) {
         auto newIndex = MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle].Add(MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);//moving existing push data under another mesh's collection
-        RenderedObjectsOperationQueue.emplace(Add,newMeshHandle,newIndex,MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle][m_renderedObjectHandle.index]);
+        RenderedObjectsOperationQueue.emplace(Add,newMeshHandle,newIndex,MeshRendererPushConstantsStagingArrays[writeArrayIndex][newMeshHandle][newIndex]);
         MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].Remove(m_renderedObjectHandle.index);
-        if (MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].GetCount() == 0)MeshRendererPushConstantsStagingArrays[writeArrayIndex].erase(m_renderedObjectHandle.mesh);
+        if (MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].GetCount() == 0) {
+            MeshRendererPushConstantsStagingArrays[writeArrayIndex].erase(m_renderedObjectHandle.mesh);
+        }
         RenderedObjectsOperationQueue.emplace(Remove,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,RenderedObjectPushData());
         if (MeshAssetHandle.has_value())AssetManager::UnloadAsset(MeshAssetHandle.value(),false);//might be overly agressive to do here
         m_renderedObjectHandle = {
@@ -140,6 +65,31 @@ void GOC_MeshRenderer::OnMeshLoaded(Asset *asset) {
 
     MeshAssetHandle.reset();
     MeshAssetHandle = meshAsset->id;
+}
+
+void GOC_MeshRenderer::Update() {
+    //can update everything during the render data update
+}
+
+auto GOC_MeshRenderer::GetMeshHandle() const -> MeshHandle {
+    return m_renderedObjectHandle.mesh;
+}
+
+auto GOC_MeshRenderer::GetMeshAssetHandle() const -> std::optional<AssetId> {
+    return MeshAssetHandle;
+}
+
+auto GOC_MeshRenderer::GetAlbedoMapAssetHandle() const -> std::optional<AssetId> {
+    return albedoMapAssetHandle;
+}
+
+auto GOC_MeshRenderer::GetSpecularMapAssetHandle() const -> std::optional<AssetId> {
+    return specularMapAssetHandle;
+}
+
+
+auto GOC_MeshRenderer::GetSmoothnessMapAssetHandle() const -> std::optional<AssetId> {
+    return smoothnessMapAssetHandle;
 }
 
 void GOC_MeshRenderer::SetMeshAsset(AssetId asset_id) {
@@ -192,42 +142,89 @@ void GOC_MeshRenderer::SetSmoothnessMap(AssetId asset_id) {
 
 void GOC_MeshRenderer::GORenderUpdate() {
     //send previous write collection to GL
-    assert(MeshRendererPushConstantsStagingArrays[writeArrayIndex][0].GetCount() < 2);
-    for (auto& array : MeshRendererPushConstantsStagingArrays[writeArrayIndex]) {
-        array.second.readonly = true;
-    }
     OsmiumGL::RenderedObjectsRenderUpdate(MeshRendererPushConstantsStagingArrays[writeArrayIndex]);
     //make previous read collection the write one
     writeArrayIndex = (writeArrayIndex +1) % 2;
-    for (auto& array : MeshRendererPushConstantsStagingArrays[writeArrayIndex]) {
-        array.second.readonly = false;
-    }
     //write queued operation to new write collection, at this point both collection should be perfectly identical
     while (!RenderedObjectsOperationQueue.empty()) {
-        std::tuple<RenderedObjectOperationType, MeshHandle,unsigned int, RenderedObjectPushData> operation =
+        Operation operation =
                 RenderedObjectsOperationQueue.front();
-        switch (std::get<RenderedObjectOperationType>(operation)) {
+        switch (operation.operation) {
             case Add:
-                MeshRendererPushConstantsStagingArrays[writeArrayIndex][std::get<1>(operation)].Add(std::get<RenderedObjectPushData>(operation));
+                if (MeshRendererPushConstantsStagingArrays[writeArrayIndex][operation.mesh].GetCount() > 0) {
+                    assert(MeshRendererPushConstantsStagingArrays[0][operation.mesh].data() != MeshRendererPushConstantsStagingArrays[1][operation.mesh].data());
+                }
+                MeshRendererPushConstantsStagingArrays[writeArrayIndex][operation.mesh].Add(operation.pushData);
                 break;
             case Modify:
-                MeshRendererPushConstantsStagingArrays[writeArrayIndex][std::get<1>(operation)][std::get<2>(operation)] = std::get<RenderedObjectPushData>(operation);
+                MeshRendererPushConstantsStagingArrays[writeArrayIndex][operation.mesh][operation.index] = operation.pushData;
                 break;
             case Remove:
-                MeshRendererPushConstantsStagingArrays[writeArrayIndex][std::get<1>(operation)].Remove(std::get<2>(operation));
-                if (MeshRendererPushConstantsStagingArrays[writeArrayIndex][std::get<1>(operation)].GetCount() == 0)
-                    MeshRendererPushConstantsStagingArrays[writeArrayIndex].erase(std::get<1>(operation));
+                MeshRendererPushConstantsStagingArrays[writeArrayIndex][operation.mesh].Remove(operation.index);
+                if (MeshRendererPushConstantsStagingArrays[writeArrayIndex][operation.mesh].GetCount() == 0)
+                    MeshRendererPushConstantsStagingArrays[writeArrayIndex].erase(operation.mesh);
                 break;
         }
         RenderedObjectsOperationQueue.pop();
     }
-
-    for (int i = 0 ; i< MeshRendererPushConstantsStagingArrays[writeArrayIndex].size(); i++) {
+    for (int i = 0 ; i< MeshRendererPushConstantsStagingArrays[writeArrayIndex].size(); i++) {//This will populate indice 1 when loading the first mesh from the engine
         assert(MeshRendererPushConstantsStagingArrays[writeArrayIndex][i].GetCount() == MeshRendererPushConstantsStagingArrays[(writeArrayIndex +1) % 2 ][i].GetCount());//mismatched collection
     }
 }
 
 std::map<MeshHandle, ResourceArray<RenderedObjectPushData, 50>>& GOC_MeshRenderer::GetRenderedObjetWriteArray() {
     return MeshRendererPushConstantsStagingArrays[writeArrayIndex];
+}
+
+GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent, MeshHandle meshHandle, TextureHandle AlbedoTextureHandle, TextureHandle SmoothnessMapHandle, TextureHandle specularMapHandle): GameObjectComponent(parent) {
+    auto& stagingPushDataArray = MeshRendererPushConstantsStagingArrays[writeArrayIndex][meshHandle];
+    transform = parent->GetComponent<GOC_Transform>();
+    if (!transform)transform = parent->Addcomponent<GOC_Transform>();
+
+    m_renderedObjectHandle.index = stagingPushDataArray.Add(
+        {
+            .model = transform->getTransformMatrix(),
+            .normalSpecPushData = {
+                .SmoothnessMapIndex = SmoothnessMapHandle
+            },
+            .shadingData = {
+                .albedoMapIndex = AlbedoTextureHandle,
+                .specularMapIndex = specularMapHandle //might want to package this info in the smoothnessmap
+            },
+        });
+    RenderedObjectsOperationQueue.emplace(Add,meshHandle,m_renderedObjectHandle.index,stagingPushDataArray[m_renderedObjectHandle.index]);
+    m_renderedObjectHandle.mesh = meshHandle;
+    registered = true;
+}
+
+GOC_MeshRenderer::GOC_MeshRenderer(GameObject *parent): GameObjectComponent(parent) {
+    transform = parent->GetComponent<GOC_Transform>();
+    assert(transform);
+    m_renderedObjectHandle.mesh = OsmiumGL::GetDefaultSphereMeshHandle();
+    auto defautlTextureHandle = OsmiumGL::GetDefaultTextureHandle();
+
+    m_renderedObjectHandle.index = MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].Add({
+        .model = transform->getTransformMatrix(),
+        .normalSpecPushData{
+            .SmoothnessMapIndex = defautlTextureHandle,
+        },
+        .shadingData{
+            .albedoMapIndex = defautlTextureHandle,
+            .specularMapIndex = defautlTextureHandle,
+        }
+    });
+    RenderedObjectsOperationQueue.emplace(Add,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);
+    registered = true;
+}
+
+GOC_MeshRenderer::~GOC_MeshRenderer() {
+    if (registered) {
+        MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].Remove(m_renderedObjectHandle.index);
+        registered = false;
+    }
+    if (MeshAssetHandle.has_value()) AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
+    if (albedoMapAssetHandle.has_value())AssetManager::UnloadAsset(albedoMapAssetHandle.value(),false);
+    if (specularMapAssetHandle.has_value())AssetManager::UnloadAsset(specularMapAssetHandle.value(),false);
+
 }
 
