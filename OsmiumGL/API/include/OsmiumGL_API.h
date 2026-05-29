@@ -33,7 +33,8 @@ namespace  OsmiumGL {
     void Init(std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects,const std::string &appName, bool ImGuiEnabled = false);
     void Shutdown();
 
-    void UpdateMainCameraData(const glm::mat4 &mat, float radianVFoV);
+    void UpdateMainCameraData(const glm::mat4 & mat);
+    void UpdateMainCameraSettings(const float fov);
 
     //removing the targeted rendered objects updates for now (I'll need some granular update for scalability
     // RenderedObjectHandle RegisterRenderedObject(MeshHandle mesh,const RenderedObjectPushData &rendered_object);

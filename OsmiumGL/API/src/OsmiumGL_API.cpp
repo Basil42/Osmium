@@ -28,8 +28,12 @@ void OsmiumGL::Shutdown() {
 //     instance->UpdateRenderedObjectInstance(renderedObjectHandle,renderedObject);
 // }
 
-void OsmiumGL::UpdateMainCameraData(const glm::mat4 &mat, const float radianVFoV) {
-    //instance->UpdateCameraData(mat, radianVFoV);
+void OsmiumGL::UpdateMainCameraData(const glm::mat4 & mat) {
+    instance->UpdateCameraInfo(mat);
+}
+
+void OsmiumGL::UpdateMainCameraSettings(const float fov) {
+    instance->UpdateCameraSettings(fov);
 }
 
 MeshHandle OsmiumGL::LoadMesh(const xg::Guid &id) {

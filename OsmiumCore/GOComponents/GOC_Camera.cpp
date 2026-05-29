@@ -31,12 +31,12 @@ GOC_Camera::GOC_Camera(GameObject *parent) : GameObjectComponent(parent){
     if (!transform)transform = parent->Addcomponent<GOC_Transform>();
     rotationMode = ROTATION_MODE_TRANSFORM;
     transform->SetTransformMatrix(glm::inverse(glm::lookAt(glm::vec3(0.0f,0.0f,4.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,1.0f,0.0f))));
-
+    viewMatrix = transform->getTransformMatrix();
 }
 
 void GOC_Camera::RenderUpdate() {
     GameObjectComponent::RenderUpdate();
-    OsmiumGL::UpdateMainCameraData(GetViewMatrix(), glm::radians(verticalFoV));//move this out
+    OsmiumGL::UpdateMainCameraData(GetViewMatrix());//move this out
 
 }
 

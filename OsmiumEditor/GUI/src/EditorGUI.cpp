@@ -33,6 +33,7 @@ void EditorGUI::Run() {
         go->hiddenInEditor = true;
         OsmiumInstance->SetMainCamera(EditorCamera);
     });
+    OsmiumGL::UpdateMainCameraSettings(45.0f);//initializing the fov, should be better managed through the camera class
     std::thread GUIThread = std::thread(&EditorGUI::RenderImGuiFrameTask, this);
     OsmiumInstance->run();
 
