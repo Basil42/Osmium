@@ -540,7 +540,6 @@ void OsmiumBindlessInstance::destroy() {
 
     vkDestroyCommandPool(device, m_graphicsTransientCmdPool, nullptr);
     vkDestroyCommandPool(device, m_loadingTransientCmdPool,nullptr);
-    vkDestroyCommandPool(device, m_unloadingTransientCmdPool,nullptr);
     vkDestroySurfaceKHR(m_context.getInstance(), m_surface, nullptr);
 
     vkDestroyDescriptorSetLayout(device, m_TextureDescriptorSetLayout, nullptr);
@@ -579,10 +578,6 @@ void OsmiumBindlessInstance::createTransientCommandPools() {
     cmdPoolInfo.queueFamilyIndex = m_context.getLoadingQueue().familyIndex;
     VK_CHECK(vkCreateCommandPool(m_context.getDevice(),&cmdPoolInfo,nullptr,&m_loadingTransientCmdPool));
     DBG_VK_NAME(m_loadingTransientCmdPool);
-
-    cmdPoolInfo.queueFamilyIndex = m_context.getUnloadingQueue().familyIndex;
-    VK_CHECK(vkCreateCommandPool(m_context.getDevice(),&cmdPoolInfo,nullptr,&m_unloadingTransientCmdPool));//could probably share the pool with loading in most hardware
-    DBG_VK_NAME(m_unloadingTransientCmdPool);
 
 }
 

@@ -500,7 +500,6 @@ public:
   VkInstance       getInstance() const { return m_instance; }
   const QueueInfo& getGraphicsQueue() const { return m_queues[0]; }
   const QueueInfo& getLoadingQueue() const { return m_queues[1]; }
-  const QueueInfo& getUnloadingQueue() const { return m_queues[2]; }
   uint32_t         getApiVersion() const { return m_apiVersion; }
 
   VkPhysicalDeviceFeatures2                        getPhysicalDeviceFeatures() const { return m_deviceFeatures; }
@@ -687,7 +686,7 @@ private:
     constexpr float graphicsQueuePriority = 1.0F;
     constexpr std::array<float,2> transferQueuePriorities = {0.7F,0.7F};//2 is the maximum amount of transfer queue we might get from the same family
     m_queues.clear();
-    m_queues.resize(3);
+    m_queues.resize(2);
     //inlining a method to find required queues, as they need to be found before creating the logical device anyway
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties2(m_physicalDevice, &queueFamilyCount, nullptr);
@@ -716,10 +715,8 @@ private:
     //looking for the loading queue
     bool foundLoadingQueue = false;
     bool foundIdealLoadingQueue = false;
-    bool foundUnloadingQueue = false;
-    bool foundIdealUnloadingQueue = false;
     //looking for dedicated transfer queue
-    for (uint32_t i = 0; i < m_queues.size(); i++) {
+    for (uint32_t i = 0; i < queueFamilies.size(); i++) {
       auto queuefamilyprop = queueFamilies[i].queueFamilyProperties;
       //looking for a dedicated transfer queue, there are 2 on most consumer gpus
       if (queuefamilyprop.queueFlags & VK_QUEUE_TRANSFER_BIT) {
@@ -738,41 +735,20 @@ private:
             queueInfo.familyIndex = i;
             queueInfo.queueIndex = assignedQueues[i]++;
             m_queues[1] = queueInfo;
-          } else if (!foundLoadingQueue && queuefamilyprop.queueCount > assignedQueues[i]) {
-            //assign a fallback queue if there is room in this family
-            foundLoadingQueue = true;
-            queueInfo.familyIndex = i;
-            queueInfo.queueIndex = assignedQueues[i]++;
-            m_queues[1] = queueInfo;
-          }
-        }
-        //looking for an ideal unloading queue
-        if (!(queuefamilyprop.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-            !(queuefamilyprop.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-          foundIdealUnloadingQueue = true;
-          if (foundUnloadingQueue) {
-            assignedQueues[m_queues[2].familyIndex]--;
-          }
-          foundUnloadingQueue = true;
-          queueInfo.familyIndex = i;
-          queueInfo.queueIndex = assignedQueues[i]++;
-          m_queues[2] = queueInfo;
-          break;//no need for further search
-        }
-        if (!foundUnloadingQueue && queuefamilyprop.queueCount > assignedQueues[i]) {
-          //fallback queue
-          foundUnloadingQueue = true;
-          queueInfo.familyIndex = i;
-          queueInfo.queueIndex = assignedQueues[i]++;
-          m_queues[2] = queueInfo;
+              } else if (!foundLoadingQueue && queuefamilyprop.queueCount > assignedQueues[i]) {
+                //assign a fallback queue if there is room in this family
+                foundLoadingQueue = true;
+                queueInfo.familyIndex = i;
+                queueInfo.queueIndex = assignedQueues[i]++;
+                m_queues[1] = queueInfo;
+              }
         }
       }
     }
 
-  if (!foundLoadingQueue || !foundUnloadingQueue)throw std::runtime_error("failed to find transfer queues, this GPU doesn't meet requirement for Osmium!");
+  if (!foundLoadingQueue)throw std::runtime_error("failed to find transfer queues, this GPU doesn't meet requirement for Osmium!");
 
     if (!foundIdealLoadingQueue)std::cout << "could not find dedicated loading GPU queue, using a fallback queue" << std::endl;
-    if (!foundIdealUnloadingQueue)std::cout << "could not find dedicated transfer GPU queue for unloading thread, using a fallback queue" << std::endl;
 
     // Request only one queue : graphic
     // User could request more specific queues: compute, transfer
@@ -864,7 +840,6 @@ private:
     // Get the requested queues
     vkGetDeviceQueue(m_device, m_queues[0].familyIndex, m_queues[0].queueIndex, &m_queues[0].queue);//graphics
     vkGetDeviceQueue(m_device,m_queues[1].familyIndex, m_queues[1].queueIndex, &m_queues[1].queue);//loading
-    vkGetDeviceQueue(m_device,m_queues[2].familyIndex, m_queues[2].queueIndex, &m_queues[2].queue);//unloading
     DBG_VK_NAME(m_queues[0].queue);
 
     // Log the enabled extensions
