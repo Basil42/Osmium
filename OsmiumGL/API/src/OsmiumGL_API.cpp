@@ -105,8 +105,8 @@ void OsmiumGL::CloseWindow() {
     instance->CloseWindow();
 }
 
-ImTextureRef OsmiumGL::GetImGuiRenderTarget() {
-    return instance->GetImGuiRenderTarget();
+ImTextureRef OsmiumGL::GetImGuiRenderTarget(ImVec2 requestedSize) {
+    return instance->GetImGuiRenderTarget(requestedSize);
 }
 
 MeshHandle OsmiumGL::GetDefaultSphereMeshHandle() {

@@ -88,7 +88,7 @@ public:
 
     void CloseWindow();
 
-    ImTextureRef GetImGuiRenderTarget() const;
+    ImTextureRef GetImGuiRenderTarget(ImVec2 requestedFrameSize);
 
     void EndImgGuiFrame();
 
@@ -166,6 +166,7 @@ private:
     VkSurfaceKHR m_surface{}; // The window surface
     VkExtent2D m_windowSize{800, 600}; // The window size
     VkExtent2D m_viewportSize{800, 600}; // The viewport area in the window
+    VkExtent2D m_requestedviewportSize{1,1};//initial value that will force a rebuild, it would be nice to have a way to initialie it correctly
 
     VkPipelineLayout m_NormalSpecPipelineLayout{}; // The pipeline layout use with graphics pipeline
     VkPipelineLayout m_PointLightPipelineLayout{};

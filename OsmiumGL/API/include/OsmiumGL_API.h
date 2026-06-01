@@ -76,7 +76,7 @@ namespace  OsmiumGL {
 
     void CloseWindow();
 
-    ImTextureRef GetImGuiRenderTarget();
+    ImTextureRef GetImGuiRenderTarget(ImVec2 requestedSize);
 
     MeshHandle GetDefaultSphereMeshHandle();
 

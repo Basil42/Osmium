@@ -171,15 +171,15 @@ void OsmiumBindlessInstance::RenderFrame() {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        ImVec2 windowSize = ImGui::GetContentRegionAvail();
+        //TODO Replace with a viewport size
 
         // Verify if the viewport has a new size and resize the G-Buffer accordingly.
-        if (const VkExtent2D viewportSize = {.width=static_cast<uint32_t>(windowSize.x), .height=static_cast<uint32_t>(windowSize.y)};
-            m_viewportSize.width != viewportSize.width || m_viewportSize.height != viewportSize.height) {
-            onViewportSizeChange(viewportSize);
+        if (m_viewportSize.width != m_requestedviewportSize.width || m_viewportSize.height != m_requestedviewportSize.height) {
+            onViewportSizeChange(m_requestedviewportSize);
         }
         Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START);
     }
+    //TODO non imgui resize
     m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
 
     // only render the frame if we don't need to resize the frame buffers (for example, the frame might need some other resource reprepared
@@ -389,8 +389,9 @@ void OsmiumBindlessInstance::CloseWindow() {
     glfwSetWindowShouldClose(m_window, true);
 }
 
-ImTextureRef OsmiumBindlessInstance::GetImGuiRenderTarget() const {
+ImTextureRef OsmiumBindlessInstance::GetImGuiRenderTarget(ImVec2 requestedFrameSize) {
     ASSERT(m_imGuiEnabled,"Tried to get imgui render target when rendering ot swapchain directly");
+    m_requestedviewportSize = {static_cast<uint32_t>(requestedFrameSize.x), static_cast<uint32_t>(requestedFrameSize.y)};
     return m_gBuffer.getImTextureID(3);
 }
 
@@ -756,15 +757,17 @@ void OsmiumBindlessInstance::SubmitFrame(VkCommandBuffer cmd) {
     m_frameRingCurrent = (m_frameRingCurrent + 1) % m_swapchain.getMaxFramesInFlight();
 }
 
-void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {
+void OsmiumBindlessInstance::onViewportSizeChange(VkExtent2D size) {//doesn't handle the case where the "viewport" is a imgui docking window
     m_viewportSize = size;
     m_CameraInfoStruct.projectionMatrix = glm::perspective(m_fov,static_cast<float>(m_viewportSize.width)/ static_cast<float>(m_viewportSize.height),m_zNear,m_zFar);
-    vkQueueWaitIdle(m_context.getGraphicsQueue().queue); {
+    vkQueueWaitIdle(m_context.getGraphicsQueue().queue);
+    {
         VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_graphicsTransientCmdPool);
         m_gBuffer.update(cmd, m_viewportSize);
         utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_graphicsTransientCmdPool,
                                      m_context.getGraphicsQueue().queue);
     }
+    vkQueueWaitIdle(m_context.getGraphicsQueue().queue);//there should be a memory barrier that is less stringent here
 }
 
 void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {

@@ -116,7 +116,8 @@ void EditorGUI::RenderImGuiFrameTask() {
         }
 
         if (ImGui::Begin("Viewport")) {
-            ImGui::Image(OsmiumGL::GetImGuiRenderTarget(), ImGui::GetContentRegionAvail());//image index can be changed here to render one of the framebuffer in the viewport
+            auto size = ImGui::GetContentRegionAvail();
+            ImGui::Image(OsmiumGL::GetImGuiRenderTarget(size), size);//image index can be changed here to render one of the framebuffer in the viewport
 
             //overlay stuff, might remove later
             ImGui::SetCursorPos(ImVec2(0, 0));
