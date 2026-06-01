@@ -171,13 +171,19 @@ void OsmiumBindlessInstance::RenderFrame() {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        //TODO Replace with a viewport size
-
         // Verify if the viewport has a new size and resize the G-Buffer accordingly.
         if (m_viewportSize.width != m_requestedviewportSize.width || m_viewportSize.height != m_requestedviewportSize.height) {
             onViewportSizeChange(m_requestedviewportSize);
         }
         Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START);
+    }else {
+        if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            return;
+        }
+        if (m_viewportSize.width != m_windowSize.width || m_viewportSize.height != m_windowSize.height) {
+            onViewportSizeChange(m_windowSize);//this will flush the graphics queue no need for additional sync
+        }
     }
     //TODO non imgui resize
     m_framePacer.paceFrame(m_vSync ? utils::getMonitorsMinRefreshRate() : 10000.0);
