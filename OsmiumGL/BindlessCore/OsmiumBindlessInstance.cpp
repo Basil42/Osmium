@@ -1578,7 +1578,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .polygonMode = VK_POLYGON_MODE_FILL,
         .cullMode = VK_CULL_MODE_NONE,//we need back faces for light shapes
-        .frontFace = VK_FRONT_FACE_CLOCKWISE,//TODO check that the obj reader handles this correctly
+        .frontFace = VK_FRONT_FACE_CLOCKWISE,
         .lineWidth = 1.0f,
     };
     VkGraphicsPipelineCreateInfo PipelineCreateInfo = {
