@@ -33,7 +33,8 @@ GOC_PointLight::GOC_PointLight(GameObject *parent): GameObjectComponent(parent) 
         .fragConstant = {
             .color = glm::vec4(1.0f,1.0f,1.0f,1.0f),
     }};
-        m_lightHandle = PushConstantDataStagingArray.Add(value);
+
+    m_lightHandle = PushConstantDataStagingArray.Add(value);
 
 }
 

@@ -63,7 +63,7 @@ public:
 
 
     void UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects);
-    void UpdatePointLights(std::span<PointLightPushConstants> span);
+    void UpdatePointLights(const std::span<PointLightPushConstants> &span);
 
     //None of these are necessary and I could jut update all of them througha  big memcpy, I can always do something more granular later
     // RenderedObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);

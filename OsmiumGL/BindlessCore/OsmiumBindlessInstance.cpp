@@ -372,8 +372,8 @@ void OsmiumBindlessInstance::UpdateRenderedObjects(const std::map<MeshHandle,Res
     m_renderedObjectsPushConstants = &renderedObjects;
 }
 
-void OsmiumBindlessInstance::UpdatePointLights(const std::span<PointLightPushConstants> span) {
-    const size_t stagedSize = span.size();
+void OsmiumBindlessInstance::UpdatePointLights(const std::span<PointLightPushConstants> &span) {
+    const size_t stagedSize = span.size() * sizeof(PointLightPushConstants);
     if (const size_t currentSize = m_pointLightPushConstants.size();
         stagedSize != currentSize)
         m_pointLightPushConstants.resize(span.size());
