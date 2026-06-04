@@ -1560,7 +1560,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
 
     constexpr VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        .depthTestEnable = VK_TRUE,
+        .depthTestEnable = VK_FALSE,//unfortunately I would need to cull light shape upstream of the drawcall
         .depthWriteEnable = VK_FALSE,
         .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
     };
@@ -1574,6 +1574,13 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
         .pVertexAttributeDescriptions = attributeDescriptions.data(),
     };
+    constexpr VkPipelineRasterizationStateCreateInfo lightRasterizerInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .polygonMode = VK_POLYGON_MODE_FILL,
+        .cullMode = VK_CULL_MODE_NONE,//we need back faces for light shapes
+        .frontFace = VK_FRONT_FACE_CLOCKWISE,//TODO check that the obj reader handles this correctly
+        .lineWidth = 1.0f,
+    };
     VkGraphicsPipelineCreateInfo PipelineCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .pNext = &pipelineRenderingInfo,
@@ -1581,7 +1588,7 @@ void OsmiumBindlessInstance::createGraphicsPipelines(
         .pStages = shaderStages.data(),
         .pVertexInputState = &vertexInputInfo,
         .pInputAssemblyState = &inputAssemblyInfo,
-        .pRasterizationState = &rasterizerInfo,
+        .pRasterizationState = &lightRasterizerInfo,
         .pMultisampleState = &multisamplingInfo,
         .pDepthStencilState = &depthStencilStateInfo,
         .pColorBlendState = &colorBlendStateInfo,
