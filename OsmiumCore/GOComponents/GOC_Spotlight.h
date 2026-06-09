@@ -21,10 +21,10 @@ class GOC_Spotlight : public GameObjectComponent{
     ~GOC_Spotlight() override;
 
     SpotLightPushConstants & GetProperties() const;
-    void SetProperties(SpotLightPushConstants & properties);
+    void SetProperties(const SpotLightPushConstants & properties) const;
     glm::vec3 GetPosition() const;
-    void SetPosition(const glm::vec3& position);
-    glm::vec4 GetColorANdIntensity() const;
+    void SetPosition(const glm::vec3& position) const;
+    glm::vec4 GetColorAndIntensity() const;
     void SetColorAndIntensity(const glm::vec4& color)const ;
     void SetColorAndIntensity(const glm::vec3& color, float intensity)const;
 

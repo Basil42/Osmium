@@ -9,6 +9,30 @@ SpotLightPushConstants & GOC_Spotlight::GetProperties() const {
     return PushConstantsDataStagingArray[m_lightHandle];
 }
 
+void GOC_Spotlight::SetProperties(const SpotLightPushConstants &properties) const {
+    PushConstantsDataStagingArray[m_lightHandle] = properties;
+}
+
+glm::vec3 GOC_Spotlight::GetPosition() const {
+    return PushConstantsDataStagingArray[m_lightHandle].vertConstant.model[3];
+}
+
+void GOC_Spotlight::SetPosition(const glm::vec3 &position) const {
+    PushConstantsDataStagingArray[m_lightHandle].vertConstant.model[3] = glm::vec4(position.x, position.y, position.z, 1.0f);
+}
+
+glm::vec4 GOC_Spotlight::GetColorAndIntensity() const {
+    return PushConstantsDataStagingArray[m_lightHandle].fragConstant.color;
+}
+
+void GOC_Spotlight::SetColorAndIntensity(const glm::vec4 &color) const {
+    PushConstantsDataStagingArray[m_lightHandle].fragConstant.color = color;
+}
+
+void GOC_Spotlight::SetColorAndIntensity(const glm::vec3 &color, const float intensity) const {
+    SetColorAndIntensity(glm::vec4(color,intensity));
+}
+
 GOC_Spotlight::GOC_Spotlight(GameObject *parent) : GameObjectComponent(parent){
     constexpr SpotLightPushConstants value = {
         .vertConstant = {
