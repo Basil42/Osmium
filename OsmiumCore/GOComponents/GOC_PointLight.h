@@ -43,6 +43,7 @@ public:
     
     void SetMeshAsset(AssetId asset_id);
 
+private:
     unsigned int m_lightHandle;
 };
 
