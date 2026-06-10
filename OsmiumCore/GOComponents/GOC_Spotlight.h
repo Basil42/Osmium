@@ -20,6 +20,8 @@ class GOC_Spotlight : public GameObjectComponent{
     explicit GOC_Spotlight(GameObject* parent);
     ~GOC_Spotlight() override;
 
+    static void GORenderUpdate();
+
     SpotLightPushConstants & GetProperties() const;
     void SetProperties(const SpotLightPushConstants & properties) const;
     glm::vec3 GetPosition() const;

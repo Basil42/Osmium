@@ -14,6 +14,7 @@
 #include "../GOComponents/GOC_Camera.h"
 #include "ResourceArray.h"
 #include "GOComponents/GOC_PointLight.h"
+#include "GOComponents/GOC_Spotlight.h"
 
 void GameInstance::LoadingRoutine() {
     AssetManager::LoadingRoutine();//should be run privately by the asset manager directly
@@ -82,6 +83,7 @@ void GameInstance::RenderDataUpdate() {
     GOC_DirectionalLight::GORenderUpdate();
     GOC_MeshRenderer::GORenderUpdate();
     GOC_PointLight::GORenderUpdate();
+    GOC_Spotlight::GORenderUpdate();
     m_RenderUpdateFrameCounter = Sync::SynchronizationManager::Signal(Sync::SYNC_STAGE_RENDER_UPDATE);
 }
 

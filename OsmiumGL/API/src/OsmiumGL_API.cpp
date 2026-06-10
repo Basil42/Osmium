@@ -84,6 +84,10 @@ void OsmiumGL::PointLightsRenderUpdate(const std::span<PointLightPushConstants> 
     instance->UpdatePointLights(pointLightData);
 }
 
+void OsmiumGL::SpotLightsRenderUpdate(const std::span<SpotLightPushConstants> &spotLightData) {
+    instance->UpdateSpotlights(spotLightData);
+}
+
 void OsmiumGL::RenderFrame() {
     instance->RenderFrame();
 }
