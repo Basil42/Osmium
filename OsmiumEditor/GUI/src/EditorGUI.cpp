@@ -83,6 +83,7 @@ void EditorGUI::CameraControls(ImGuiIO &io) {
 }
 
 void EditorGUI::RenderImGuiFrameTask() {
+    ImGui::GetIO().ConfigDragClickToInputText = true;
     //There should not be a need to actually display that frame
     while (!OsmiumGL::ShouldClose()) {//condition check can lock
         Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_START,m_EditorFrameCounter);//will pass through on the first frame

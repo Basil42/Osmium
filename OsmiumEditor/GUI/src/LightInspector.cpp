@@ -4,6 +4,9 @@
 
 #include "imgui.h"
 #include "ComponentInspector.h"
+#include <glm/gtc/matrix_transform.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_decompose.hpp>
 #include "GOComponents/GOC_Spotlight.h"
 
 namespace GUI {
@@ -11,9 +14,20 @@ namespace GUI {
     inline void RenderGameObjectComponentInspector<GOC_Spotlight>(ImGuiIO& io, GameObjectComponent* goComponent) {
         auto comp = dynamic_cast<GOC_Spotlight*>(goComponent);
         SpotLightPushConstants& properties = comp->GetProperties();
-        if (ImGui::DragFloat3("Position",&properties.vertConstant.model[3][0])) {
-            comp->SetPosition(properties.vertConstant.model[3]);
+
+        glm::vec3 scale;
+        glm::quat rotation;
+        glm::vec3 position;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(properties.vertConstant.model,scale,rotation,position,skew,perspective);
+        glm::vec3 rotationEuler = glm::eulerAngles(rotation);
+        ImGui::DragFloat3("Position",&position[0]);
+        if (ImGui::InputFloat3("Rotation",&rotationEuler[0])) {
+            rotation = glm::quat(rotationEuler);
         }
+        ImGui::DragFloat3("Scale",&scale[0]);
+        properties.vertConstant.model = glm::recompose(scale,rotation,position,skew,perspective);
         if (ImGui::DragFloat3("Color", &properties.fragConstant.color[0])) {
             comp->SetColorAndIntensity(properties.fragConstant.color);
         }
