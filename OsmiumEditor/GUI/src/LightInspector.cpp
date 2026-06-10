@@ -23,7 +23,7 @@ namespace GUI {
         glm::decompose(properties.vertConstant.model,scale,rotation,position,skew,perspective);
         glm::vec3 rotationEuler = glm::eulerAngles(rotation);
         ImGui::DragFloat3("Position",&position[0]);
-        if (ImGui::InputFloat3("Rotation",&rotationEuler[0])) {
+        if (ImGui::DragFloat3("Rotation",&rotationEuler[0])) {
             rotation = glm::quat(rotationEuler);
         }
         ImGui::DragFloat3("Scale",&scale[0]);
