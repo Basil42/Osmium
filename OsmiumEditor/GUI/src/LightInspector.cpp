@@ -28,6 +28,9 @@ namespace GUI {
         }
         ImGui::DragFloat3("Scale",&scale[0]);
         properties.vertConstant.model = glm::recompose(scale,rotation,position,skew,perspective);
+        ImGui::DragFloat("Radius", &properties.radius);
+        ImGui::DragFloat("Inner Angle", &properties.innerAngle);
+        ImGui::DragFloat("Outer Angle", &properties.outerAngle);
         if (ImGui::DragFloat3("Color", &properties.fragConstant.color[0])) {
             comp->SetColorAndIntensity(properties.fragConstant.color);
         }

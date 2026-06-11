@@ -12,9 +12,9 @@ GOC_Spotlight::GOC_Spotlight(GameObject *parent) : GameObjectComponent(parent){
         .vertConstant = {
             .model = glm::mat4(1.0f),
         },
-        .radius = 50.0f,
-        .innerAngle = 0.0f,
-        .outerAngle = 54.0f,
+        .radius = 1.0f,
+        .innerAngle = 0.0f,//in radian
+        .outerAngle = 54.0f / 360.0f * M_PI,//in radians
         .fragConstant = {
             .color = glm::vec4(1.0f, 1.0f, 1.0f,1.0f),
         }
