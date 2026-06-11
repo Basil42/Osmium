@@ -389,6 +389,14 @@ void OsmiumBindlessInstance::UpdateSpotlights(const std::span<SpotLightPushConst
     memcpy(m_spotLightPushConstants.data(), span.data(), stagedSize);
 }
 
+void OsmiumBindlessInstance::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> span) {
+    const size_t stagedSize = span.size() * sizeof(DirectionalLightPushConstants);
+    if (const size_t currentSize = m_directionalLightPushConstants.size();
+        stagedSize != currentSize)
+        m_directionalLightPushConstants.resize(span.size());
+    memcpy(m_directionalLightPushConstants.data(), span.data(), stagedSize);
+}
+
 
 bool & OsmiumBindlessInstance::GetVsync() {
     return m_vSync;

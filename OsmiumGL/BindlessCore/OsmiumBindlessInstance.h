@@ -65,6 +65,7 @@ public:
     void UpdateRenderedObjects(const std::map<MeshHandle,ResourceArray<RenderedObjectPushData,50>>& renderedObjects);
     void UpdatePointLights(const std::span<PointLightPushConstants> &span);
     void UpdateSpotlights(const std::span<SpotLightPushConstants> span);
+    void UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> span);
 
     //None of these are necessary and I could jut update all of them througha  big memcpy, I can always do something more granular later
     // RenderedObjectHandle RegisterRenderedObjectInstance(const BindlessRenderedObject& renderedObject);

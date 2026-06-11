@@ -14,13 +14,10 @@
 struct DirectionalLightPushConstants;
 
 class GOC_DirectionalLight : public GameObjectComponent {
-    glm::vec3 Direction;
-    glm::vec3 Color;
-    float Intensity;
 
     const std::string name = "DirectionalLight";
 
-    unsigned int lightHandle;
+    unsigned int m_lightHandle;
     static ResourceArray<DirectionalLightPushConstants,5> constants; //for demo purposes, There is probably a higher number that fits in one page
     //no asset dependency here
 
@@ -33,13 +30,21 @@ public:
 
     const std::string & Name() override {
         return name;
-    };
-    static void GORenderUpdate();
-    void SetValues(glm::vec3 direction, glm::vec3 color,float intensity);
+    }
 
-    glm::vec3 GetDirection();
-    void SetDirection(const glm::vec3& direction);
-    glm::vec4 GetColorAndIntensity();
+    static void GORenderUpdate();
+    void SetValues(glm::vec3 direction, glm::vec3 color,float intensity) const;
+
+    DirectionalLightPushConstants & GetProperties() const;
+    void SetProperties(const DirectionalLightPushConstants& properties) const;
+    glm::vec3 GetDirection() const;
+    void SetDirection(const glm::vec3& direction) const;
+    glm::vec4 GetColorAndIntensity() const;
+    void SetColorAndIntensity(const glm::vec4& colorAndIntensity) const;
+    glm::vec3 GetColor() const;
+    void SetColor(const glm::vec3& color) const;
+    float GetIntensity() const;
+    void SetIntensity(float intensity) const;
     
 };
 

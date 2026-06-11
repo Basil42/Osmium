@@ -7,6 +7,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
+
+#include "DirectionalLights.h"
 #include "GOComponents/GOC_Spotlight.h"
 
 namespace GUI {
@@ -39,4 +41,14 @@ namespace GUI {
         }
     }
     static const bool registered_GOC_Spotlight = registerType<GOC_Spotlight>("Spotlight");
+
+    template<>
+    void RenderGameObjectComponentInspector<GOC_DirectionalLight>(ImGuiIO& io, GameObjectComponent* goComponent) {
+        auto comp = dynamic_cast<GOC_DirectionalLight*>(goComponent);
+        DirectionalLightPushConstants& prop = comp->GetProperties();
+        ImGui::DragFloat3("Direction", &prop.Direction[0]);
+        ImGui::DragFloat3("Color", &prop.Color[0]);
+        ImGui::DragFloat("Intensity", &prop.Color[3]);
+    }
+    static const bool registered_GOC_DirectionalLight = registerType<GOC_DirectionalLight>("Directional light");
 }

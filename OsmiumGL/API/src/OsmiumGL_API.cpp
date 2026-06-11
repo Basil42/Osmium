@@ -93,7 +93,7 @@ void OsmiumGL::RenderFrame() {
 }
 
 void OsmiumGL::UpdateDirectionalLights(const std::span<DirectionalLightPushConstants> &dirLightData) {
-    //instance->UpdateDirectionalLights(dirLightData);
+    instance->UpdateDirectionalLights(dirLightData);
 }
 
 
