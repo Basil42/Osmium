@@ -33,8 +33,21 @@ void InspectorWindow::Render(ImGuiIO &io) {
     if (objectResourceArray.contains(selectedGameObjectHandle)) {
         GameObject& obj = objectResourceArray.get(selectedGameObjectHandle);
         ImGui::InputText("Name", &obj.Name);
+        int idCount = 0;
         for (auto&[typeIndex, component]: obj.GetComponents()) {
-            if(ImGui::CollapsingHeader(component->Name().c_str())) {//name is bad here, I should use something else
+            ImGui::PushID(idCount++);
+            const bool isOpen = ImGui::CollapsingHeader(component->Name().c_str(),ImGuiTreeNodeFlags_AllowOverlap);
+            const auto posXCloseButton = (ImGui::GetCursorPosX() + ImGui::GetColumnWidth() - ImGui::CalcTextSize("X").x - 2 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::SameLine(posXCloseButton);
+            if (ImGui::Button("X")) {
+                //delete the component here
+                gameInstanceRef->AddGameObjectOperation(&obj,[&component](GameObject* objectptr) {
+                    objectptr->RemoveComponent(component);
+                });
+            }
+            ImGui::PopID();
+            if(isOpen) {//name is bad here, I should use something else
+
                 RenderComponentInspector(io,typeIndex, component);
             }
         }
