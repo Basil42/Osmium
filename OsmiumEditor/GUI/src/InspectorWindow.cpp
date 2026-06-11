@@ -37,8 +37,8 @@ void InspectorWindow::Render(ImGuiIO &io) {
         for (auto&[typeIndex, component]: obj.GetComponents()) {
             ImGui::PushID(idCount++);
             const bool isOpen = ImGui::CollapsingHeader(component->Name().c_str(),ImGuiTreeNodeFlags_AllowOverlap);
-            const auto posXCloseButton = (ImGui::GetCursorPosX() + ImGui::GetColumnWidth() - ImGui::CalcTextSize("X").x - 2 * ImGui::GetStyle().ItemSpacing.x);
-            ImGui::SameLine(posXCloseButton);
+            const auto posXDeleteButton = (ImGui::GetCursorPosX() + ImGui::GetColumnWidth() - ImGui::CalcTextSize("X").x - 2 * ImGui::GetStyle().ItemSpacing.x);
+            ImGui::SameLine(posXDeleteButton);
             if (ImGui::Button("X")) {
                 //delete the component here
                 gameInstanceRef->AddGameObjectOperation(&obj,[&component](GameObject* objectptr) {

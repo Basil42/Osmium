@@ -15,12 +15,18 @@ HierarchyWindow::HierarchyWindow(GameInstance *gameInstance,GameObjectHandle& se
 void HierarchyWindow::Render(ImGuiIO &io) {
     if (ImGui::Begin("Hierarchy")) {
         int HierarchyID = 0;//should probably be a static id
-        for (const GameObject& obj : gameObjectContainer) {//might keep a reference to the container directly, it should be as stabel as a ref to an instance
+        for (GameObject& obj : gameObjectContainer) {//might keep a reference to the container directly, it should be as stabel as a ref to an instance
             if (obj.hiddenInEditor)continue;//skip hidden object
             ImGui::PushID(HierarchyID++);
-            if (ImGui::Selectable(obj.Name.c_str(),selectedGameObjectHandle == obj.Handle,ImGuiSelectableFlags_AllowDoubleClick)) {
+            if (ImGui::Selectable(obj.Name.c_str(),selectedGameObjectHandle == obj.Handle,ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_AllowOverlap)) {
                 selectedGameObjectHandle = obj.Handle;
             }
+            auto posXDeleteButton = ImGui::GetCursorPosX() + ImGui::GetColumnWidth() - ImGui::CalcTextSize("X").x - ImGui::GetStyle().ItemSpacing.x;
+            ImGui::SameLine(posXDeleteButton);
+            if (ImGui::Button("X")) {
+                gameInstance->DestroyGameObject(&obj);
+            }
+
 
 
             ImGui::PopID();

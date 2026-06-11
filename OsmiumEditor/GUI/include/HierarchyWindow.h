@@ -19,7 +19,7 @@ class GameInstance;
 class HierarchyWindow final : EditorWindow {
 
 
-    const ResourceArray<GameObject,MAX_GAMEOBJECTS>& gameObjectContainer;
+    ResourceArray<GameObject,MAX_GAMEOBJECTS>& gameObjectContainer;
     GameObjectHandle& selectedGameObjectHandle;
     GameInstance* gameInstance;
     //will be used later for renaming from hierarchy

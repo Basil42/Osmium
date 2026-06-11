@@ -219,6 +219,7 @@ GOC_MeshRenderer::~GOC_MeshRenderer() {
     if (registered) {
         MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh].Remove(m_renderedObjectHandle.index);
         registered = false;
+        RenderedObjectsOperationQueue.emplace(Remove,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index);
     }
     if (MeshAssetHandle.has_value()) AssetManager::UnloadAsset(MeshAssetHandle.value(),false);
     if (albedoMapAssetHandle.has_value())AssetManager::UnloadAsset(albedoMapAssetHandle.value(),false);

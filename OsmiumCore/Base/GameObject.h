@@ -6,6 +6,7 @@
 #define GAMEOBJECT_H
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <typeindex>
 #include <vector>
@@ -26,11 +27,11 @@ public:
     template<typename T,
        typename = std::enable_if_t<std::derived_from<T, GameObjectComponent>>>
     int RemoveComponents() {//removes all component of the provided type
-        auto it = components.lower_bound(std::type_index(typeid(T)));
-        while (it != components.upper_bound(std::type_index(typeid(T)))) {
+        auto it = components->lower_bound(std::type_index(typeid(T)));
+        while (it != components->upper_bound(std::type_index(typeid(T)))) {
             delete it->second;
         }
-        return components.erase(std::type_index(typeid(T)));
+        return components->erase(std::type_index(typeid(T)));
     }
     void UpdateComponents();
 
@@ -48,7 +49,7 @@ public:
        typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent,T>>>
     T* Addcomponent(){//this is only safe to call during simulation
         T* component = new T(this);
-        auto it = components.emplace(std::type_index(typeid(T)),component);
+        auto it = components->emplace(std::type_index(typeid(T)),component);
         return component;
         // T* comp = new T(this);//Instead of this random allocation, each componenet could have a container despite being used like a unity game object
         // //this->components.insert(std::make_pair(std::type_index(typeid(T)), comp));
@@ -61,11 +62,14 @@ public:
     template<typename T,
            typename = std::enable_if_t<std::is_base_of_v<GameObjectComponent, T>>>
     T* GetComponent() const {
-        auto it = components.find(std::type_index(typeid(T)));
-        if (it == components.end()) return nullptr;
+        auto it = components->find(std::type_index(typeid(T)));
+        if (it == components->end()) return nullptr;
         return dynamic_cast<T*>(it->second);
     }
 
+    GameObject();
+    GameObject(GameObject&& other) noexcept;//move constructor
+    GameObject& operator=(GameObject&& other) noexcept;
     ~GameObject();//Bad, I don't want this to be public but it is easier for now
     const std::multimap<std::type_index, GameObjectComponent *> &GetComponents() const;
 #ifdef EDITOR
@@ -73,10 +77,8 @@ public:
 #endif
 
 private:
-    std::multimap<std::type_index,GameObjectComponent*> components;//reference to these pairs(and components) should be stable
+    std::unique_ptr<std::multimap<std::type_index,GameObjectComponent*>> components;//reference to these pairs(and components) should be stable
 };
-
-
 
 
 #endif //GAMEOBJECT_H

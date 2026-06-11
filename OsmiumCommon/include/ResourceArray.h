@@ -22,6 +22,7 @@ class  ResourceArray {
   ResourceArray();
   void Reserve(size_t newCapacity);
   unsigned int Add(T resource);
+  unsigned int Add();
   bool Remove(unsigned int handle);
 
   bool contains(unsigned int handle) const;
@@ -84,7 +85,26 @@ unsigned int ResourceArray<T, MAX_Capacity>::Add(T resource) {
   if (resourceVector.size() == MAX_Capacity) [[unlikely]] {
     throw std::out_of_range("Resource array resource capacity exceeded");
   }
-  resourceVector.push_back(resource);
+  resourceVector.emplace_back(resource);
+  unsigned int checks = 0;//sanity check
+  while (backingArray[nextHandle % MAX_Capacity] < MAX_Capacity && ++checks < MAX_Capacity) {
+    nextHandle++;
+  }
+  if (checks >= MAX_Capacity) [[unlikely]] {
+    throw std::runtime_error("No available handle.");//This is an implementation error, as it should not happen
+  }
+  unsigned int newHandle = nextHandle;
+  nextHandle = (nextHandle +1) % MAX_Capacity;
+  backingArray[newHandle] = static_cast<unsigned int>(resourceVector.size() -1);
+  return newHandle;
+}
+
+template<typename T, size_t MAX_Capacity>
+unsigned int ResourceArray<T, MAX_Capacity>::Add() {
+  if (resourceVector.size() == MAX_Capacity) [[unlikely]] {
+    throw std::out_of_range("Resource array resource capacity exceeded");
+  }
+  resourceVector.emplace_back();
   unsigned int checks = 0;//sanity check
   while (backingArray[nextHandle % MAX_Capacity] < MAX_Capacity && ++checks < MAX_Capacity) {
     nextHandle++;
@@ -128,7 +148,7 @@ template<typename T, size_t MAX_Capacity>
 T& ResourceArray<T, MAX_Capacity>::get(unsigned int handle) {
   if (backingArray[handle] >= MAX_Capacity) [[unlikely]] {
     std::cerr << "Attempted to get a non valid resource,it might have been unloaded or the handle might be invalid" << std::endl;
-    return get(Add(T()));
+    return get(Add());
   }
   return resourceVector[backingArray[handle]];
 }
