@@ -49,9 +49,9 @@ A high level breakdown:
 - 2 threads manage loading and unloading assets
 - If in editor mode, ImGui rendering happens mostly on its own thread and sync with a rendering step to submit the data
 
-´´´mermaid
+```mermaid
     info
-´´´
+```
 
 A few notes:
  - Game data writes are all thread safe inside the game loop.
