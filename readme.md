@@ -40,6 +40,7 @@ Contains all collision logic
 
 ## Systems
 
+Many of these system are design from first principles as an exercice here are cursory breakdowns for the important ones
 ### Synchronization
 
 The engine has some parallelism, managed through SyncUtils.h.
@@ -49,12 +50,31 @@ A high level breakdown:
 - 2 threads manage loading and unloading assets
 - If in editor mode, ImGui rendering happens mostly on its own thread and sync with a rendering step to submit the data
 
-```mermaid
-    info
-```
-
 A few notes:
  - Game data writes are all thread safe inside the game loop.
  - If there is a need to write game data from another thread (after a load for example), other thread can queue callbacks to be processed on top of the game loop. This means than chaining loads through callback delays response by one frame per callback chained.
  - Imgui render and render update being readonly operation (with changes through editor being piped to the game loop queue) they can run in parrallel.
- - Rendering is a purely read-only step when it comes to CPU data.
+ - Rendering is a purely read-only step when it comes to CPU data. 
+ - The different libraries have loose dependencies in that they know which process they need to wait for through SyncUtils.
+
+Sync is done by signaling SyncUtils when a task is finished, this increase a timeline semaphore style counter and signal potential tasks that can wait on the completion of the task for this frame.
+This system only require the tasks to keep a frame counter to compare to the semaphore counter.
+
+### Render update
+
+The render update send an update to the renderer to swap the data collection it reads from, alternating between two collections (one read, one write).
+Then, the update applies the changes that were made to the previous write collection to the new one before the game loop can run its tick (at the end of the render update, the write and read collections are identical in content and layout).
+
+### Game loop operation queue
+
+On top of the simulation loop, the engine processes all function calls requested by other threads. This is mostly used to respond to assets loading.
+There is a dedicated queue to operate on a game object taking a matching function pointer and a gameobject pointer. (Game objects are contained in a memory stable way, so unless they are destroyed, pointers to game object are never invalid)
+
+It would be trivial to add additional queues (I just haven't needed them so far)
+
+### Rendered Objects
+
+### Render loop
+
+### Componenent inspectors
+
