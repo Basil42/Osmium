@@ -72,9 +72,49 @@ There is a dedicated queue to operate on a game object taking a matching functio
 
 It would be trivial to add additional queues (I just haven't needed them so far)
 
-### Rendered Objects
+### Resource Arrays
+
+The engine uses RessourceArray in several place to contain data that changes often and must be traversed often.
+Adding something in a RessourceArray returns a handle that will stay valid over the lifetime of the data and can be used to access the entry.
+Because the handles can be reused if an entry is removed and then a new one added, they should have a single owner.
+
+The Data itself is stored in a std::vector, and can be access sequentially (RessourceArray provides the interface to use foreach loops on it)
+
+In short, it is a std::vector with stable pseudo pointers in the form of handles.
+
+### Render Data
+
+#### Rendered objects
+Object data are stored in RessourceArrays of draw data (texture map indices, model matrix and other things of that nature), with one arrays per mesh, stored in a map using the mesh handle as keys.
+#### Lights
+Lights are represented on CPU by a single RessourceArray (duplicated for synchronization purposes) per Light type (point, directional or spot), as they share the same light shape mesh, if they use one.
+This data is pushed to GPU every frame through pushconstants and are not stored on the VRAM.
+
+#### Meshes
+Meshes are stored on GPU naively (1 vertex buffer and 1 indice buffer per mesh).
+The graphics library keeps track of them through a Ressource array that contains buffer handles and their respective sizes.
+In the core engine , mesh are purely represented by a simple handle (it would be easy to extend the API to let user query data about the meshes).
+
 
 ### Render loop
+The renderer uses deferred lighting and does not support several material (but exposes albedo and specular maps for each object).
+It uses fairly modern Vulkan paradigms:
+- Dynamic rendering
+- Bindless texture ressources
+- timeline semaphores
+Here is a short breakdown of the various passes
+#### Normal and specular pass
+This pass renders the normal vector and specular power of all geometry to a framebuffer and writes to the depth buffer.
+#### Light passes
+- Render light shapes without face culling or depth testing to limit the number of light shader invocations (don't do a full screen pass for a tiny point light in the distance).
+- Reconstruct position and normal of geometry from the normal and specular buffer and depth.
+- compute light contribution and store in accumulation buffers (one for diffuse, one for specular)
+#### shading pass
+Second geometry pass that compute final shading from the light acculumation buffers (also reuses the depth buffer to discard fragment faster).
+This pass outputs to swapchain if ImGui is not enabled (not runnning in editor mode).
+#### Optional _ ImGui
+
+If ImGui is enabled, it will pass the output framebuffer of the shading pass to ImGui to be rendered in the viewport.
 
 ### Componenent inspectors
 
