@@ -8,7 +8,6 @@ set(PHYSICS_SOURCES
         Core/src/Collider.cpp)
 
 set(PHYSICS_HEADERS
-        Core/include/Collisions.h
         API/include/PhysicsAPI.h
         Core/include/Collider.h
         Core/src/RigidBody.cpp
@@ -24,5 +23,5 @@ add_library(OsmiumPhysics STATIC ${PHYSICS_SOURCES}
 ${PHYSICS_HEADERS})
 target_link_libraries(OsmiumPhysics PRIVATE glm::glm)
 target_link_libraries(OsmiumPhysics PRIVATE OsmiumCommon)
-target_include_directories(OsmiumPhysics PRIVATE Core/include)
+target_include_directories(OsmiumPhysics PUBLIC Core/include)
 target_include_directories(OsmiumPhysics INTERFACE API/include)

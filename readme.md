@@ -118,3 +118,6 @@ If ImGui is enabled, it will pass the output framebuffer of the shading pass to 
 
 ### Componenent inspectors
 
+To add an inspector to a component, the user declares a specialization of RenderGameObjectComponentInspector<>() and add
+```static const bool registered_MyComponent = registerType<MyComponent>("MyComponent name");``` to the source file (outside any function body).
+This will register the function to a table during static initilization.

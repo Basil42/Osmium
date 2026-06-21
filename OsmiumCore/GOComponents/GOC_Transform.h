@@ -42,6 +42,7 @@ public:
     void setRotation(const glm::quat& newRotation);
     //[[nodiscard]] glm::vec3 getEulerRotation() const;
     [[nodiscard]] glm::mat4 getTransformMatrix() const;
+    [[nodiscard]] const glm::mat4& getTransformMatrixConstRef() const;
     void getTransformDecomposed(glm::vec3& translation,glm::quat& rotation,glm::vec3& scale)const;
     void getTransformDecomposed(glm::vec3& translation,glm::quat& rotation,glm::vec3& scale,glm::vec3 &skew, glm::vec4& perspective)const;
 

@@ -62,6 +62,11 @@ void GOC_Transform::setRotation(const glm::quat &newRotation) {
 glm::mat4 GOC_Transform::getTransformMatrix() const {
     return model;
 }
+
+const glm::mat4 & GOC_Transform::getTransformMatrixConstRef() const {
+    return model;
+}
+
 void GOC_Transform::getTransformDecomposed(glm::vec3& translation,glm::quat& rotation,glm::vec3& scale) const{
     translation = model[3];
     rotation = cachedRotation;

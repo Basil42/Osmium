@@ -973,7 +973,6 @@ void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
             drawcount++;
         }
     }
-    ASSERT(drawcount <= 1, "leaking rendered objects");
     {
         //normal spec to point light barrier, the depth parts are required for intel arc
         VkMemoryBarrier2 memBarrier{

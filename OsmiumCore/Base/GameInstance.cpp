@@ -13,6 +13,7 @@
 #include "../GOComponents/GOC_Transform.h"
 #include "../GOComponents/GOC_Camera.h"
 #include "ResourceArray.h"
+#include "GOComponents/GOC_Collider.h"
 #include "GOComponents/GOC_PointLight.h"
 #include "GOComponents/GOC_Spotlight.h"
 
@@ -51,6 +52,8 @@ void GameInstance::GameTick() {
         for (auto& game_object : *GameObjects) {
             game_object.UpdateComponents();
         }
+        //
+        GOC_Collider::CollisionStep();
 
         while (!gameObjectsDestructionQueue.empty()) {
             const GameObjectHandle obj = gameObjectsDestructionQueue.front();

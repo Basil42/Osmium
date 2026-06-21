@@ -12,6 +12,7 @@
 #define BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H
 #include <imgui.h>
 #include "ComponentInspector.h"
+#include "GOComponents/GOC_Collider.h"
 #include "GOComponents/GOC_Transform.h"
 
 
@@ -141,6 +142,25 @@ template<>
 }
     static const bool registered_GOC_PointLight = registerType<GOC_PointLight>("Point Light");
 
+    template<>
+    inline void RenderGameObjectComponentInspector<GOC_SphereCollider>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
+        auto comp = dynamic_cast<GOC_SphereCollider*>(gameObjectComponent);
+        float radius = comp->GetRadius();
+        if (ImGui::DragFloat("Radius", &radius)) {
+            comp->SetRadius(radius);
+        }
+    }
+    static const bool registered_GOC_SphereCollider = registerType<GOC_SphereCollider>("Sphere Collider");
+
+    template<>
+    inline void RenderGameObjectComponentInspector<GOC_BoxCollider>(ImGuiIO& io, GameObjectComponent* gameObjectComponent) {
+        auto comp = dynamic_cast<GOC_BoxCollider*>(gameObjectComponent);
+        glm::vec3 size = comp->GetSize();
+        if (ImGui::DragFloat3("Size",&size[0])) {
+            comp->SetSize(size);
+        }
+    }
+    static const bool registered_GOC_BoxCollider = registerType<GOC_BoxCollider>("Box Collider");
 }
 
 #endif //BUILTINGAMEOBJECTCOMPONENTINSPECTORS_H

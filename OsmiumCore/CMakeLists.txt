@@ -49,6 +49,8 @@ set(OSMIUMCORE_HEADERS
         AssetManagement/AssetType/TextureAsset.h
         GOComponents/GOC_Spotlight.cpp
         GOComponents/GOC_Spotlight.h
+        GOComponents/GOC_Collider.cpp
+        GOComponents/GOC_Collider.h
 )
 foreach (LIB OsmiumCore E_OsmiumCore)
 
@@ -61,7 +63,7 @@ add_library(${LIB} STATIC
 target_link_libraries(${LIB}  PUBLIC OsmiumGL)#should fix the lib to make it private at some point
 target_link_libraries(${LIB}  PRIVATE glm::glm)
 target_link_libraries(${LIB}  PUBLIC OsmiumCommon)
-target_link_libraries(${LIB}  PRIVATE OsmiumPhysics)
+target_link_libraries(${LIB}  PUBLIC OsmiumPhysics)
 target_include_directories(${LIB}  PUBLIC /)
 
 

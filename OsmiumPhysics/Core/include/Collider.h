@@ -10,14 +10,16 @@
 
 
 class Collider {
-    virtual ~Collider() = delete;
     template<typename T>//could constrian the type to be a collider
     bool isOf() {return (dynamic_cast<T*>(this) != NULL);}
 protected:
-    glm::mat4 transform = glm::mat4(1.0f);//cached transform value, can be updated by the rigidbody or manually
+    const glm::mat4* m_transform;
 public:
     virtual ShapeType shape() const = 0;
-    glm::mat4 getTransform() const {return transform;}
+    glm::mat4 getTransform() const {return *m_transform;}
+    void setTransform(const glm::mat4 &transform);
+    Collider(const glm::mat4 &transform) : m_transform(&transform) {}
+    virtual ~Collider() = default;
 };
 
 
@@ -28,26 +30,8 @@ class BoxCollider : public Collider {
 
 public:
     glm::vec3 size = {1.0f,1.0f,1.0f};
-    void getWorldVertices(std::array<glm::vec3,8>& array) const {//could cache these for static geometry as well
-        array = {
-            glm::vec3(-size.x/2.0f, -size.y/2.0f, -size.z/2.0f),
-            glm::vec3(size.x/2.0f, -size.y/2.0f, -size.z/2.0f),
-            glm::vec3(-size.x/2.0f, -size.y/2.0f, size.z/2.0f),
-            glm::vec3(size.x/2.0f, -size.y/2.0f, size.z/2.0f),
-            glm::vec3(-size.x/2.0f, size.y/2.0f, -size.z/2.0f),
-            glm::vec3(size.x/2.0f, size.y/2.0f, -size.z/2.0f),
-            glm::vec3(-size.x/2.0f, size.y/2.0f, size.z/2.0f),
-            glm::vec3(size.x/2.0f, size.y/2.0f, size.z/2.0f),
-        };
-
-
-
-        for (int i = 0; i < 8; i++) {
-            const glm::vec4 transformedVertex = transform*glm::vec4(array[i],1.0f);//maybe the array should be vec4
-            assert(transformedVertex.w == 1.0f);
-            array[i] = transformedVertex;
-        }
-    };
+    void getWorldVertices(std::array<glm::vec3,8>& array) const;
+    explicit BoxCollider(const glm::mat4& transform,const glm::vec3& size) : Collider(transform), size(size) {}
 };
 class SphereCollider : public Collider {
 public:
@@ -56,7 +40,7 @@ public:
     }
 
 public:
-
-    float radius = 1.0f;;
+    float Radius = 1.0f;
+    explicit SphereCollider(const glm::mat4& transform,const float radius) : Collider(transform), Radius(radius) {}
 };
 #endif //COLLIDER_H

@@ -12,7 +12,6 @@ class GameObjectComponent {
 protected:
     explicit GameObjectComponent(GameObject* parent);
     const GameObject& GetParent() const;
-private:
     GameObject* parent;
 
 public:
