@@ -120,4 +120,11 @@ If ImGui is enabled, it will pass the output framebuffer of the shading pass to 
 
 To add an inspector to a component, the user declares a specialization of RenderGameObjectComponentInspector<>() and add
 ```static const bool registered_MyComponent = registerType<MyComponent>("MyComponent name");``` to the source file (outside any function body).
-This will register the function to a table during static initilization.
+This will register the function to a table during static initilization. Unfortunately the componenent must have a valid copy constructor and =(&&MyComponent) operator, which must not be invoked in other context.
+
+### Collision
+Collision are checked for at the end of the Gameloop, when a collision is detected the component will call OnContactStart if there was no contact with this collider last frame, then it will call OnContactOngoing if it was notified this frame that it still overlapped the given collider, other it calls OnContactEnd.
+Collision response are very simple (just a text notification)
+
+## Known issue
+Creating a new gameobject sometimes put existing gameobject name string in an invalid state that can cause segfault if access by functions (except ImGui, somehow)
