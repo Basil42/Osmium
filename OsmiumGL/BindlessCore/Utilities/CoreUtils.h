@@ -75,6 +75,7 @@ struct ImageResource : Image
 {
   VkImageView   view{};    // Image view
   VkExtent2D    extent{};  // Size of the image
+  uint32_t      mipmapCount{};
   VkImageLayout layout{};  // Layout of the image (color attachment, shader read, ...)
 };
 
@@ -125,7 +126,7 @@ static void cmdInitImageLayout(VkCommandBuffer cmd, VkImage image, VkImageAspect
     .sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
     .srcStageMask  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
     .srcAccessMask = VK_ACCESS_2_NONE,
-    .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .dstStageMask  =  VK_PIPELINE_STAGE_2_TRANSFER_BIT,//removing compute stage because of ARC queue structure
     .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT,
     .oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED,
     .newLayout     = VK_IMAGE_LAYOUT_GENERAL,
@@ -1534,7 +1535,7 @@ public:
 
     // Create image in GPU memory
     VkImageCreateInfo imageInfo = _imageInfo;
-    imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;  // We will copy data to this image
+    imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT |VK_IMAGE_USAGE_TRANSFER_SRC_BIT;  // We will copy data to this image
     Image image = createImage(imageInfo);
 
     // Transition image layout for copying data

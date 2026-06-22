@@ -10,6 +10,7 @@
 #include "MeshSerialization.h"
 #include "SpotLights.h"
 #include "SyncUtils.h"
+#include "TextureSerialization.h"
 #include "volk.h"
 
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
@@ -192,6 +193,15 @@ void OsmiumBindlessInstance::RenderFrame() {
     if (prepareFrameResources()) {
         VkCommandBuffer cmd = beginCommandRecording();
 
+        {
+            std::unique_lock lock(MipMapgenQueueMutex);//really bad as it could hang the render thread (this is to accomodate ARC GPUs)
+            while (!MipMapGenerationQueue.empty()) {
+                utils::ImageResource& image = MipMapGenerationQueue.front();
+                generateMipMap(cmd,image.image,image.extent,image.mipmapCount);
+                MipMapGenerationQueue.pop();
+            }
+        }
+
         frameDrawCommands(cmd);
 
         SubmitFrame(cmd);
@@ -242,7 +252,13 @@ TextureHandle OsmiumBindlessInstance::LoadTexture(const std::filesystem::path &p
 
 TextureHandle OsmiumBindlessInstance::LoadTexture(const std::string &filename) {
     VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_context.getDevice(), m_loadingTransientCmdPool);
-    utils::ImageResource resource = loadAndCreateImage(cmd, filename);
+    std::filesystem::path path(filename);
+    utils::ImageResource resource;
+    if (!path.has_extension()) {
+        resource = loadAndCreateImageFromAssetFile(cmd,filename);
+    }else {
+        resource = loadAndCreateImageFromSource(cmd, filename);
+    }
     utils::endSingleTimeCommands(cmd, m_context.getDevice(), m_loadingTransientCmdPool, m_context.getLoadingQueue().queue);
     auto resourceIndex =  m_textures->Add(resource);
 
@@ -2067,7 +2083,7 @@ void OsmiumBindlessInstance::createGraphicsDescriptorSet() {
     }
 }
 
-utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename) {
+utils::ImageResource OsmiumBindlessInstance::loadAndCreateImageFromSource(VkCommandBuffer cmd, const std::string &filename) {
     // Load the image from disk
     int w, h, comp, req_comp{4};
     const stbi_uc *data = stbi_load(filename.c_str(), &w, &h, &comp, req_comp);
@@ -2106,6 +2122,111 @@ utils::ImageResource OsmiumBindlessInstance::loadAndCreateImage(VkCommandBuffer 
     };
     VK_CHECK(vkCreateImageView(m_context.getDevice(), &viewInfo, nullptr, &image.view));
     DBG_VK_NAME(image.view);
+
+    return image;
+}
+
+void OsmiumBindlessInstance::generateMipMap(VkCommandBuffer cmd, VkImage image, VkExtent2D extent,
+    unsigned short mip_map_count) {
+    VkImageMemoryBarrier barrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = image,
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        }
+    };
+
+    int32_t mipWidth = extent.width;
+    int32_t mipHeight = extent.height;
+    for (uint32_t i = 1; i < mip_map_count; i++) {
+        barrier.subresourceRange.baseMipLevel = i - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,0,nullptr,0,nullptr,1,&barrier);//unecessary transition with genreal layout
+        VkImageBlit blit = {
+            .srcSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = i - 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1},
+            .srcOffsets = {
+            {0,0,0},
+            {mipWidth,mipHeight,1}},
+            .dstSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = i,
+            .baseArrayLayer = 0,
+            .layerCount = 1},
+            .dstOffsets = {
+            {0,0,0},
+            {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight >1 ? mipHeight / 2 : 1,1}}
+        };
+        vkCmdBlitImage(cmd,image,VK_IMAGE_LAYOUT_GENERAL,image,VK_IMAGE_LAYOUT_GENERAL,1,&blit,VK_FILTER_LINEAR);
+        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,0,0,nullptr,0,nullptr,1,&barrier);
+        if (mipWidth > 1)mipWidth /= 2;
+        if (mipHeight > 1)mipHeight /= 2;
+    }
+    barrier.subresourceRange.baseMipLevel = mip_map_count -1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,0,0,nullptr,0,nullptr,1,&barrier);
+}
+
+utils::ImageResource OsmiumBindlessInstance::loadAndCreateImageFromAssetFile(VkCommandBuffer cmd,
+                                                                             const std::string &filename) {
+    Serialization::TextureSerializationData data;
+    Serialization::DeserializeTextureAsset(filename,data);
+    uint32_t maxMipLevels = std::floor(std::log2(std::max(data.dimensions[0], data.dimensions[1]))) +1;
+    if (data.MipMapCount > maxMipLevels) {
+        data.MipMapCount = maxMipLevels;
+        std::cerr << "clamping mip level due to texture dimension for texture " << filename << std::endl;
+    }
+    const VkImageCreateInfo imageInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = data.format,
+        .extent = {data.dimensions[0],data.dimensions[1],1},
+        .mipLevels = data.MipMapCount,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
+    };
+    const std::span dataSpan(data.data.data(),static_cast<unsigned int>(data.dimensions[0] * data.dimensions[1] * 4));
+    utils::ImageResource image = m_allocator.createImageAndUploadData(cmd, dataSpan, imageInfo, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    DBG_VK_NAME(image.image);
+    image.extent = {
+    .width = static_cast<uint32_t>(data.dimensions[0]),
+    .height = static_cast<uint32_t>(data.dimensions[1]),
+    };
+    image.mipmapCount = data.MipMapCount;
+    {
+        std::unique_lock lock(MipMapgenQueueMutex);
+        MipMapGenerationQueue.emplace(image);
+    }
+    const VkImageViewCreateInfo viewInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image.image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = data.format,
+        .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,.levelCount = data.MipMapCount,.layerCount = 1},
+    };
+    VK_CHECK(vkCreateImageView(m_context.getDevice(), &viewInfo, nullptr, &image.view));
+    DBG_VK_NAME(image.view);
+
 
     return image;
 }

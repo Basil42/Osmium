@@ -5,6 +5,7 @@
 #ifndef OSMIUMBINDLESSCORE_H
 #define OSMIUMBINDLESSCORE_H
 #include <map>
+#include <queue>
 #include <shared_mutex>
 #include <string>
 #include <vector>
@@ -14,6 +15,7 @@
 #include "SceneData.h"
 #include "CoreUtils.h"
 #include "SpotLights.h"
+#include "TextureSerialization.h"
 
 
 struct DirectionalLightPushConstants;
@@ -129,7 +131,11 @@ private:
 
     void updateGraphicsDescriptorSet();
 
-    utils::ImageResource loadAndCreateImage(VkCommandBuffer cmd, const std::string &filename);
+    utils::ImageResource loadAndCreateImageFromSource(VkCommandBuffer cmd, const std::string &filename);
+
+    void generateMipMap(VkCommandBuffer cmd, VkImage image, VkExtent2D extent, unsigned short mip_map_count);
+
+    utils::ImageResource loadAndCreateImageFromAssetFile(VkCommandBuffer cmd, const std::string &filename);
 
     void createDefaultTextureImage();
 
@@ -191,6 +197,9 @@ private:
     VkDescriptorSetLayout m_LightPassDescriptorLayout{};
     VkDescriptorSetLayout m_ShadingDescriptorSetLayout{};
     VkDescriptorSet m_textureDescriptorSet{}; // Application descriptor set (storing all textures)
+
+    std::mutex MipMapgenQueueMutex;
+    std::queue<utils::ImageResource> MipMapGenerationQueue;
 
     // Frame resources and synchronization
     struct FrameData {
