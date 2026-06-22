@@ -106,8 +106,8 @@ void GOC_MeshRenderer::SetAlbedoMap(AssetId asset_id) {
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
         MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index].shadingData.albedoMapIndex = handle;
-        //TODO update operation queueing
         albedoMapAssetHandle = asset->id;
+        RenderedObjectsOperationQueue.emplace(RenderedObjectOperationType::Modify,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);
         std::cout << "marked object for renderer upate" << std::endl;
     });
 }
@@ -120,9 +120,8 @@ void GOC_MeshRenderer::SetSpecularMap(AssetId asset_id) {
     AssetManager::LoadAsset(asset_id,[this](Asset *asset) {
         const TextureHandle handle = dynamic_cast<TextureAsset *>(asset)->GetTextureHandle();
         MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index].shadingData.specularMapIndex = handle;
-        //TODO update operation queueing
-
         specularMapAssetHandle = asset->id;
+        RenderedObjectsOperationQueue.emplace(RenderedObjectOperationType::Modify,m_renderedObjectHandle.mesh,m_renderedObjectHandle.index,MeshRendererPushConstantsStagingArrays[writeArrayIndex][m_renderedObjectHandle.mesh][m_renderedObjectHandle.index]);
     });
 }
 

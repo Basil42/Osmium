@@ -146,15 +146,16 @@ static void cmdTransitionSwapchainLayout(VkCommandBuffer cmd, VkImage image, VkI
   VkPipelineStageFlags2 srcStage = 0, dstStage = 0;
   VkAccessFlags2        srcAccess = 0, dstAccess = 0;
 
-  if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-  {
-    // Swapchain initialization
-    srcStage  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-    srcAccess = VK_ACCESS_2_NONE;
-    dstStage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dstAccess = VK_ACCESS_2_NONE;
-  }
-  else if(oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_GENERAL)
+  // if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_GENERAL)
+  // {
+  //   // Swapchain initialization
+  //   srcStage  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+  //   srcAccess = VK_ACCESS_2_NONE;
+  //   dstStage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+  //   dstAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+  // }
+  // else
+    if((oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR || oldLayout == VK_IMAGE_LAYOUT_UNDEFINED) && newLayout == VK_IMAGE_LAYOUT_GENERAL)
   {
     // Before rendering
     srcStage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1042,15 +1043,15 @@ public:
       DBG_VK_NAME(m_frameResources[i].renderFinishedSemaphore);
     }
 
-    // Transition images to present layout
-    {
-      VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_device, m_cmdPool);
-      for(uint32_t i = 0; i < m_maxFramesInFlight; i++)
-      {
-        cmdTransitionSwapchainLayout(cmd, m_nextImages[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-      }
-      utils::endSingleTimeCommands(cmd, m_device, m_cmdPool, m_queue.queue);
-    }
+    // // Transition images to present layout
+    // {
+    //   VkCommandBuffer cmd = utils::beginSingleTimeCommands(m_device, m_cmdPool);
+    //   for(uint32_t i = 0; i < m_maxFramesInFlight; i++)
+    //   {
+    //     cmdTransitionSwapchainLayout(cmd, m_nextImages[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    //   }
+    //   utils::endSingleTimeCommands(cmd, m_device, m_cmdPool, m_queue.queue);
+    // }
 
     return outWindowSize;
   }

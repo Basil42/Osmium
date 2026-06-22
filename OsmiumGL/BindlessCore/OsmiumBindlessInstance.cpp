@@ -201,7 +201,7 @@ void OsmiumBindlessInstance::RenderFrame() {
                 MipMapGenerationQueue.pop();
             }
         }
-
+        //utils::cmdTransitionSwapchainLayout(cmd,m_swapchain[frame])
         frameDrawCommands(cmd);
 
         SubmitFrame(cmd);
@@ -669,7 +669,6 @@ void OsmiumBindlessInstance::frameDrawCommands(VkCommandBuffer cmd) {
     //I like it on paper as it could be more flexible, however, it feels less optimal than color attachments (that would be annoying to test though)
 
 
-
     //recordComputeCommands(cmd); //the sample uses the compute shader to update the vertex buffer, which seems nonsensical so far, but I'll look it up later
     RecordGraphicsCommands(cmd);
 
@@ -719,7 +718,6 @@ void OsmiumBindlessInstance::frameDrawCommands(VkCommandBuffer cmd) {
         .pColorAttachments = colorAttachments.data(),
     };
     vkCmdBeginRendering(cmd, &renderingInfo);
-
     Sync::SynchronizationManager::Wait(Sync::SYNC_STAGE_RENDER_IMGUI_FRAME_END,m_frameData[m_frameRingCurrent].frameNumber);
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
@@ -836,7 +834,7 @@ void OsmiumBindlessInstance::updateSceneBuffers(VkCommandBuffer cmd) const {
 void OsmiumBindlessInstance::RecordGraphicsCommands(VkCommandBuffer cmd) {
     DBG_VK_SCOPE(cmd); //sample uses this for NSight, which I'll look into if Arc supports it
 
-    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(),VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    utils::cmdTransitionSwapchainLayout(cmd, m_swapchain.getImage(),VK_IMAGE_LAYOUT_UNDEFINED,
                                         VK_IMAGE_LAYOUT_GENERAL);//needed for either color output or imgui
     updateSceneBuffers(cmd);
 
@@ -1889,13 +1887,18 @@ void OsmiumBindlessInstance::createDescriptorPool() {
     if (m_imGuiEnabled){
         uint32_t uiPoolSize = std::min(20U, deviceProperties.limits.maxDescriptorSetSampledImages);
         uint32_t maxDescriptorSets = std::min(uiPoolSize, deviceProperties.limits.maxDescriptorSetUniformBuffers);
-        VkDescriptorPoolSize poolSize = {.type=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount=uiPoolSize};
+        std::array<VkDescriptorPoolSize,3> poolSizes = {
+            {
+                {.type=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount=uiPoolSize},
+                {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,.descriptorCount = uiPoolSize},
+                {.type = VK_DESCRIPTOR_TYPE_SAMPLER,.descriptorCount = uiPoolSize}
+            }};
         VkDescriptorPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
             .maxSets = maxDescriptorSets,
-            .poolSizeCount = 1,
-            .pPoolSizes = &poolSize,
+            .poolSizeCount = poolSizes.size(),
+            .pPoolSizes = poolSizes.data(),
         };
 
         VK_CHECK(vkCreateDescriptorPool(m_context.getDevice(), &poolInfo, nullptr, &m_uiDescriptorPool));
